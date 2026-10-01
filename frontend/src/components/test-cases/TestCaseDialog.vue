@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useLayout } from 'vuetify'
 import type { VForm, VTextarea } from 'vuetify/components'
 import FoxImageUpload from '@/components/ui/FoxImageUpload.vue'
 import TestCaseAuditList from './TestCaseAuditList.vue'
@@ -63,6 +64,17 @@ function linkLegacyRequirement() {
 
 const requirementRule = (v: string) => hasLinkedRequirement.value || !!v?.trim() || 'เลือก Requirement ที่เกี่ยวข้อง หรือระบุ Requirement เป็นข้อความ'
 const { canEdit, canCreate, allowedStatuses } = useTestCasePermissions()
+
+// the sheet fills the main content area, whatever the drawers do (full, rail, hidden, right aside)
+const { mainRect } = useLayout()
+const sheetStyle = computed(() => ({
+  left: `${mainRect.value.left}px`,
+  right: `${mainRect.value.right}px`,
+  width: 'auto',
+  maxWidth: 'none',
+  height: `calc(100vh - ${mainRect.value.top + 16}px)`,
+  marginInline: '0',
+}))
 
 const formRef = ref<VForm>()
 const tab = ref<Tab>('spec')
@@ -218,9 +230,10 @@ const rules = { required }
 </script>
 
 <template>
-  <v-dialog v-model="open" max-width="920" persistent>
-    <v-card>
-      <div class="d-flex align-center justify-space-between fox-card-body pb-2">
+  <!-- bottom sheet over the content area (below the app bar, beside the drawer): same size for every tab -->
+  <v-bottom-sheet v-model="open" persistent :content-props="{ style: sheetStyle }">
+    <v-card class="d-flex flex-column h-100 rounded-b-0">
+      <div class="d-flex align-center justify-space-between fox-card-body pb-2 flex-shrink-0">
         <div class="overflow-hidden">
           <div class="d-flex flex-wrap align-center ga-2">
             <h2 class="text-h5">{{ title }}</h2>
@@ -233,7 +246,7 @@ const rules = { required }
         <v-btn icon="tabler:x" variant="text" size="small" aria-label="ปิด" @click="open = false" />
       </div>
 
-      <v-tabs v-model="tab" show-arrows class="px-4">
+      <v-tabs v-model="tab" show-arrows class="px-4 flex-shrink-0">
         <v-tab value="spec" prepend-icon="tabler:clipboard-text">ข้อกำหนด</v-tab>
         <v-tab value="steps" prepend-icon="tabler:list-numbers">
           ขั้นตอน <span class="text-caption text-muted fox-num ml-1">{{ form.steps.length }}</span>
@@ -243,7 +256,8 @@ const rules = { required }
       </v-tabs>
       <v-divider />
 
-      <v-card-text class="fox-card-body">
+      <!-- only the body scrolls: header, tabs and the save bar stay put -->
+      <v-card-text class="fox-card-body flex-grow-1 overflow-y-auto tc-sheet__body">
         <v-form ref="formRef" :readonly="readonly" @submit.prevent="submit">
           <v-window v-model="tab">
             <!-- SPEC -->
@@ -489,10 +503,10 @@ const rules = { required }
       </v-card-text>
 
       <v-divider />
-      <v-alert v-if="invalidatesPass" type="warning" variant="tonal" density="compact" icon="tabler:refresh-alert" class="mx-4 mt-4" rounded="lg">
+      <v-alert v-if="invalidatesPass" type="warning" variant="tonal" density="compact" icon="tabler:refresh-alert" class="mx-4 mt-4 flex-shrink-0" rounded="lg">
         เคสนี้ผ่านการทดสอบแล้ว เมื่อบันทึกการแก้ไขข้อกำหนด ผลผ่านของ {{ testCase?.version }} จะถูกยกเลิก และสถานะกลับเป็น "พร้อมให้ทดสอบ"
       </v-alert>
-      <div class="d-flex flex-wrap align-center ga-3 fox-card-body py-4">
+      <div class="d-flex flex-wrap align-center ga-3 fox-card-body py-4 flex-shrink-0">
         <span class="text-body-2 text-muted">{{ readonly ? 'บทบาทของคุณดูได้อย่างเดียว' : 'ช่องที่มี * จำเป็นต้องกรอก' }}</span>
         <v-spacer />
         <v-btn variant="outlined" @click="open = false">{{ readonly ? 'ปิด' : 'ยกเลิก' }}</v-btn>
@@ -501,10 +515,15 @@ const rules = { required }
         </v-btn>
       </div>
     </v-card>
-  </v-dialog>
+  </v-bottom-sheet>
 </template>
 
 <style scoped>
+/* lets the body shrink below its content height, so it scrolls instead of squeezing the tabs */
+.tc-sheet__body {
+  min-height: 0;
+}
+
 .tc-steps th:first-child {
   width: 48px;
 }
