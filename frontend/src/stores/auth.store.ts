@@ -1,33 +1,68 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import type { PermissionKey, RolePermission, User, UserRole } from '@/types'
+import type { Option, PermissionKey, Role, RoleDiscipline, RoleInput, User } from '@/types'
 import * as api from '@/services/user.service'
+import * as roleApi from '@/services/role.service'
+import { NO_ROLE } from '@/services/role.service'
+import { useAuditStore } from './audit.store'
 
-// Session (mock login / role switching), users and the RBAC matrix
+// Session (mock login / user switching), users and their role groups
 export const useAuthStore = defineStore('auth', () => {
   const users = ref<User[]>([])
-  const permissions = ref<RolePermission[]>([])
+  const roles = ref<Role[]>([])
   const currentUser = ref<User>(api.MOCK_USERS[0])
 
-  const currentRolePermissions = computed(
-    () => permissions.value.find((p) => p.role === currentUser.value.role) ?? permissions.value[0],
-  )
+  const roleById = (id: string | null | undefined) => (id ? roles.value.find((r) => r.id === id) ?? null : null)
+  /** null: a new user without a role (sees only the dashboard and settings) */
+  const currentRole = computed(() => roleById(currentUser.value.roleId))
+  /** the built-in Admin role: every permission, and the only one that manages users, roles, teams and projects */
+  const isAdmin = computed(() => currentRole.value?.builtIn === 'admin')
+  const hasRole = computed(() => !!currentRole.value)
 
   async function load() {
-    const [list, perms, session] = await Promise.all([api.fetchUsers(), api.fetchPermissions(), api.fetchSession()])
+    const [list, roleList, session] = await Promise.all([api.fetchUsers(), roleApi.fetchRoles(), api.fetchSession()])
     users.value = list
-    permissions.value = perms
+    roles.value = roleList
     currentUser.value = list.find((u) => u.id === session.id) ?? list[0] ?? session
   }
+
+  function can(key: PermissionKey): boolean {
+    return isAdmin.value || !!currentRole.value?.permissions.includes(key)
+  }
+
+  /** how a user's role is shown (chip label, tone, icon) */
+  function roleOf(user: Pick<User, 'roleId'>): Option {
+    const role = roleById(user.roleId)
+    return role ? { value: role.id, label: role.name, tone: role.tone, icon: role.icon, hint: role.description } : NO_ROLE
+  }
+
+  /** role pickers: "no role" first, then every role (value = role id, null = no role) */
+  const roleOptions = computed(() => [
+    { value: null as string | null, label: NO_ROLE.label, hint: NO_ROLE.hint, tone: NO_ROLE.tone, icon: NO_ROLE.icon },
+    ...roles.value.map((r) => ({ value: r.id as string | null, label: r.name, hint: r.description, tone: r.tone, icon: r.icon })),
+  ])
+
+  /** people for the QA / Developer pickers and "my work" */
+  const usersIn = (discipline: RoleDiscipline) => users.value.filter((u) => roleById(u.roleId)?.discipline === discipline)
 
   async function loginAs(user: User) {
     currentUser.value = await api.login(user.id)
   }
 
-  async function updateUserRole(userId: string, role: UserRole) {
-    const saved = await api.updateUser(userId, { role })
+  const audit = () => useAuditStore()
+
+  async function updateUserRole(userId: string, roleId: string | null) {
+    const before = users.value.find((u) => u.id === userId)
+    const saved = await api.updateUser(userId, { roleId })
     users.value = users.value.map((u) => (u.id === userId ? saved : u))
     if (currentUser.value.id === userId) currentUser.value = saved
+    audit().record({
+      action: 'UPDATE',
+      targetType: 'PROJECT',
+      targetId: userId,
+      targetTitle: saved.name,
+      details: `เปลี่ยน Role ของ ${saved.name}: ${before ? roleOf(before).label : '-'} → ${roleOf(saved).label}`,
+    })
   }
 
   async function addUser(input: Omit<User, 'id'>): Promise<User> {
@@ -36,14 +71,40 @@ export const useAuthStore = defineStore('auth', () => {
     return user
   }
 
-  async function updatePermission(role: UserRole, patch: Partial<RolePermission>) {
-    const saved = await api.updatePermission(role, patch)
-    permissions.value = permissions.value.map((p) => (p.role === role ? saved : p))
+  async function saveRole(input: RoleInput): Promise<Role> {
+    const saved = await roleApi.saveRole(input)
+    const i = roles.value.findIndex((r) => r.id === saved.id)
+    if (i >= 0) roles.value[i] = saved
+    else roles.value.push(saved)
+    audit().record({
+      action: input.id ? 'UPDATE' : 'CREATE',
+      targetType: 'PROJECT',
+      targetId: saved.id,
+      targetTitle: `Role ${saved.name}`,
+      details: `${input.id ? 'แก้ไข' : 'สร้าง'} Role ${saved.name} (${saved.permissions.length} สิทธิ์)`,
+    })
+    return saved
   }
 
-  function can(key: PermissionKey): boolean {
-    return !!currentRolePermissions.value?.[key]
+  /** delete a role; its users move to `moveTo` (or have no role) */
+  async function deleteRole(id: string, moveTo: string | null) {
+    const target = roleById(id)
+    const moved = await roleApi.deleteRole(id, moveTo)
+    roles.value = roles.value.filter((r) => r.id !== id)
+    const movedIds = new Set(moved.map((u) => u.id))
+    users.value = users.value.map((u) => (movedIds.has(u.id) ? { ...u, roleId: moveTo } : u))
+    if (movedIds.has(currentUser.value.id)) currentUser.value = { ...currentUser.value, roleId: moveTo }
+    audit().record({
+      action: 'DELETE',
+      targetType: 'PROJECT',
+      targetId: id,
+      targetTitle: `Role ${target?.name ?? id}`,
+      details: `ลบ Role ${target?.name ?? id}${moved.length ? ` ย้ายผู้ใช้ ${moved.length} คนไป ${roleOf({ roleId: moveTo }).label}` : ''}`,
+    })
   }
 
-  return { users, permissions, currentUser, currentRolePermissions, load, loginAs, updateUserRole, addUser, updatePermission, can }
+  return {
+    users, roles, currentUser, currentRole, isAdmin, hasRole,
+    roleOptions, load, can, roleOf, roleById, usersIn, loginAs, updateUserRole, addUser, saveRole, deleteRole,
+  }
 })

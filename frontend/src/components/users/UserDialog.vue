@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import type { VForm } from 'vuetify/components'
-import { DEFAULT_AVATAR, ROLES } from '@/services/user.service'
+import { DEFAULT_AVATAR } from '@/services/user.service'
+import { useAuthStore } from '@/stores/auth.store'
 import type { User } from '@/types'
 import * as v from '@/utils/validators'
 
@@ -10,7 +12,10 @@ withDefaults(defineProps<{ loading?: boolean }>(), { loading: false })
 const emit = defineEmits<{ save: [user: Omit<User, 'id'>] }>()
 
 const formRef = ref<VForm>()
-const empty = (): Omit<User, 'id'> => ({ name: '', email: '', title: '', role: 'DEV', avatar: DEFAULT_AVATAR })
+const empty = (): Omit<User, 'id'> => ({ name: '', email: '', title: '', roleId: null, avatar: DEFAULT_AVATAR })
+
+// roles created on the "Role และสิทธิ์" page; a user may start without one
+const { roleOptions } = storeToRefs(useAuthStore())
 const form = reactive(empty())
 
 watch(open, (isOpen) => isOpen && Object.assign(form, empty()), { immediate: true })
@@ -48,8 +53,8 @@ async function submit() {
               <v-text-field id="usr-title" v-model="form.title" placeholder="เช่น Frontend Engineer" />
             </v-col>
             <v-col cols="12" sm="6">
-              <label class="fox-label" for="usr-role">Role *</label>
-              <v-select id="usr-role" v-model="form.role" :items="ROLES" item-title="label" item-value="value">
+              <label class="fox-label" for="usr-role">Role</label>
+              <v-select id="usr-role" v-model="form.roleId" :items="roleOptions" item-title="label" item-value="value">
                 <template #item="{ props: item, item: { raw } }">
                   <v-list-item v-bind="item" :prepend-icon="raw.icon" :subtitle="raw.hint" :base-color="raw.tone" />
                 </template>

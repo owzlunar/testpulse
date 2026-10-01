@@ -5,7 +5,6 @@ import { storeToRefs } from 'pinia'
 import type { VForm } from 'vuetify/components'
 import AppLogo from '@/components/layout/AppLogo.vue'
 import UserAvatar from '@/components/users/UserAvatar.vue'
-import { roleOf } from '@/services/user.service'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useAuthStore } from '@/stores/auth.store'
 import type { User } from '@/types'
@@ -82,7 +81,7 @@ const highlights: { icon: string; text: string }[] = [
                 <div class="text-subtitle-2 text-truncate">{{ u.name }}</div>
                 <div class="text-caption text-muted text-truncate">{{ u.email }}</div>
               </div>
-              <v-chip :color="roleOf(u.role).tone" size="x-small" variant="tonal">{{ roleOf(u.role).label }}</v-chip>
+              <v-chip :color="auth.roleOf(u).tone" size="x-small" variant="tonal">{{ auth.roleOf(u).label }}</v-chip>
             </div>
           </v-card>
         </div>

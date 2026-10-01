@@ -22,7 +22,7 @@ const props = withDefaults(
 )
 const emit = defineEmits<{ save: [input: DefectInput] }>()
 
-const { users } = storeToRefs(useAuthStore())
+const auth = useAuthStore()
 const { currentProject, currentCases } = storeToRefs(useProjectStore())
 
 const formRef = ref<VForm>()
@@ -40,7 +40,7 @@ watch(open, (isOpen) => {
   Object.assign(form, empty(), src)
 }, { immediate: true })
 
-const devs = computed(() => users.value.filter((u) => u.role === 'DEV').map((u) => u.name))
+const devs = computed(() => auth.usersIn('dev').map((u) => u.name))
 const caseOptions = computed(() => [
   // keep showing the link of a defect whose case was deleted until another case is picked
   ...(form.caseId && form.caseDeleted ? [{ title: `${form.caseId} (ลบแล้ว)`, value: form.caseId }] : []),

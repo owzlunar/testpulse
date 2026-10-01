@@ -17,7 +17,7 @@ withDefaults(defineProps<{ loading?: boolean }>(), { loading: false })
 const emit = defineEmits<{ save: [input: TestRunInput] }>()
 
 const runStore = useRunStore()
-const { users } = storeToRefs(useAuthStore())
+const auth = useAuthStore()
 const { currentProject, currentCases } = storeToRefs(useProjectStore())
 
 const formRef = ref<VForm>()
@@ -29,7 +29,7 @@ const form = reactive<TestRunInput>(empty())
 
 const lastRun = computed(() => runStore.current[0] ?? null)
 const nameOptions = computed(() => [...new Set(runStore.current.map((r) => r.name))])
-const qaUsers = computed(() => users.value.filter((u) => u.role === 'QA').map((u) => u.name))
+const qaUsers = computed(() => auth.usersIn('qa').map((u) => u.name))
 
 watch(open, (isOpen) => {
   if (!isOpen) return

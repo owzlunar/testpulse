@@ -15,6 +15,7 @@ import { useSnackbar } from '@/composables/useSnackbar'
 import { useTestCasePermissions } from '@/composables/useTestCasePermissions'
 import { defectStatusOf } from '@/services/defect.service'
 import { RESULT_STATUSES, deriveResult, resultOf, runCounts, runStatusOf, runTypeOf } from '@/services/run.service'
+import { useAuthStore } from '@/stores/auth.store'
 import { useDefectStore } from '@/stores/defect.store'
 import { useRunStore } from '@/stores/run.store'
 import { useTestCaseStore } from '@/stores/test-case.store'
@@ -27,6 +28,8 @@ const defectStore = useDefectStore()
 const testCaseStore = useTestCaseStore()
 const { loaded } = storeToRefs(runStore)
 const { canExecute } = useTestCasePermissions()
+const auth = useAuthStore()
+const canCloseRun = computed(() => auth.can('run.close'))
 const { snackbar, notify } = useSnackbar()
 const loader = useAsyncAction()
 const saver = useAsyncAction()
@@ -176,7 +179,7 @@ function complete() {
         <v-btn variant="outlined" prepend-icon="tabler:file-description" :to="{ path: '/documents', query: { create: run.type === 'uat' ? 'uat' : 'test_summary', runId: run.id } }">
           สร้างเอกสาร
         </v-btn>
-        <v-btn v-if="run.status !== 'completed' && canExecute" color="success" prepend-icon="tabler:flag-check" @click="confirmComplete = true">ปิดรอบ</v-btn>
+        <v-btn v-if="run.status !== 'completed' && canCloseRun" color="success" prepend-icon="tabler:flag-check" @click="confirmComplete = true">ปิดรอบ</v-btn>
       </template>
     </FoxPageHeader>
 

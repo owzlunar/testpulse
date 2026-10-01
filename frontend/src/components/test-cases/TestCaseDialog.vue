@@ -37,7 +37,7 @@ const props = withDefaults(
 const emit = defineEmits<{ save: [input: TestCaseInput] }>()
 
 const auth = useAuthStore()
-const { users, currentUser } = storeToRefs(auth)
+const { currentUser } = storeToRefs(auth)
 const { currentProject, currentCases } = storeToRefs(useProjectStore())
 const testCaseStore = useTestCaseStore()
 const requirementStore = useRequirementStore()
@@ -132,12 +132,13 @@ const parentOptions = computed(() => [
   { title: '— ไม่มี (เป็น Test Case หลัก) —', value: null },
   ...currentCases.value.filter((tc) => !tc.parentId && tc.id !== props.testCase?.id).map((tc) => ({ title: `${tc.id}: ${tc.name}`, value: tc.id })),
 ])
-const peopleOf = (role: 'DEV' | 'QA', current?: string) => {
-  const names = users.value.filter((u) => u.role === role).map((u) => u.name)
+// people by the discipline of their role (QA Lead and QA Tester are both QA)
+const peopleOf = (discipline: 'dev' | 'qa', current?: string) => {
+  const names = auth.usersIn(discipline).map((u) => u.name)
   return current && !names.includes(current) ? [current, ...names] : names
 }
-const devOptions = computed(() => peopleOf('DEV', form.assignedDev))
-const qaOptions = computed(() => peopleOf('QA', form.assignedTo))
+const devOptions = computed(() => peopleOf('dev', form.assignedDev))
+const qaOptions = computed(() => peopleOf('qa', form.assignedTo))
 // a role that can't give verdicts still sees the current status in the list
 const statusOptions = computed(() =>
   STATUSES.filter((s) => s.value === form.status || allowedStatuses.value.some((a) => a.value === s.value)),

@@ -9,21 +9,23 @@ import UserAvatar from '@/components/users/UserAvatar.vue'
 import UserDialog from '@/components/users/UserDialog.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useSnackbar } from '@/composables/useSnackbar'
-import { ROLES, roleOf } from '@/services/user.service'
+import { ADMIN_ROLE_ID } from '@/services/role.service'
 import { useAuthStore } from '@/stores/auth.store'
-import type { User, UserRole } from '@/types'
+import type { User } from '@/types'
 
 const auth = useAuthStore()
-const { users, currentUser } = storeToRefs(auth)
+const { users, currentUser, roles, roleOptions } = storeToRefs(auth)
 const { snackbar, notify } = useSnackbar()
 const { busy: saving, run } = useAsyncAction()
 
 const search = ref('')
-const role = ref<UserRole | null>(null)
+// filter: a role id, 'none' (no role yet) or null (all)
+const role = ref<string | null>(null)
+const roleFilters = computed(() => roleOptions.value.map((o) => ({ ...o, value: o.value ?? 'none' })))
 const filtered = computed(() => {
   const q = search.value?.trim().toLowerCase() ?? ''
   return users.value.filter(
-    (u) => (!q || `${u.name} ${u.email} ${u.title ?? ''}`.toLowerCase().includes(q)) && (!role.value || u.role === role.value),
+    (u) => (!q || `${u.name} ${u.email} ${u.title ?? ''}`.toLowerCase().includes(q)) && (!role.value || (u.roleId ?? 'none') === role.value),
   )
 })
 
@@ -40,17 +42,19 @@ const headers = [
 
 const stats = computed(() => [
   { label: 'ผู้ใช้ทั้งหมด', value: users.value.length, icon: 'tabler:users', tone: 'primary' as const },
-  ...ROLES.map((r) => ({ label: r.label, value: users.value.filter((u) => u.role === r.value).length, icon: r.icon, tone: r.tone })),
+  { label: 'รอกำหนด Role', value: users.value.filter((u) => !u.roleId).length, icon: 'tabler:user-question', tone: 'warning' as const },
+  { label: 'Role ทั้งหมด', value: roles.value.length, icon: 'tabler:shield-lock', tone: 'info' as const },
+  { label: 'Admin', value: users.value.filter((u) => u.roleId === ADMIN_ROLE_ID).length, icon: 'tabler:user-shield', tone: 'success' as const },
 ])
 
 const dialog = ref(false)
 
-function changeRole(u: User, r: UserRole) {
-  run(() => auth.updateUserRole(u.id, r), () => notify(`เปลี่ยน Role ของ ${u.name} เป็น ${roleOf(r).label} แล้ว`))
+function changeRole(u: User, roleId: string | null) {
+  run(() => auth.updateUserRole(u.id, roleId), () => notify(`เปลี่ยน Role ของ ${u.name} เป็น ${auth.roleOf({ roleId }).label} แล้ว`))
 }
 
 function switchTo(u: User) {
-  run(() => auth.loginAs(u), () => notify(`สลับเป็น ${u.name} (${roleOf(u.role).label}) แล้ว`))
+  run(() => auth.loginAs(u), () => notify(`สลับเป็น ${u.name} (${auth.roleOf(u).label}) แล้ว`))
 }
 
 function onSave(input: Omit<User, 'id'>) {
@@ -85,7 +89,7 @@ function onSave(input: Omit<User, 'id'>) {
             <v-text-field v-model="search" density="compact" placeholder="ค้นหาชื่อ อีเมล หรือตำแหน่ง" prepend-inner-icon="tabler:search" aria-label="ค้นหาผู้ใช้" clearable />
           </v-col>
           <v-col cols="12" sm="6" md="3">
-            <v-select v-model="role" :items="ROLES" item-title="label" item-value="value" density="compact" placeholder="ทุก Role" aria-label="Role" clearable />
+            <v-select v-model="role" :items="roleFilters" item-title="label" item-value="value" density="compact" placeholder="ทุก Role" aria-label="Role" clearable />
           </v-col>
         </v-row>
       </div>
@@ -109,8 +113,8 @@ function onSave(input: Omit<User, 'id'>) {
         </template>
         <template #[`item.role`]="{ item }">
           <v-select
-            :model-value="item.role"
-            :items="ROLES"
+            :model-value="item.roleId"
+            :items="roleOptions"
             item-title="label"
             item-value="value"
             density="compact"

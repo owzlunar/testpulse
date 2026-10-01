@@ -13,6 +13,7 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useSnackbar } from '@/composables/useSnackbar'
 import { useTestCasePermissions } from '@/composables/useTestCasePermissions'
 import { RUN_STATUSES, runCounts, runStatusOf, runTypeOf } from '@/services/run.service'
+import { useAuthStore } from '@/stores/auth.store'
 import { useRunStore } from '@/stores/run.store'
 import type { RunStatus, TestRun, TestRunInput, Tone } from '@/types'
 import { formatDateTH } from '@/utils/date'
@@ -21,6 +22,8 @@ const router = useRouter()
 const store = useRunStore()
 const { current, loaded } = storeToRefs(store)
 const { canExecute } = useTestCasePermissions()
+const auth = useAuthStore()
+const canCreateRun = computed(() => auth.can('run.create'))
 const { snackbar, notify } = useSnackbar()
 const { busy: saving, run } = useAsyncAction()
 
@@ -65,7 +68,7 @@ function onDelete() {
 <template>
   <FoxPageHeader title="รอบการทดสอบ" :breadcrumbs="[{ title: 'Test Runs' }]">
     <template #actions>
-      <v-btn v-if="canExecute" color="primary" prepend-icon="tabler:plus" @click="dialog = true">สร้างรอบการทดสอบ</v-btn>
+      <v-btn v-if="canCreateRun" color="primary" prepend-icon="tabler:plus" @click="dialog = true">สร้างรอบการทดสอบ</v-btn>
     </template>
   </FoxPageHeader>
 
@@ -122,7 +125,7 @@ function onDelete() {
 
     <v-card v-if="!filtered.length">
       <FoxEmptyState icon="tabler:player-play" title="ยังไม่มีรอบการทดสอบ" text="สร้างรอบเพื่อบันทึกผลรายขั้นตอนและหลักฐาน แล้วนำไปออกเอกสารได้ทันที">
-        <v-btn v-if="canExecute" class="mt-3" color="primary" prepend-icon="tabler:plus" @click="dialog = true">สร้างรอบการทดสอบ</v-btn>
+        <v-btn v-if="canCreateRun" class="mt-3" color="primary" prepend-icon="tabler:plus" @click="dialog = true">สร้างรอบการทดสอบ</v-btn>
       </FoxEmptyState>
     </v-card>
   </div>

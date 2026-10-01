@@ -17,6 +17,7 @@ import {
   COVERAGE, REQUIREMENT_STATUSES, casesForRequirement, coverageOf, coverageStatus, requirementStatusOf, requirementTypeOf,
 } from '@/services/requirement.service'
 import { statusOf } from '@/services/test-case.service'
+import { useAuthStore } from '@/stores/auth.store'
 import { useProjectStore } from '@/stores/project.store'
 import { useRequirementStore } from '@/stores/requirement.store'
 import type { CoverageStatus, Requirement, RequirementInput, RequirementStatus, Tone } from '@/types'
@@ -28,6 +29,8 @@ const store = useRequirementStore()
 const { current, loaded } = storeToRefs(store)
 const { currentProject, currentCases } = storeToRefs(useProjectStore())
 const { canCreate } = useTestCasePermissions()
+const auth = useAuthStore()
+const canEditRequirement = computed(() => auth.can('requirement.edit'))
 const { snackbar, notify } = useSnackbar()
 const { busy: saving, run } = useAsyncAction()
 
@@ -129,7 +132,7 @@ function exportRtm() {
   <FoxPageHeader sticky title="Requirements" :breadcrumbs="[{ title: 'Requirements' }]">
     <template #actions>
       <v-btn variant="outlined" prepend-icon="tabler:file-spreadsheet" @click="exportRtm">ส่งออก RTM</v-btn>
-      <v-btn v-if="canCreate" color="primary" prepend-icon="tabler:plus" @click="openCreate">เพิ่ม Requirement</v-btn>
+      <v-btn v-if="canEditRequirement" color="primary" prepend-icon="tabler:plus" @click="openCreate">เพิ่ม Requirement</v-btn>
     </template>
   </FoxPageHeader>
 
@@ -203,8 +206,8 @@ function exportRtm() {
                   </div>
                   <div class="d-flex flex-wrap ga-2">
                     <v-btn v-if="canCreate" variant="tonal" color="primary" size="small" prepend-icon="tabler:sparkles" @click="draftFor(r)">ร่างเคสด้วย AI</v-btn>
-                    <v-btn icon="tabler:pencil" variant="text" size="small" color="primary" :aria-label="`แก้ไข ${r.code}`" @click="openEdit(r)" />
-                    <v-btn icon="tabler:trash" variant="text" size="small" color="error" :aria-label="`ลบ ${r.code}`" @click="askDelete(r)" />
+                    <v-btn v-if="canEditRequirement" icon="tabler:pencil" variant="text" size="small" color="primary" :aria-label="`แก้ไข ${r.code}`" @click="openEdit(r)" />
+                    <v-btn v-if="auth.can('requirement.delete')" icon="tabler:trash" variant="text" size="small" color="error" :aria-label="`ลบ ${r.code}`" @click="askDelete(r)" />
                   </div>
                 </div>
               </div>

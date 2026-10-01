@@ -27,7 +27,7 @@ export const useAuditStore = defineStore('audit', () => {
       timestamp: new Date().toISOString(),
       userId: user.id,
       userName: user.name,
-      userRole: user.role,
+      userRole: auth.roleOf(user).label,
     }
     logs.value.unshift(entry)
     createAuditLog(entry).catch(() => {})

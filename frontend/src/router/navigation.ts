@@ -1,6 +1,7 @@
 import type { NavItem } from '@/types'
 
-// Sidebar menu, grouped by the QA workflow. `permission` hides an item (or a section header) from roles without it.
+// Sidebar menu, grouped by the QA workflow. `permission` hides an item (or a section header) from roles without it;
+// `adminOnly` items belong to the built-in Admin role. Items without either are open to everyone (dashboard, settings).
 const navigation: NavItem[] = [
   { header: 'หน้าหลัก' },
   { title: 'ภาพรวมโปรเจกต์', icon: 'tabler:layout-dashboard', to: '/dashboard' },
@@ -13,10 +14,10 @@ const navigation: NavItem[] = [
   { header: 'เอกสารและรายงาน' },
   { title: 'ศูนย์เอกสาร', icon: 'tabler:files', to: '/documents' },
   { title: 'รายงาน', icon: 'tabler:report-analytics', to: '/reports' },
-  { header: 'ผู้ดูแลระบบ', permission: 'canViewAuditLogs' },
-  { title: 'Audit Logs', icon: 'tabler:history', to: '/audit-trail', permission: 'canViewAuditLogs' },
-  { title: 'ผู้ใช้งาน', icon: 'tabler:users', to: '/admin/users', permission: 'canManageUsers' },
-  { title: 'สิทธิ์การใช้งาน', icon: 'tabler:shield-lock', to: '/admin/permissions', permission: 'canManageUsers' },
+  { header: 'ผู้ดูแลระบบ', permission: 'audit.view' },
+  { title: 'Audit Logs', icon: 'tabler:history', to: '/audit-trail', permission: 'audit.view' },
+  { title: 'ผู้ใช้งาน', icon: 'tabler:users', to: '/admin/users', adminOnly: true },
+  { title: 'Role และสิทธิ์', icon: 'tabler:shield-lock', to: '/admin/permissions', adminOnly: true },
   { header: 'ระบบ' },
   { title: 'ตั้งค่า', icon: 'tabler:settings', to: '/settings' },
 ]

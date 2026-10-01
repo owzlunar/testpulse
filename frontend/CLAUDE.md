@@ -23,7 +23,7 @@ Design reference: Fox admin dashboard (`../../fox`, light + dark, blue primary).
 9. Sidebar: `<v-navigation-drawer class="fox-nav">`.
 10. Calendar events use `tone` (`primary|secondary|info|success|warning|caution|error`), not custom colors.
 11. Status / priority / role / project-status / milestone / audit-action colors and icons come from the `Option` lists in `services/*.service.ts` (`statusOf`, `priorityOf`, `roleOf`, ...). Never write a `switch (status)` color map in a component.
-12. Gate actions by role: `useTestCasePermissions()` for test-case actions, `permission` on items in `router/navigation.ts`.
+12. Gate actions by permission, never by role name: `auth.can('module.action')` (`useTestCasePermissions()` for test-case actions), `permission` / `adminOnly` on items in `router/navigation.ts`. Permission keys and their labels live in `PERMISSION_GROUPS` (`role.service.ts`); managing users, roles, teams and projects is `auth.isAdmin`. People pickers use the role's discipline (`auth.usersIn('qa' | 'dev')`).
 
 ## Structures
 src

@@ -14,7 +14,9 @@ const layout = useLayoutStore()
 const { currentCases } = storeToRefs(useProjectStore())
 
 // hide items (and section headers) the current role has no permission for
-const items = computed(() => navigation.filter((item) => !item.permission || auth.can(item.permission)))
+const items = computed(() =>
+  navigation.filter((item) => (!item.adminOnly || auth.isAdmin) && (!item.permission || auth.can(item.permission))),
+)
 const badgeOf = (to: string) => (to === '/test-cases' && currentCases.value.length ? String(currentCases.value.length) : '')
 </script>
 

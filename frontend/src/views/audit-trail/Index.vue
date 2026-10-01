@@ -5,7 +5,7 @@ import FoxPageHeader from '@/components/ui/FoxPageHeader.vue'
 import FoxEmptyState from '@/components/ui/FoxEmptyState.vue'
 import FoxTablePagination from '@/components/ui/FoxTablePagination.vue'
 import { AUDIT_ACTIONS, auditActionOf } from '@/services/audit.service'
-import { ROLES } from '@/services/user.service'
+import { useAuthStore } from '@/stores/auth.store'
 import { useAuditStore } from '@/stores/audit.store'
 import type { AuditAction } from '@/types'
 import { formatDateTime } from '@/utils/date'
@@ -55,7 +55,9 @@ const headers = [
 ] as const
 
 // roles in old seed data are free text ("QA Lead"); offer the known ones plus whatever exists
-const roleOptions = computed(() => [...new Set([...ROLES.map((r) => r.value), ...sortedLogs.value.map((l) => l.userRole)])])
+const auth = useAuthStore()
+// role names at the time of each entry (roles can be renamed), plus today's roles
+const roleOptions = computed(() => [...new Set([...auth.roles.map((r) => r.name), ...sortedLogs.value.map((l) => l.userRole)])])
 </script>
 
 <template>

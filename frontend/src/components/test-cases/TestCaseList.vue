@@ -41,7 +41,7 @@ const emit = defineEmits<{
 const store = useTestCaseStore()
 const requirementStore = useRequirementStore()
 const { busy, run } = useAsyncAction()
-const { canCreate, canEdit, canDelete, canHandOff } = useTestCasePermissions()
+const { canCreate, canEdit, canArchive, canPurge, canReorder: mayReorder, canHandOff } = useTestCasePermissions()
 
 // --- active cases / archive ----------------------------------------------------
 const view = ref<'active' | 'archive'>('active')
@@ -100,7 +100,7 @@ const dragging = ref<DragSource | null>(null)
 const dropTarget = ref<DropTarget | null>(null)
 // reordering renumbers ids, so it is an explicit mode (grips hidden otherwise) on the full, unfiltered list
 const reorderMode = ref(false)
-const canReorder = computed(() => canEdit.value && reorderMode.value && !isFiltering.value)
+const canReorder = computed(() => mayReorder.value && reorderMode.value && !isFiltering.value)
 
 function startReorder() {
   resetFilters()
@@ -303,7 +303,7 @@ function insertClass(list: string, index: number, length: number) {
           </v-col>
         </v-row>
         <div v-if="view === 'archive'" />
-        <div v-else-if="canEdit && cases.length > 1 && !reorderMode" class="d-flex flex-wrap align-center ga-3 mt-3">
+        <div v-else-if="mayReorder && cases.length > 1 && !reorderMode" class="d-flex flex-wrap align-center ga-3 mt-3">
           <span class="text-body-2 text-muted flex-grow-1">เคสใหม่ต่อท้ายรายการ</span>
           <v-btn variant="outlined" size="small" prepend-icon="tabler:arrows-sort" @click="startReorder">จัดลำดับ</v-btn>
         </div>
@@ -327,10 +327,8 @@ function insertClass(list: string, index: number, length: number) {
             </div>
             <div class="d-flex align-center ga-1 flex-shrink-0">
               <v-btn icon="tabler:eye" variant="text" size="small" :aria-label="`ดู ${tc.id}`" @click="emit('edit', tc)" />
-              <template v-if="canDelete">
-                <v-btn variant="tonal" color="primary" size="small" prepend-icon="tabler:archive-off" @click="emit('restore', tc)">กู้คืน</v-btn>
-                <v-btn icon="tabler:trash" variant="text" size="small" color="error" :aria-label="`ลบถาวร ${tc.id}`" @click="emit('purge', tc)" />
-              </template>
+              <v-btn v-if="canArchive" variant="tonal" color="primary" size="small" prepend-icon="tabler:archive-off" @click="emit('restore', tc)">กู้คืน</v-btn>
+              <v-btn v-if="canPurge" icon="tabler:trash" variant="text" size="small" color="error" :aria-label="`ลบถาวร ${tc.id}`" @click="emit('purge', tc)" />
             </div>
           </div>
         </template>
@@ -445,7 +443,7 @@ function insertClass(list: string, index: number, length: number) {
                       <v-list-item prepend-icon="tabler:copy" title="ทำสำเนา (Clone)" @click="emit('clone', parent)" />
                       <v-list-item prepend-icon="tabler:template" title="บันทึกเป็น Template" @click="emit('save-template', parent)" />
                     </template>
-                    <template v-if="canDelete">
+                    <template v-if="canArchive">
                       <v-divider class="my-1" />
                       <v-list-item prepend-icon="tabler:archive" title="เก็บเข้าคลัง" @click="emit('archive', parent)" />
                     </template>
@@ -519,7 +517,7 @@ function insertClass(list: string, index: number, length: number) {
                         <v-btn icon="tabler:history" variant="text" size="x-small" :aria-label="`ประวัติ ${sub.id}`" @click="emit('history', sub)" />
                         <v-btn icon="tabler:pencil" variant="text" size="x-small" color="primary" :aria-label="`เปิด ${sub.id}`" @click="emit('edit', sub)" />
                         <v-btn
-                          v-if="canDelete"
+                          v-if="canArchive"
                           icon="tabler:archive"
                           variant="text"
                           size="x-small"

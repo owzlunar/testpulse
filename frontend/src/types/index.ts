@@ -15,11 +15,24 @@ export interface Option<T extends string = string> {
   hint?: string
 }
 
-export type PermissionKey = keyof Omit<RolePermission, 'role' | 'name' | 'description'>
+/**
+ * What a role may do, by module. The catalog (labels, groups) is PERMISSION_GROUPS in role.service.ts.
+ * Managing users, roles, teams and projects is not a permission: only the built-in Admin role can.
+ */
+export type PermissionKey =
+  | 'requirement.view' | 'requirement.edit' | 'requirement.delete'
+  | 'case.view' | 'case.edit' | 'case.archive' | 'case.delete' | 'case.reorder' | 'case.restoreVersion' | 'case.handoff'
+  | 'run.view' | 'run.create' | 'run.execute' | 'run.close'
+  | 'defect.view' | 'defect.report' | 'defect.resolve'
+  | 'calendar.view'
+  | 'document.view' | 'document.create' | 'document.sign'
+  | 'report.view'
+  | 'notification.receive'
+  | 'audit.view'
 
 export type NavItem =
-  | { header: string; permission?: PermissionKey }
-  | { title: string; icon: string; to: string; badge?: string; permission?: PermissionKey }
+  | { header: string; permission?: PermissionKey; adminOnly?: boolean }
+  | { title: string; icon: string; to: string; badge?: string; permission?: PermissionKey; adminOnly?: boolean }
 
 export interface Breadcrumb {
   title: string
@@ -83,7 +96,8 @@ export type Rule = (value: any) => true | string
 
 export type TestCaseStatus = 'pending' | 'ready_for_test' | 'untested' | 'in_progress' | 'passed' | 'failed' | 'blocked'
 export type TestCasePriority = 'low' | 'medium' | 'high' | 'critical'
-export type UserRole = 'ADMIN' | 'DEV' | 'QA'
+/** which side of the Dev <-> QA loop a role works on: fills the QA / Developer pickers and "my work" */
+export type RoleDiscipline = 'qa' | 'dev' | 'other'
 export type ProjectStatus = 'active' | 'in_review' | 'completed' | 'archived'
 export type MilestoneType = 'code_freeze' | 'uat_signoff' | 'go_live'
 
@@ -91,24 +105,28 @@ export interface User {
   id: string
   name: string
   email: string
-  role: UserRole
+  /** null = new user without a role yet: sees only the dashboard and settings */
+  roleId: string | null
   title?: string
   avatar: string
 }
 
-export interface RolePermission {
-  role: UserRole
+/** A role group created by an Admin, e.g. "QA Lead" can do more than "QA Tester" */
+export interface Role {
+  id: string
   name: string
   description: string
-  canCreateCase: boolean
-  canEditCase: boolean
-  canDeleteCase: boolean
-  canMarkReadyForTest: boolean
-  canExecuteTest: boolean
-  canManageUsers: boolean
-  canExportUat: boolean
-  canViewAuditLogs: boolean
+  discipline: RoleDiscipline
+  tone: Tone
+  icon: string
+  permissions: PermissionKey[]
+  /** 'admin' = the built-in Admin role: every permission, manages users / roles / teams / projects, can't be deleted */
+  builtIn?: 'admin'
+  createdAt: string
+  updatedAt: string
 }
+
+export type RoleInput = Omit<Role, 'id' | 'createdAt' | 'updatedAt' | 'builtIn'> & { id?: string }
 
 export interface ProjectMilestone {
   id: string

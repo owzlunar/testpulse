@@ -21,7 +21,7 @@ async function submit() {
   const result = await formRef.value?.validate()
   if (!result?.valid) return
   await run(async () => {
-    const user = await auth.addUser({ name: form.name, email: form.email, role: 'QA', title: form.title, avatar: DEFAULT_AVATAR })
+    const user = await auth.addUser({ name: form.name, email: form.email, roleId: null, title: form.title, avatar: DEFAULT_AVATAR })
     await auth.loginAs(user)
     router.push('/dashboard')
   })

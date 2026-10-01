@@ -9,7 +9,7 @@ export const STORAGE_KEYS = {
   currentUser: 'testpulse_current_user',
   selectedProjectId: 'testpulse_selected_project_id',
   users: 'testpulse_users',
-  permissions: 'testpulse_role_permissions',
+  roles: 'testpulse_roles',
   settings: 'testpulse_settings',
   requirements: 'testpulse_requirements',
   templates: 'testpulse_templates',

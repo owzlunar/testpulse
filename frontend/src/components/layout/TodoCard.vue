@@ -27,11 +27,12 @@ const ready = computed(() => runStore.loaded && defectStore.loaded && documentSt
 interface Todo { icon: string; tone: Tone; title: string; text: string; to: string | { path: string; query?: Record<string, string> } }
 
 const todos = computed<Todo[]>(() => {
-  const role = currentUser.value.role
   const me = currentUser.value.name
   const list: Todo[] = []
-  const isQa = role !== 'DEV'
-  const isDev = role !== 'QA'
+  // by what the role may do: testers get QA work, developers get fixes; Admin sees everyone's
+  const isQa = auth.can('run.execute')
+  const isDev = auth.can('case.handoff')
+  const everyone = auth.isAdmin
 
   if (isQa) {
     const ready = currentCases.value.filter((c) => c.status === 'ready_for_test')
@@ -44,9 +45,9 @@ const todos = computed<Todo[]>(() => {
     if (retest.length) list.push({ icon: 'tabler:refresh', tone: 'warning', title: `${retest.length} Defect รอทดสอบซ้ำ`, text: retest.map((d) => d.id).join(', '), to: '/defects' })
   }
   if (isDev) {
-    const mine = currentCases.value.filter((c) => (c.status === 'pending' || c.status === 'failed') && (role === 'ADMIN' || c.assignedDev === me))
+    const mine = currentCases.value.filter((c) => (c.status === 'pending' || c.status === 'failed') && (everyone || c.assignedDev === me))
     if (mine.length) list.push({ icon: 'tabler:code', tone: 'primary', title: `${mine.length} เคสรอ Dev`, text: mine.map((c) => c.id).join(', '), to: '/test-cases' })
-    const bugs = defectStore.current.filter((d) => isOpenDefect(d) && d.status !== 'retest' && (role === 'ADMIN' || d.assignee === me))
+    const bugs = defectStore.current.filter((d) => isOpenDefect(d) && d.status !== 'retest' && (everyone || d.assignee === me))
     if (bugs.length) list.push({ icon: 'tabler:bug', tone: 'error', title: `${bugs.length} Defect ที่ต้องแก้`, text: bugs.map((d) => d.id).join(', '), to: '/defects' })
   }
   const overdue = currentCases.value.filter(isOverdue)
@@ -59,7 +60,7 @@ const todos = computed<Todo[]>(() => {
 
 <template>
   <v-card class="fox-card-body h-100">
-    <FoxCardHeader title="สิ่งที่ต้องทำ" :subtitle="`สำหรับ ${currentUser.role}`" />
+    <FoxCardHeader title="สิ่งที่ต้องทำ" :subtitle="`สำหรับ ${auth.roleOf(currentUser).label}`" />
     <div v-if="!ready" class="mt-4"><v-skeleton-loader v-for="i in 3" :key="i" type="list-item-avatar-two-line" /></div>
     <div v-else-if="todos.length" class="d-flex flex-column ga-1 mt-4">
       <router-link v-for="t in todos" :key="t.title" :to="t.to" class="todo-item">

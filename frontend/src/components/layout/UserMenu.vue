@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import UserAvatar from '@/components/users/UserAvatar.vue'
-import { roleOf } from '@/services/user.service'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useAuthStore } from '@/stores/auth.store'
 import { firstName } from '@/utils/format'
@@ -19,7 +18,7 @@ const { run } = useAsyncAction()
         <UserAvatar :user="currentUser" size="32" />
         <span class="d-none d-md-flex flex-column align-start ml-2 text-start">
           <span class="text-subtitle-2">{{ firstName(currentUser.name) }}</span>
-          <span class="text-caption text-muted">{{ roleOf(currentUser.role).label }}</span>
+          <span class="text-caption text-muted">{{ auth.roleOf(currentUser).label }}</span>
         </span>
         <v-icon icon="tabler:chevron-down" size="16" class="ml-1 d-none d-md-inline-flex" />
       </v-btn>
@@ -31,8 +30,8 @@ const { run } = useAsyncAction()
         <div class="overflow-hidden">
           <div class="text-subtitle-2 text-truncate">{{ currentUser.name }}</div>
           <div class="text-caption text-muted text-truncate">{{ currentUser.email }}</div>
-          <v-chip :color="roleOf(currentUser.role).tone" size="x-small" variant="tonal" class="mt-1">
-            {{ roleOf(currentUser.role).label }}
+          <v-chip :color="auth.roleOf(currentUser).tone" size="x-small" variant="tonal" class="mt-1">
+            {{ auth.roleOf(currentUser).label }}
           </v-chip>
         </div>
       </div>
@@ -51,7 +50,7 @@ const { run } = useAsyncAction()
           </template>
           <v-list-item-title class="text-body-2">{{ u.name }}</v-list-item-title>
           <template #append>
-            <v-chip :color="roleOf(u.role).tone" size="x-small" variant="tonal">{{ u.role }}</v-chip>
+            <v-chip :color="auth.roleOf(u).tone" size="x-small" variant="tonal">{{ auth.roleOf(u).label }}</v-chip>
           </template>
         </v-list-item>
       </v-list>

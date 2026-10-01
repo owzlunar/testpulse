@@ -9,7 +9,6 @@ import DocumentTemplateForm from '@/components/documents/DocumentTemplateForm.vu
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useSnackbar } from '@/composables/useSnackbar'
 import { resetDemoData } from '@/services/storage.service'
-import { roleOf } from '@/services/user.service'
 import { useAuthStore } from '@/stores/auth.store'
 import { useDocumentStore } from '@/stores/document.store'
 import { useSettingsStore } from '@/stores/settings.store'
@@ -90,14 +89,14 @@ function reset() {
             <div class="overflow-hidden">
               <div class="text-h6 text-truncate">{{ currentUser.name }}</div>
               <div class="text-body-2 text-muted text-truncate">{{ currentUser.email }}</div>
-              <v-chip :color="roleOf(currentUser.role).tone" size="x-small" variant="tonal" class="mt-1">{{ roleOf(currentUser.role).label }}</v-chip>
+              <v-chip :color="auth.roleOf(currentUser).tone" size="x-small" variant="tonal" class="mt-1">{{ auth.roleOf(currentUser).label }}</v-chip>
             </div>
           </div>
           <label class="fox-label" for="set-user">สลับผู้ใช้งาน</label>
           <v-select
             id="set-user"
             :model-value="currentUser.id"
-            :items="users.map((u) => ({ title: `${u.name} · ${roleOf(u.role).label}`, value: u.id }))"
+            :items="users.map((u) => ({ title: `${u.name} · ${auth.roleOf(u).label}`, value: u.id }))"
             @update:model-value="switchUser"
           />
         </v-card>

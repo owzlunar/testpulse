@@ -12,7 +12,7 @@ const props = defineProps<{ testCase: TestCase | null }>()
 const emit = defineEmits<{ restored: [label: string] }>()
 
 const store = useTestCaseStore()
-const { canEdit } = useTestCasePermissions()
+const { canRestoreVersion } = useTestCasePermissions()
 // follow the stored case, so a restore shows up here at once
 const live = computed(() => (props.testCase ? store.getById(props.testCase.id, props.testCase.projectId) ?? props.testCase : null))
 </script>
@@ -39,7 +39,7 @@ const live = computed(() => (props.testCase ? store.getById(props.testCase.id, p
             <TestCaseVersionTimeline
               :history="live.versionHistory ?? []"
               :test-case="live"
-              :can-restore="canEdit && !live.archivedAt"
+              :can-restore="canRestoreVersion && !live.archivedAt"
               @restored="emit('restored', `${live.id}: กู้คืนเนื้อหาจาก ${$event} เป็น ${live.version}`)"
             />
           </v-col>
