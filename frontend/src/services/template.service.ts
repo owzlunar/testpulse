@@ -1,0 +1,172 @@
+import type { TestCaseTemplate } from '@/types'
+import { ApiError, newId, respond } from './http'
+import { STORAGE_KEYS, load, save } from './storage.service'
+
+export const TEMPLATE_CATEGORIES = ['Authentication', 'Form & Validation', 'CRUD', 'API', 'Payment', 'Search & Filter', 'File', 'Permission']
+
+const step = (action: string, testData: string, expectedResult: string) => ({ action, testData, expectedResult })
+
+// Common test patterns that QA writes again and again
+const SEED_TEMPLATES: TestCaseTemplate[] = [
+  {
+    id: 'tpl-login-ok', name: 'เข้าสู่ระบบสำเร็จ', category: 'Authentication', builtIn: true, usageCount: 18,
+    description: 'ผู้ใช้กรอกอีเมลและรหัสผ่านถูกต้องแล้วเข้าสู่ระบบได้',
+    draft: {
+      name: 'เข้าสู่ระบบด้วยบัญชีที่ถูกต้อง', testScenario: 'ผู้ใช้ที่ลงทะเบียนแล้วเข้าสู่ระบบด้วยข้อมูลถูกต้อง', priority: 'critical',
+      prerequisite: '1. มีบัญชีผู้ใช้ที่ยืนยันอีเมลแล้ว\n2. ผู้ใช้อยู่ในสถานะออกจากระบบ',
+      steps: [
+        step('เปิดหน้าเข้าสู่ระบบ', 'URL: /login', 'แสดงฟอร์มอีเมลและรหัสผ่าน'),
+        step('กรอกอีเมลและรหัสผ่าน', 'qa@example.com / P@ssw0rd!', 'ข้อมูลแสดงในช่อง รหัสผ่านถูกซ่อน'),
+        step('กดปุ่มเข้าสู่ระบบ', '-', 'เข้าสู่หน้าแดชบอร์ด แสดงชื่อผู้ใช้มุมขวาบน'),
+      ],
+      expectedResults: 'ผู้ใช้เข้าสู่ระบบได้ และระบบสร้าง Session ใหม่',
+    },
+  },
+  {
+    id: 'tpl-login-fail', name: 'เข้าสู่ระบบด้วยรหัสผ่านผิด', category: 'Authentication', builtIn: true, usageCount: 15,
+    description: 'Negative case: รหัสผ่านไม่ถูกต้อง และการล็อกบัญชีเมื่อผิดเกินกำหนด',
+    draft: {
+      name: 'ปฏิเสธการเข้าสู่ระบบเมื่อรหัสผ่านไม่ถูกต้อง', testScenario: 'กรอกรหัสผ่านผิดซ้ำจนถึงเกณฑ์ล็อกบัญชี', priority: 'high',
+      prerequisite: 'มีบัญชีผู้ใช้ที่ใช้งานได้ และทราบเกณฑ์ล็อกบัญชี (เช่น 5 ครั้ง)',
+      steps: [
+        step('กรอกอีเมลถูกต้องและรหัสผ่านผิด แล้วกดเข้าสู่ระบบ', 'qa@example.com / wrong-pass', 'แสดงข้อความ "อีเมลหรือรหัสผ่านไม่ถูกต้อง" โดยไม่บอกว่าช่องไหนผิด'),
+        step('ทำซ้ำจนครบเกณฑ์', 'ผิด 5 ครั้งติดกัน', 'บัญชีถูกล็อกชั่วคราว และแสดงเวลาที่ลองใหม่ได้'),
+        step('กรอกรหัสผ่านที่ถูกต้องระหว่างถูกล็อก', 'P@ssw0rd!', 'ยังเข้าสู่ระบบไม่ได้จนกว่าจะพ้นเวลาล็อก'),
+      ],
+      expectedResults: 'ระบบไม่เปิดเผยข้อมูลบัญชี และป้องกัน Brute force ได้',
+    },
+  },
+  {
+    id: 'tpl-form-required', name: 'ตรวจสอบช่องบังคับกรอก', category: 'Form & Validation', builtIn: true, usageCount: 22,
+    description: 'ส่งฟอร์มโดยเว้นช่องบังคับ และตรวจรูปแบบข้อมูล',
+    draft: {
+      name: 'ฟอร์มแจ้งเตือนเมื่อไม่กรอกช่องบังคับ', testScenario: 'ส่งฟอร์มที่ข้อมูลไม่ครบหรือรูปแบบไม่ถูกต้อง', priority: 'medium',
+      prerequisite: 'เปิดหน้าฟอร์มที่ต้องการทดสอบ',
+      steps: [
+        step('กดบันทึกโดยไม่กรอกข้อมูล', '-', 'ทุกช่องบังคับแสดงข้อความแจ้งเตือน และไม่ส่งข้อมูล'),
+        step('กรอกอีเมลผิดรูปแบบ', 'abc@', 'แสดง "รูปแบบอีเมลไม่ถูกต้อง"'),
+        step('กรอกข้อมูลเกินความยาวสูงสุด', 'ข้อความ 256 ตัวอักษร', 'ตัดหรือแจ้งเตือนตามสเปก'),
+        step('กรอกข้อมูลครบถูกต้องแล้วบันทึก', 'ข้อมูลตัวอย่างที่ถูกต้อง', 'บันทึกสำเร็จ และแสดงข้อความยืนยัน'),
+      ],
+      expectedResults: 'ฟอร์มรับเฉพาะข้อมูลที่ถูกต้อง และแจ้งเตือนชัดเจนทุกช่อง',
+    },
+  },
+  {
+    id: 'tpl-crud', name: 'สร้าง แก้ไข ลบ ข้อมูล (CRUD)', category: 'CRUD', builtIn: true, usageCount: 12,
+    description: 'วงจรข้อมูลครบทั้งสร้าง ดู แก้ไข และลบ',
+    draft: {
+      name: 'จัดการข้อมูลครบวงจร (CRUD)', testScenario: 'สร้าง แก้ไข และลบรายการ แล้วตรวจสอบรายการในตาราง', priority: 'high',
+      prerequisite: 'ผู้ใช้มีสิทธิ์จัดการข้อมูลในหน้านี้',
+      steps: [
+        step('กดปุ่มเพิ่มและกรอกข้อมูลที่ถูกต้อง', 'ข้อมูลตัวอย่าง', 'รายการใหม่แสดงในตารางบนสุด'),
+        step('เปิดรายการที่สร้างแล้วแก้ไขข้อมูล', 'เปลี่ยนชื่อ', 'ตารางแสดงค่าใหม่ และบันทึกเวลาแก้ไข'),
+        step('ลบรายการและยืนยัน', '-', 'มีหน้าต่างยืนยัน และรายการหายจากตาราง'),
+        step('ค้นหารายการที่ลบไปแล้ว', 'ชื่อรายการ', 'ไม่พบรายการ'),
+      ],
+      expectedResults: 'ข้อมูลถูกต้องทุกขั้น และมีบันทึกใน Audit log',
+    },
+  },
+  {
+    id: 'tpl-api-contract', name: 'API Response และ Error codes', category: 'API', builtIn: true, usageCount: 9,
+    description: 'ตรวจ Status code, schema และ error ของ REST API',
+    draft: {
+      name: 'API ตอบกลับตามสัญญา (Contract)', testScenario: 'เรียก API ด้วยข้อมูลถูกต้อง ไม่ครบ และไม่มีสิทธิ์', priority: 'high',
+      prerequisite: 'มี Access token ที่ใช้งานได้ และ Postman/Newman collection',
+      steps: [
+        step('เรียก API ด้วย payload ถูกต้อง', '{ "amount": 100 }', 'HTTP 200/201 และ JSON ตรงตาม Schema'),
+        step('เรียก API โดยขาดฟิลด์บังคับ', '{ }', 'HTTP 400 พร้อมรายละเอียดฟิลด์ที่ผิด'),
+        step('เรียก API โดยไม่มี token', 'ไม่ส่ง Authorization header', 'HTTP 401'),
+        step('เรียก API ด้วย token ที่ไม่มีสิทธิ์', 'token ของ role ทั่วไป', 'HTTP 403'),
+      ],
+      expectedResults: 'ทุกกรณีตอบกลับ status code และข้อความตามสเปก ไม่มี stack trace รั่ว',
+    },
+  },
+  {
+    id: 'tpl-payment', name: 'ชำระเงินสำเร็จ / ล้มเหลว', category: 'Payment', builtIn: true, usageCount: 7,
+    description: 'ชำระเงินและตรวจสอบสถานะคำสั่งซื้อ รวมถึง callback ซ้ำ',
+    draft: {
+      name: 'ชำระเงินและอัปเดตสถานะคำสั่งซื้อ', testScenario: 'ชำระเงินผ่าน Gateway แล้วตรวจ callback และสถานะ', priority: 'critical',
+      prerequisite: 'Sandbox payment gateway พร้อมใช้งาน และมีคำสั่งซื้อรอชำระ',
+      steps: [
+        step('เลือกวิธีชำระเงินและยืนยัน', 'ยอด 1,500.00 บาท', 'ไปหน้าชำระเงินของ Gateway'),
+        step('ชำระเงินสำเร็จใน Sandbox', 'บัตรทดสอบ 4111 1111 1111 1111', 'กลับมาหน้าสำเร็จ สถานะคำสั่งซื้อเป็น PAID'),
+        step('ส่ง callback ซ้ำ', 'txRef เดิม', 'ระบบไม่ตัดเงินหรือบันทึกซ้ำ (Idempotent)'),
+        step('ทดลองชำระด้วยบัตรถูกปฏิเสธ', 'บัตรทดสอบ declined', 'สถานะคงเป็น PENDING และแจ้งผู้ใช้'),
+      ],
+      expectedResults: 'สถานะถูกต้องทุกกรณี ยอดเงินตรงกัน และมี Receipt',
+    },
+  },
+  {
+    id: 'tpl-search', name: 'ค้นหาและตัวกรอง', category: 'Search & Filter', builtIn: true, usageCount: 6,
+    description: 'ค้นหาด้วยคำ ตัวกรองหลายตัว และกรณีไม่พบผลลัพธ์',
+    draft: {
+      name: 'ค้นหาและกรองรายการ', testScenario: 'ค้นหาด้วยคำและตัวกรองร่วมกัน', priority: 'medium',
+      prerequisite: 'มีข้อมูลตัวอย่างอย่างน้อย 20 รายการ',
+      steps: [
+        step('ค้นหาด้วยคำที่มีอยู่', 'คำค้นตัวอย่าง', 'แสดงเฉพาะรายการที่ตรง'),
+        step('เพิ่มตัวกรองสถานะ', 'Active', 'ผลลัพธ์ตรงทั้งคำค้นและตัวกรอง'),
+        step('ค้นหาด้วยคำที่ไม่มีอยู่', 'zzzz', 'แสดง Empty state พร้อมปุ่มล้างตัวกรอง'),
+      ],
+      expectedResults: 'ผลการค้นหาถูกต้อง และตอบสนองภายใน 1 วินาที',
+    },
+  },
+  {
+    id: 'tpl-upload', name: 'อัปโหลดไฟล์', category: 'File', builtIn: true, usageCount: 5,
+    description: 'ชนิดไฟล์ ขนาดไฟล์ และการแสดงตัวอย่าง',
+    draft: {
+      name: 'อัปโหลดไฟล์ตามชนิดและขนาดที่กำหนด', testScenario: 'อัปโหลดไฟล์ที่อนุญาตและไม่อนุญาต', priority: 'medium',
+      prerequisite: 'เตรียมไฟล์ .jpg 1MB, .pdf 12MB และ .exe',
+      steps: [
+        step('อัปโหลดไฟล์ที่อนุญาต', 'photo.jpg (1MB)', 'อัปโหลดสำเร็จ และแสดงตัวอย่าง'),
+        step('อัปโหลดไฟล์เกินขนาด', 'doc.pdf (12MB)', 'แจ้ง "ไฟล์ต้องไม่เกิน 10MB"'),
+        step('อัปโหลดไฟล์ชนิดต้องห้าม', 'setup.exe', 'ปฏิเสธพร้อมข้อความชนิดไฟล์ที่รองรับ'),
+      ],
+      expectedResults: 'รับเฉพาะไฟล์ที่ถูกต้อง และไม่มีไฟล์อันตรายถูกบันทึก',
+    },
+  },
+  {
+    id: 'tpl-rbac', name: 'สิทธิ์ตาม Role', category: 'Permission', builtIn: true, usageCount: 8,
+    description: 'ตรวจว่าแต่ละ Role เห็นและทำได้เฉพาะสิ่งที่อนุญาต',
+    draft: {
+      name: 'ควบคุมสิทธิ์การเข้าถึงตาม Role', testScenario: 'เข้าใช้งานฟังก์ชันเดียวกันด้วย Role ต่างกัน', priority: 'high',
+      prerequisite: 'มีบัญชีทดสอบของทุก Role',
+      steps: [
+        step('เข้าสู่ระบบด้วย Role ที่มีสิทธิ์', 'Admin', 'เห็นเมนูและทำรายการได้'),
+        step('เข้าสู่ระบบด้วย Role ที่ไม่มีสิทธิ์', 'Viewer', 'ไม่เห็นเมนู / ปุ่มถูกปิด'),
+        step('เรียก URL ของหน้าโดยตรง', '/admin/users', 'ถูกพาไปหน้า 403 หรือหน้าหลัก'),
+      ],
+      expectedResults: 'ไม่มี Role ใดเข้าถึงฟังก์ชันเกินสิทธิ์ ทั้งทาง UI และ URL',
+    },
+  },
+]
+
+// --- API ------------------------------------------------------------------------
+const templates = () => load(STORAGE_KEYS.templates, SEED_TEMPLATES)
+
+/** GET /test-case-templates */
+export const fetchTemplates = () => respond(templates)
+
+/** POST /test-case-templates */
+export const createTemplate = (input: Omit<TestCaseTemplate, 'id' | 'usageCount' | 'builtIn'>) =>
+  respond(() => {
+    const tpl: TestCaseTemplate = { ...input, id: newId('tpl'), usageCount: 0 }
+    save(STORAGE_KEYS.templates, [tpl, ...templates()])
+    return tpl
+  })
+
+/** POST /test-case-templates/:id/use (usage statistics) */
+export const markTemplateUsed = (id: string) =>
+  respond(() => {
+    const list = templates()
+    const tpl = list.find((t) => t.id === id)
+    if (tpl) tpl.usageCount++
+    save(STORAGE_KEYS.templates, list)
+  }, 50)
+
+/** DELETE /test-case-templates/:id */
+export const deleteTemplate = (id: string) =>
+  respond(() => {
+    const list = templates()
+    if (list.find((t) => t.id === id)?.builtIn) throw new ApiError('ลบ Template มาตรฐานของระบบไม่ได้', 403)
+    save(STORAGE_KEYS.templates, list.filter((t) => t.id !== id))
+  })

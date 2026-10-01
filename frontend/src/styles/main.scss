@@ -1,0 +1,497 @@
+// =============================================================================
+// Fox theme - global overrides on top of Vuetify 3
+// Import AFTER 'vuetify/styles' so these rules win.
+// Colors always come from the Vuetify theme (rgb(var(--v-theme-*))) so the
+// light/dark switch keeps working. Never hardcode hex here.
+// =============================================================================
+
+:root {
+  --fox-radius-card: 16px;
+  --fox-radius-control: 8px;
+  --fox-shadow-card: 0 4px 24px rgba(17, 20, 45, 0.05);
+  --fox-shadow-popover: 0 8px 32px rgba(17, 20, 45, 0.12);
+
+  // spacing scale (multiples of 4) used by layout helpers below
+  --fox-gutter: 24px;
+  --fox-card-padding: 24px;
+  --fox-nav-width: 264px;
+  --fox-aside-width: 320px;
+
+  @media (max-width: 959.98px) {
+    --fox-gutter: 20px;
+  }
+
+  @media (max-width: 599.98px) {
+    --fox-gutter: 16px;
+    --fox-card-padding: 16px;
+  }
+}
+
+// Every rule below is nested in `html` (+1 element specificity).
+// vite-plugin-vuetify loads each component's CSS together with the lazy page
+// chunk that first uses it, i.e. AFTER this file, so plain `.v-btn {}` rules
+// here would lose to Vuetify's own `.v-btn {}` depending on load order.
+html {
+  .v-application {
+    font-size: 14px;
+    line-height: 1.65;
+    letter-spacing: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  // -----------------------------------------------------------------------------
+  // Typography  (sizes from "Typography.png", font swapped to Noto Sans Thai)
+  //   Thai glyphs stack vowels and tone marks above/below the baseline, so the
+  //   line heights are taller than the Latin-only design (1.3 -> 1.45 headings,
+  //   1.5 -> 1.65 body) to avoid clipped marks in multi-line text.
+  //
+  //   Vuetify class      Fox style
+  //   text-h1  30 bold   text-h2  28 semibold  text-h3 24   text-h4 21
+  //   text-h5  18        text-h6  16
+  //   text-subtitle-1 15 (paragraph large)    text-subtitle-2 14 medium
+  //   text-body-1 14 (regular)                text-body-2 13 (small)
+  //   text-caption 12 (extra small)           text-button 14 medium
+  //   text-overline 12 medium (section labels)
+  // Vuetify's typography classes use !important, so these need it too.
+  // Large headings shrink slightly on phones.
+  // -----------------------------------------------------------------------------
+  $fox-type: (
+    'h1': (30px, 700, 1.4, 26px),
+    'h2': (28px, 600, 1.4, 24px),
+    'h3': (24px, 600, 1.45, 21px),
+    'h4': (21px, 500, 1.45, 19px),
+    'h5': (18px, 500, 1.5, 17px),
+    'h6': (16px, 500, 1.5, 16px),
+  );
+
+  @each $name, $v in $fox-type {
+    .text-#{$name} {
+      font-size: nth($v, 1) !important;
+      font-weight: nth($v, 2) !important;
+      line-height: nth($v, 3) !important;
+      letter-spacing: 0 !important;
+      font-family: inherit !important;
+
+      @media (max-width: 599.98px) {
+        font-size: nth($v, 4) !important;
+      }
+    }
+  }
+
+  .text-subtitle-1 { font-size: 15px !important; font-weight: 400 !important; line-height: 1.65 !important; letter-spacing: 0 !important; }
+  .text-subtitle-2 { font-size: 14px !important; font-weight: 500 !important; line-height: 1.6 !important; letter-spacing: 0 !important; }
+  .text-body-1     { font-size: 14px !important; font-weight: 400 !important; line-height: 1.65 !important; letter-spacing: 0 !important; }
+  .text-body-2     { font-size: 13px !important; font-weight: 400 !important; line-height: 1.6 !important; letter-spacing: 0 !important; }
+  .text-caption    { font-size: 12px !important; font-weight: 400 !important; line-height: 1.5 !important; letter-spacing: 0 !important; }
+  .text-overline   { font-size: 12px !important; font-weight: 500 !important; line-height: 1.5 !important; letter-spacing: 0.02em !important; }
+  .text-button     { font-size: 14px !important; font-weight: 500 !important; letter-spacing: 0 !important; text-transform: none !important; }
+
+  .text-muted { color: rgb(var(--v-theme-muted)) !important; }
+
+  // tabular figures for numbers in tables, stats and timelines
+  .fox-num { font-variant-numeric: tabular-nums; }
+
+  // clamp long text (descriptions, notification messages) to two lines
+  .fox-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  // -----------------------------------------------------------------------------
+  // Layout helpers
+  // -----------------------------------------------------------------------------
+  .fox-page {
+    width: 100%;
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: var(--fox-gutter);
+  }
+
+  // card body with responsive padding (24 desktop / 16 phone)
+  .fox-card-body {
+    padding: var(--fox-card-padding);
+  }
+
+  // stack of cards / sections inside a column
+  .fox-stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--fox-gutter);
+  }
+
+  // v-row gutter that follows --fox-gutter (Vuetify default is a fixed 24px)
+  .v-row.fox-grid {
+    margin: calc(var(--fox-gutter) / -2);
+
+    > .v-col,
+    > [class*='v-col-'] {
+      padding: calc(var(--fox-gutter) / 2);
+    }
+  }
+
+  // -----------------------------------------------------------------------------
+  // Cards  (white, large radius, soft shadow, no hard border)
+  // -----------------------------------------------------------------------------
+  .v-card {
+    border-radius: var(--fox-radius-card);
+
+    &.v-card--variant-elevated {
+      box-shadow: var(--fox-shadow-card);
+    }
+  }
+
+  .v-card-title {
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 1.5;
+    letter-spacing: 0;
+    white-space: normal;
+  }
+
+  .v-card-subtitle {
+    font-size: 13px;
+    opacity: 1;
+    color: rgb(var(--v-theme-muted));
+    letter-spacing: 0;
+    white-space: normal;
+  }
+
+  // popovers: menus, selects
+  .v-overlay__content > .v-card,
+  .v-overlay__content > .v-list,
+  .v-menu > .v-overlay__content > .v-sheet {
+    box-shadow: var(--fox-shadow-popover);
+  }
+
+  .v-menu > .v-overlay__content {
+    border-radius: 12px;
+  }
+
+  // -----------------------------------------------------------------------------
+  // Buttons  (sentence case, 40px high, medium weight)
+  // -----------------------------------------------------------------------------
+  .v-btn {
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 500;
+
+    &.v-btn--size-default:not(.v-btn--icon) {
+      height: 40px;
+      padding: 0 20px;
+      font-size: 14px;
+    }
+
+    &.v-btn--size-small:not(.v-btn--icon) {
+      height: 32px;
+      padding: 0 12px;
+      font-size: 13px;
+    }
+
+    &.v-btn--size-large:not(.v-btn--icon) {
+      height: 48px;
+      font-size: 15px;
+    }
+  }
+
+  // -----------------------------------------------------------------------------
+  // Inputs  (outlined, light grey border, primary on focus)
+  // Design puts the label ABOVE the field -> use  <label class="fox-label">
+  // -----------------------------------------------------------------------------
+  // field grid for forms with labels above fields: 24px between rows
+  .v-row.fox-form-grid {
+    row-gap: 24px;
+    margin: 0 -12px;
+
+    > .v-col,
+    > [class*='v-col-'] {
+      padding: 0 12px;
+    }
+  }
+
+  .fox-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
+  .v-input .v-field--variant-outlined:not(.v-field--focused):not(.v-field--error) {
+    --v-field-border-opacity: 0.2;
+  }
+
+  .v-field {
+    border-radius: var(--fox-radius-control);
+    font-size: 14px;
+
+    .v-field__outline {
+      --v-field-border-width: 1px;
+    }
+
+    &.v-field--disabled {
+      background: rgba(var(--v-theme-on-surface), 0.06);
+    }
+  }
+
+  .v-input__details {
+    padding-inline: 0;
+  }
+
+  .v-selection-control .v-label {
+    font-size: 14px;
+    opacity: 1;
+  }
+
+  // Lists: 16px between a prepend icon and the text (Vuetify default is 32px)
+  .v-list-item__prepend > .v-icon ~ .v-list-item__spacer {
+    width: 16px;
+  }
+
+  // -----------------------------------------------------------------------------
+  // Tables  (muted header, thin row dividers, no zebra)
+  // -----------------------------------------------------------------------------
+  .v-table {
+    background: transparent;
+
+    > .v-table__wrapper > table {
+      > thead > tr > th {
+        font-size: 13px;
+        font-weight: 500;
+        color: rgb(var(--v-theme-muted));
+        background: transparent;
+        white-space: nowrap;
+      }
+
+      > tbody > tr > td {
+        font-size: 14px;
+        height: 64px;
+      }
+    }
+  }
+
+  // A table placed directly in a card lines its first/last column up with the
+  // card padding instead of Vuetify's 16px cell padding.
+  .v-card:not(.fox-card-body) > .v-table > .v-table__wrapper > table > * > tr {
+    > th:first-child,
+    > td:first-child {
+      padding-inline-start: var(--fox-card-padding);
+    }
+
+    > th:last-child,
+    > td:last-child {
+      padding-inline-end: var(--fox-card-padding);
+    }
+  }
+
+  // ...and inside an already padded card, the outer cells drop their padding
+  .fox-card-body > .v-table > .v-table__wrapper > table > * > tr {
+    > th:first-child,
+    > td:first-child {
+      padding-inline-start: 0;
+    }
+
+    > th:last-child,
+    > td:last-child {
+      padding-inline-end: 0;
+    }
+  }
+
+  // -----------------------------------------------------------------------------
+  // Chips / badges  (small rectangular tags, e.g. priority Low/Medium/High)
+  // -----------------------------------------------------------------------------
+  .v-chip.v-chip--label {
+    border-radius: 4px;
+    font-weight: 500;
+  }
+
+  // -----------------------------------------------------------------------------
+  // Sidebar navigation  (add class="fox-nav" to <v-navigation-drawer>)
+  // Active item = solid primary pill with white text.
+  // Minified (rail) mode shows icons only; hovering expands it again.
+  // -----------------------------------------------------------------------------
+  .fox-nav {
+    &.v-navigation-drawer {
+      border-right: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+    }
+
+    .v-list {
+      padding-inline: 16px;
+    }
+
+    .v-list-subheader {
+      min-height: 40px;
+      padding-inline: 8px !important;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: rgb(var(--v-theme-muted));
+    }
+
+    .v-list-item {
+      min-height: 42px;
+      margin-bottom: 4px;
+      padding-inline: 12px !important;
+      border-radius: var(--fox-radius-control);
+      font-size: 14px;
+
+      .v-list-item__prepend > .v-icon {
+        margin-inline-end: 12px;
+        font-size: 20px;
+        opacity: 1;
+      }
+
+      // Vuetify reserves a 32px spacer after the icon; the margin above is enough
+      .v-list-item__spacer {
+        display: none;
+      }
+
+      .v-list-item-title {
+        font-size: 14px;
+        font-weight: 400;
+        line-height: 1.5;
+      }
+    }
+
+    .v-list-item--active {
+      background: rgb(var(--v-theme-primary));
+      color: rgb(var(--v-theme-on-primary));
+
+      .v-list-item__overlay {
+        opacity: 0 !important;
+      }
+    }
+
+    &.v-navigation-drawer--rail:not(.v-navigation-drawer--is-hovering) {
+      .v-list {
+        padding-inline: 12px;
+      }
+
+      .v-list-subheader {
+        justify-content: center;
+        padding-inline: 0 !important;
+
+        .v-list-subheader__text {
+          visibility: hidden;
+          width: 24px;
+          border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+        }
+      }
+
+      // rail item is 56px wide (80 - 2x12), icon 20px -> 18px each side
+      .v-list-item {
+        padding-inline: 18px !important;
+
+        .v-list-item__prepend > .v-icon {
+          margin-inline-end: 0;
+        }
+
+        .v-list-item__content,
+        .v-list-item__append {
+          display: none;
+        }
+      }
+
+      // removed (not just hidden): squeezed to 80px, text would wrap per letter
+      // and push the menu out of the drawer
+      .fox-nav__wide,
+      .fox-logo__text {
+        display: none;
+      }
+    }
+  }
+
+  // Right-hand detail panel
+  .fox-aside.v-navigation-drawer {
+    border-left: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  }
+
+  // App bar: flat, no shadow, blends with the page background
+  .v-app-bar.v-toolbar {
+    box-shadow: none;
+    background: rgb(var(--v-theme-background));
+  }
+
+  .v-app-bar.fox-appbar--scrolled {
+    border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  }
+
+  // Breadcrumbs: compact, muted
+  .v-breadcrumbs.fox-breadcrumbs {
+    padding: 0;
+    font-size: 13px;
+    color: rgb(var(--v-theme-muted));
+
+    .v-breadcrumbs-item {
+      padding: 0;
+    }
+
+    .v-breadcrumbs-divider {
+      padding: 0 6px;
+    }
+
+    // current page: readable, not "disabled" grey
+    .v-breadcrumbs-item--disabled {
+      opacity: 1;
+      color: rgb(var(--v-theme-on-surface));
+    }
+  }
+
+  // Tabs: no uppercase
+  .v-tab.v-btn {
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 500;
+    min-width: 0;
+  }
+
+  // Secondary text on a solid colored surface (e.g. a bg-primary card), where
+  // text-muted would be the wrong color. Inherits the on-color and fades it.
+  .text-on-color-muted {
+    opacity: 0.72;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Print (documents): only the page content, A4, no app chrome
+// Add class="no-print" to anything a page shows around a document.
+// -----------------------------------------------------------------------------
+@page {
+  size: A4;
+  margin: 14mm 12mm;
+}
+
+@media print {
+  html {
+    .v-navigation-drawer,
+    .v-app-bar,
+    .v-footer,
+    .v-snackbar,
+    .no-print {
+      display: none !important;
+    }
+
+    .v-main {
+      padding: 0 !important;
+    }
+
+    .v-application,
+    .bg-background {
+      background: none !important;
+    }
+
+    .fox-page {
+      max-width: none;
+      padding: 0;
+    }
+
+    .doc-sheet {
+      max-width: none;
+      padding: 0;
+      box-shadow: none;
+    }
+  }
+}
+

@@ -1,0 +1,24 @@
+import type { NavItem } from '@/types'
+
+// Sidebar menu, grouped by the QA workflow. `permission` hides an item (or a section header) from roles without it.
+const navigation: NavItem[] = [
+  { header: 'หน้าหลัก' },
+  { title: 'ภาพรวมโปรเจกต์', icon: 'tabler:layout-dashboard', to: '/dashboard' },
+  { header: 'การทดสอบ' },
+  { title: 'Requirements', icon: 'tabler:clipboard-list', to: '/requirements' },
+  { title: 'Test Cases', icon: 'tabler:flask', to: '/test-cases' },
+  { title: 'รอบการทดสอบ', icon: 'tabler:player-play', to: '/test-runs' },
+  { title: 'Defects', icon: 'tabler:bug', to: '/defects' },
+  { title: 'ปฏิทินงานทดสอบ', icon: 'tabler:calendar-event', to: '/calendar' },
+  { header: 'เอกสารและรายงาน' },
+  { title: 'ศูนย์เอกสาร', icon: 'tabler:files', to: '/documents' },
+  { title: 'รายงาน', icon: 'tabler:report-analytics', to: '/reports' },
+  { header: 'ผู้ดูแลระบบ', permission: 'canViewAuditLogs' },
+  { title: 'Audit Logs', icon: 'tabler:history', to: '/audit-trail', permission: 'canViewAuditLogs' },
+  { title: 'ผู้ใช้งาน', icon: 'tabler:users', to: '/admin/users', permission: 'canManageUsers' },
+  { title: 'สิทธิ์การใช้งาน', icon: 'tabler:shield-lock', to: '/admin/permissions', permission: 'canManageUsers' },
+  { header: 'ระบบ' },
+  { title: 'ตั้งค่า', icon: 'tabler:settings', to: '/settings' },
+]
+
+export default navigation
