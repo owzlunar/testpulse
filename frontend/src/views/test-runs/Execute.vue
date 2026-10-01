@@ -58,7 +58,10 @@ watch(saved, (r) => (draft.value = r ? JSON.parse(JSON.stringify(r)) : null), { 
 const dirty = computed(() => !!draft.value && !!saved.value && JSON.stringify(draft.value) !== JSON.stringify(saved.value))
 
 const derived = computed<ResultStatus>(() => (draft.value ? deriveResult(draft.value.stepResults) : 'untested'))
-const caseNow = computed(() => (draft.value && run.value ? testCaseStore.getById(draft.value.caseId, run.value.projectId) : undefined))
+// a deleted case's id may now belong to another case: never resolve it
+const caseNow = computed(() =>
+  draft.value && run.value && !draft.value.caseDeleted ? testCaseStore.getById(draft.value.caseId, run.value.projectId) : undefined,
+)
 const changedSinceSnapshot = computed(() => !!caseNow.value && caseNow.value.version !== draft.value?.caseVersion)
 
 function setStep(i: number, status: ResultStatus) {
@@ -208,7 +211,9 @@ function complete() {
                 <template #prepend>
                   <v-icon :icon="resultOf(r.status).icon" :color="resultOf(r.status).tone" class="mr-3" />
                 </template>
-                <v-list-item-title class="text-subtitle-2"><span class="fox-num">{{ r.caseId }}</span></v-list-item-title>
+                <v-list-item-title class="text-subtitle-2">
+                  <span class="fox-num">{{ r.caseId }}</span><span v-if="r.caseDeleted" class="text-caption text-muted"> (ลบแล้ว)</span>
+                </v-list-item-title>
                 <v-list-item-subtitle class="text-caption">{{ r.caseName }}</v-list-item-subtitle>
                 <template v-if="r.defectIds.length" #append>
                   <v-chip size="x-small" color="error" variant="tonal" prepend-icon="tabler:bug">{{ r.defectIds.length }}</v-chip>
@@ -238,6 +243,9 @@ function complete() {
               </div>
             </div>
 
+            <v-alert v-if="draft.caseDeleted" type="warning" variant="tonal" density="compact" icon="tabler:trash" class="my-3">
+              Test Case นี้ถูกลบแล้ว ผลในรอบนี้เก็บไว้เป็นประวัติ และจะไม่อัปเดตสถานะของเคสใด
+            </v-alert>
             <v-alert v-if="changedSinceSnapshot" type="info" variant="tonal" density="compact" icon="tabler:git-branch" class="my-3">
               Test Case ถูกแก้ไขเป็น {{ caseNow?.version }} หลังสร้างรอบนี้ ผลด้านล่างอ้างอิงขั้นตอนของ {{ draft.caseVersion }}
             </v-alert>

@@ -31,7 +31,7 @@ export const useDefectStore = defineStore('defect', () => {
     defects.value.filter((d) => d.projectId === projectStore.currentProject?.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
   )
 
-  const forCase = (caseId: string) => current.value.filter((d) => d.caseId === caseId)
+  const forCase = (caseId: string) => current.value.filter((d) => d.caseId === caseId && !d.caseDeleted)
   const replace = (d: Defect) => {
     const i = defects.value.findIndex((x) => x.id === d.id)
     if (i >= 0) defects.value[i] = d
@@ -73,9 +73,16 @@ export const useDefectStore = defineStore('defect', () => {
   /** a reorder renumbered case ids (the server already re-keyed its copy) */
   function renameCases(projectId: string, renames: Record<string, string>) {
     defects.value.forEach((d) => {
-      if (d.projectId === projectId && d.caseId) d.caseId = renames[d.caseId] ?? d.caseId
+      if (d.projectId === projectId && d.caseId && !d.caseDeleted) d.caseId = renames[d.caseId] ?? d.caseId
     })
   }
 
-  return { defects, loaded, current, ensureLoaded, forCase, save, setStatus, comment, renameCases }
+  /** cases were deleted (the server already detached its copy) */
+  function detachCases(projectId: string, caseIds: string[]) {
+    defects.value.forEach((d) => {
+      if (d.projectId === projectId && d.caseId && caseIds.includes(d.caseId)) d.caseDeleted = true
+    })
+  }
+
+  return { defects, loaded, current, ensureLoaded, forCase, save, setStatus, comment, renameCases, detachCases }
 })

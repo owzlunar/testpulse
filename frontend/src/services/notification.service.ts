@@ -75,6 +75,15 @@ export function renameNotificationCases(projectId: string, renames: Record<strin
   )
 }
 
+/** server-side: alerts about deleted cases lose their link (the id may be reused) */
+export function detachNotificationCases(projectId: string, caseIds: string[]) {
+  write((items) =>
+    items.forEach((n) => {
+      if (n.projectId === projectId && n.testCaseId && caseIds.includes(n.testCaseId)) n.testCaseId = undefined
+    }),
+  )
+}
+
 /** GET /notifications */
 export const fetchNotifications = () => respond(() => load(STORAGE_KEYS.notifications, SEED_NOTIFICATIONS))
 

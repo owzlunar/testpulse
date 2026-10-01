@@ -43,7 +43,7 @@ watch(() => form.name, (name) => (form.round = runStore.nextRound(name)))
 
 // --- case selection ------------------------------------------------------------------
 const cases = computed(() => [...currentCases.value].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })))
-const failedLastRound = computed(() => new Set(lastRun.value?.results.filter((r) => r.status === 'failed' || r.status === 'blocked').map((r) => r.caseId)))
+const failedLastRound = computed(() => new Set(lastRun.value?.results.filter((r) => !r.caseDeleted && (r.status === 'failed' || r.status === 'blocked')).map((r) => r.caseId)))
 
 const presets = computed(() => [
   { label: 'ทั้งหมด', ids: cases.value.map((c) => c.id) },

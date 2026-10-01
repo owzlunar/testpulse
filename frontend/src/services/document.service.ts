@@ -79,10 +79,10 @@ function buildSnapshot(req: DocumentRequest): DocumentSnapshot {
   let cases: DocCase[]
   if (run) {
     cases = run.results.map((r) => {
-      const tc = allCases.find((c) => c.id === r.caseId)
+      const tc = r.caseDeleted ? undefined : allCases.find((c) => c.id === r.caseId)
       const res = resultOf(r.status)
       return {
-        id: r.caseId, name: r.caseName, parentId: tc?.parentId, requirement: tc ? requirementText(tc, requirements) : '', testScenario: tc?.testScenario ?? '',
+        id: r.caseDeleted ? `${r.caseId} (ลบแล้ว)` : r.caseId, name: r.caseName, parentId: tc?.parentId, requirement: tc ? requirementText(tc, requirements) : '', testScenario: tc?.testScenario ?? '',
         prerequisite: tc?.prerequisite ?? '', priority: r.priority, steps: r.steps, expectedResults: tc?.expectedResults ?? '',
         outcome: outcomeOf(r.status), result: res.label, resultTone: res.tone, actualResults: r.actualResults, executedBy: r.executedBy, executedAt: r.executedAt,
         stepResults: r.stepResults, evidence: [...r.evidence, ...r.stepResults.flatMap((s) => s.evidence)], defectIds: r.defectIds,
@@ -108,7 +108,7 @@ function buildSnapshot(req: DocumentRequest): DocumentSnapshot {
   const failed = count('failed')
   const blocked = count('blocked')
   const caseIds = new Set(cases.map((c) => c.id))
-  const openDefects = defects.filter((d) => isOpenDefect(d) && (!d.caseId || caseIds.has(d.caseId)))
+  const openDefects = defects.filter((d) => isOpenDefect(d) && (!d.caseId || d.caseDeleted || caseIds.has(d.caseId)))
   const overdue = allCases.filter((c) => caseIds.has(c.id) && isOverdue(c))
 
   const risks = [
@@ -124,7 +124,7 @@ function buildSnapshot(req: DocumentRequest): DocumentSnapshot {
     run: run && { name: run.name, round: run.round, type: run.type, environment: run.environment, build: run.build, plannedStart: run.plannedStart, plannedEnd: run.plannedEnd, startedAt: run.startedAt, completedAt: run.completedAt },
     summary: { total: cases.length, passed, failed, blocked, notRun: cases.length - passed - failed - blocked, passRate: cases.length ? (passed / cases.length) * 100 : 0 },
     cases,
-    defects: (req.options.includeDefects ? defects.filter((d) => !d.caseId || caseIds.has(d.caseId)) : []).map(({ id, title, severity, status, caseId, assignee, externalKey }) => ({ id, title, severity, status, caseId, assignee, externalKey })),
+    defects: (req.options.includeDefects ? defects.filter((d) => !d.caseId || d.caseDeleted || caseIds.has(d.caseId)) : []).map(({ id, title, severity, status, caseId, caseDeleted, assignee, externalKey }) => ({ id, title, severity, status, caseId: caseId && caseDeleted ? `${caseId} (ลบแล้ว)` : caseId, assignee, externalKey })),
     requirements: req.options.includeTraceability || req.type === 'rtm'
       ? requirements.map((r) => {
           const linked = casesForRequirement(r, allCases)

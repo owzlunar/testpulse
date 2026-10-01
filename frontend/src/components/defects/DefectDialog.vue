@@ -41,7 +41,11 @@ watch(open, (isOpen) => {
 }, { immediate: true })
 
 const devs = computed(() => users.value.filter((u) => u.role === 'DEV').map((u) => u.name))
-const caseOptions = computed(() => currentCases.value.map((c) => ({ title: `${c.id}: ${c.name}`, value: c.id })))
+const caseOptions = computed(() => [
+  // keep showing the link of a defect whose case was deleted until another case is picked
+  ...(form.caseId && form.caseDeleted ? [{ title: `${form.caseId} (ลบแล้ว)`, value: form.caseId }] : []),
+  ...currentCases.value.filter((c) => !(form.caseDeleted && c.id === form.caseId)).map((c) => ({ title: `${c.id}: ${c.name}`, value: c.id })),
+])
 
 async function submit() {
   const result = await formRef.value?.validate()

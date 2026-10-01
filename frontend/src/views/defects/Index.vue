@@ -148,7 +148,7 @@ watch([() => route.query.id, loaded], ([id, isLoaded]) => {
           <div class="py-3 defect-row">
             <div class="text-subtitle-2"><span class="text-error fox-num mr-1">{{ item.id }}</span>{{ item.title }}</div>
             <div class="d-flex flex-wrap ga-2 text-caption text-muted">
-              <span v-if="item.caseId">{{ item.caseId }}<template v-if="item.stepNumber"> · ขั้นตอน {{ item.stepNumber }}</template></span>
+              <span v-if="item.caseId">{{ item.caseId }}<template v-if="item.caseDeleted"> (ลบแล้ว)</template><template v-if="item.stepNumber"> · ขั้นตอน {{ item.stepNumber }}</template></span>
               <span v-if="item.externalKey"><v-icon icon="tabler:external-link" size="12" /> {{ item.externalKey }}</span>
             </div>
           </div>
@@ -215,7 +215,8 @@ watch([() => route.query.id, loaded], ([id, isLoaded]) => {
         <dl class="defect-meta text-body-2">
           <dt>Test Case</dt>
           <dd>
-            <router-link v-if="detail.caseId" :to="{ path: '/test-cases', query: { caseId: detail.caseId } }" class="text-primary text-decoration-none">{{ detail.caseId }}</router-link>
+            <template v-if="detail.caseId && detail.caseDeleted">{{ detail.caseId }} (ลบแล้ว)</template>
+            <router-link v-else-if="detail.caseId" :to="{ path: '/test-cases', query: { caseId: detail.caseId } }" class="text-primary text-decoration-none">{{ detail.caseId }}</router-link>
             <template v-else>-</template>
             <template v-if="detail.stepNumber"> · ขั้นตอน {{ detail.stepNumber }}</template>
           </dd>

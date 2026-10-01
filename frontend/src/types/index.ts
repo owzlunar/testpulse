@@ -245,6 +245,8 @@ export interface AuditTrailEntry {
   targetId: string
   /** project of a TEST_CASE target: case ids restart per project (TC-101 …) */
   projectId?: string
+  /** the target case was deleted; its id may be reused, so the entry no longer belongs to that id */
+  targetDeleted?: boolean
   targetTitle: string
   details: string
   changes?: AuditChange[]
@@ -358,6 +360,8 @@ export interface StepResult {
 /** One case inside a run. A snapshot of the case is kept so later edits don't rewrite history. */
 export interface RunResult {
   caseId: string
+  /** the case was deleted after this run: `caseId` is history only (the id may belong to a newer case) */
+  caseDeleted?: boolean
   caseName: string
   caseVersion: string
   priority: TestCasePriority
@@ -418,6 +422,8 @@ export interface Defect {
   severity: DefectSeverity
   status: DefectStatus
   caseId?: string
+  /** the linked case was deleted: `caseId` is history only (the id may belong to a newer case) */
+  caseDeleted?: boolean
   runId?: string
   stepNumber?: number
   assignee?: string

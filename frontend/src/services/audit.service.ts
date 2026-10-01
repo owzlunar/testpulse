@@ -82,7 +82,16 @@ const SEED_AUDIT_LOGS: AuditTrailEntry[] = [
 export function renameAuditCases(projectId: string, renames: Record<string, string>) {
   update(STORAGE_KEYS.auditLogs, SEED_AUDIT_LOGS, (logs) =>
     logs.forEach((l) => {
-      if (l.targetType === 'TEST_CASE' && l.projectId === projectId) l.targetId = renames[l.targetId] ?? l.targetId
+      if (l.targetType === 'TEST_CASE' && l.projectId === projectId && !l.targetDeleted) l.targetId = renames[l.targetId] ?? l.targetId
+    }),
+  )
+}
+
+/** server-side: entries of deleted cases stay in the trail but no longer belong to the (reusable) id */
+export function detachAuditCases(projectId: string, caseIds: string[]) {
+  update(STORAGE_KEYS.auditLogs, SEED_AUDIT_LOGS, (logs) =>
+    logs.forEach((l) => {
+      if (l.targetType === 'TEST_CASE' && l.projectId === projectId && caseIds.includes(l.targetId)) l.targetDeleted = true
     }),
   )
 }

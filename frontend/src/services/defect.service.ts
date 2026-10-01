@@ -67,7 +67,16 @@ const defects = () => load(STORAGE_KEYS.defects, SEED_DEFECTS)
 export function renameDefectCases(projectId: string, renames: Record<string, string>) {
   const list = defects()
   list.forEach((d) => {
-    if (d.projectId === projectId && d.caseId) d.caseId = renames[d.caseId] ?? d.caseId
+    if (d.projectId === projectId && d.caseId && !d.caseDeleted) d.caseId = renames[d.caseId] ?? d.caseId
+  })
+  save(STORAGE_KEYS.defects, list)
+}
+
+/** server-side: defects of deleted cases keep the id as history, detached from it */
+export function detachDefectCases(projectId: string, caseIds: string[]) {
+  const list = defects()
+  list.forEach((d) => {
+    if (d.projectId === projectId && d.caseId && caseIds.includes(d.caseId)) d.caseDeleted = true
   })
   save(STORAGE_KEYS.defects, list)
 }
@@ -83,7 +92,9 @@ export const saveDefect = (input: DefectInput, reportedBy: string) =>
     if (input.id) {
       const i = list.findIndex((d) => d.id === input.id)
       if (i < 0) throw new ApiError('ไม่พบ Defect', 404)
-      list[i] = { ...list[i], ...input, id: input.id, updatedAt: now }
+      // picking another case re-attaches a defect whose case was deleted
+      const caseDeleted = input.caseId === list[i].caseId ? list[i].caseDeleted : false
+      list[i] = { ...list[i], ...input, id: input.id, caseDeleted, updatedAt: now }
       save(STORAGE_KEYS.defects, list)
       return list[i]
     }

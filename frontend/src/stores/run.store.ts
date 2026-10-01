@@ -76,7 +76,16 @@ export const useRunStore = defineStore('run', () => {
 
   /** a reorder renumbered case ids (the server already re-keyed its copy) */
   function renameCases(projectId: string, renames: Record<string, string>) {
-    runs.value.filter((r) => r.projectId === projectId).forEach((run) => run.results.forEach((r) => (r.caseId = renames[r.caseId] ?? r.caseId)))
+    runs.value.filter((r) => r.projectId === projectId).forEach((run) => run.results.forEach((r) => {
+      if (!r.caseDeleted) r.caseId = renames[r.caseId] ?? r.caseId
+    }))
+  }
+
+  /** cases were deleted (the server already detached its copy) */
+  function detachCases(projectId: string, caseIds: string[]) {
+    runs.value.filter((r) => r.projectId === projectId).forEach((run) => run.results.forEach((r) => {
+      if (caseIds.includes(r.caseId)) r.caseDeleted = true
+    }))
   }
 
   async function remove(id: string) {
@@ -87,5 +96,5 @@ export const useRunStore = defineStore('run', () => {
   /** next round number for a run name in this project */
   const nextRound = (name: string) => Math.max(0, ...current.value.filter((r) => r.name === name).map((r) => r.round)) + 1
 
-  return { runs, loaded, current, ensureLoaded, getById, create, update, complete, saveResult, remove, nextRound, renameCases }
+  return { runs, loaded, current, ensureLoaded, getById, create, update, complete, saveResult, remove, nextRound, renameCases, detachCases }
 })

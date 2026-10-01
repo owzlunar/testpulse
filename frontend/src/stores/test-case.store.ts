@@ -309,16 +309,21 @@ export const useTestCaseStore = defineStore('testCase', () => {
   async function remove(id: string, projectId?: string) {
     const target = getById(id, projectId)
     if (!target) return
-    await api.deleteTestCase(target.projectId, id)
-    testCases.value = testCases.value.filter((tc) => !(tc.projectId === target.projectId && (tc.id === id || tc.parentId === id)))
+    const ids = await api.deleteTestCase(target.projectId, id)
+    testCases.value = testCases.value.filter((tc) => !(tc.projectId === target.projectId && ids.includes(tc.id)))
+    useRunStore().detachCases(target.projectId, ids)
+    useDefectStore().detachCases(target.projectId, ids)
+    notify.detachCases(target.projectId, ids)
+    audit.detachCases(target.projectId, ids)
 
     audit.record({
       action: 'DELETE',
       targetType: 'TEST_CASE',
       targetId: id,
       projectId: target.projectId,
+      targetDeleted: true,
       targetTitle: target.name,
-      details: `ลบ Test Case ${id} รวมถึง Sub-case ทั้งหมด`,
+      details: ids.length > 1 ? `ลบ Test Case ${id} รวมถึง Sub-case ${ids.slice(1).join(', ')}` : `ลบ Test Case ${id}`,
     })
     notify.add({
       type: 'MODIFIED',

@@ -100,7 +100,18 @@ const find = (list: TestRun[], id: string) => {
 /** server-side: follow renumbered case ids (old id -> new id) in every run of the project */
 export function renameRunCases(projectId: string, renames: Record<string, string>) {
   const list = runs()
-  list.filter((r) => r.projectId === projectId).forEach((run) => run.results.forEach((r) => (r.caseId = renames[r.caseId] ?? r.caseId)))
+  list.filter((r) => r.projectId === projectId).forEach((run) => run.results.forEach((r) => {
+    if (!r.caseDeleted) r.caseId = renames[r.caseId] ?? r.caseId
+  }))
+  save(STORAGE_KEYS.testRuns, list)
+}
+
+/** server-side: results of deleted cases stay in their runs as history, detached from the id */
+export function detachRunCases(projectId: string, caseIds: string[]) {
+  const list = runs()
+  list.filter((r) => r.projectId === projectId).forEach((run) => run.results.forEach((r) => {
+    if (caseIds.includes(r.caseId)) r.caseDeleted = true
+  }))
   save(STORAGE_KEYS.testRuns, list)
 }
 

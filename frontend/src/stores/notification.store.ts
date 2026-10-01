@@ -52,5 +52,12 @@ export const useNotificationStore = defineStore('notification', () => {
     })
   }
 
-  return { notifications, unreadCount, load, add, markAsRead, markAllAsRead, remove, clearAll, renameCases }
+  /** cases were deleted (the server already detached its copy) */
+  function detachCases(projectId: string, caseIds: string[]) {
+    notifications.value.forEach((n) => {
+      if (n.projectId === projectId && n.testCaseId && caseIds.includes(n.testCaseId)) n.testCaseId = undefined
+    })
+  }
+
+  return { notifications, unreadCount, load, add, markAsRead, markAllAsRead, remove, clearAll, renameCases, detachCases }
 })

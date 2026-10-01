@@ -1,10 +1,10 @@
 import type { Option, TestCase, TestCaseOrder, TestCasePriority, TestCaseReorderResult, TestCaseStatus, Tone } from '@/types'
 import { daysFromToday } from '@/utils/date'
-import { renameAuditCases } from './audit.service'
-import { renameDefectCases } from './defect.service'
+import { detachAuditCases, renameAuditCases } from './audit.service'
+import { detachDefectCases, renameDefectCases } from './defect.service'
 import { ApiError, respond } from './http'
-import { renameNotificationCases } from './notification.service'
-import { renameRunCases } from './run.service'
+import { detachNotificationCases, renameNotificationCases } from './notification.service'
+import { detachRunCases, renameRunCases } from './run.service'
 import { STORAGE_KEYS, load, migrateOnce, save } from './storage.service'
 
 // Dev <-> QA lifecycle: Pending Dev -> Ready for Test -> (QA) -> Passed | Failed -> back to Dev
@@ -481,10 +481,24 @@ export const updateTestCase = (tc: TestCase) =>
     return tc
   })
 
-/** DELETE /projects/:projectId/test-cases/:id (and its sub-cases) */
+/**
+ * DELETE /projects/:projectId/test-cases/:id (and its sub-cases)
+ * Ids are reused later (new cases, renumbering), so everything that pointed at the deleted
+ * cases is detached: run results and defects keep the old id as history only, alerts lose the link.
+ * Returns the deleted ids.
+ */
 export const deleteTestCase = (projectId: string, id: string) =>
   respond(() => {
-    save(STORAGE_KEYS.testCases, testCases().filter((x) => !(x.projectId === projectId && (x.id === id || x.parentId === id))))
+    const list = testCases()
+    const gone = (x: TestCase) => x.projectId === projectId && (x.id === id || x.parentId === id)
+    const ids = list.filter(gone).map((x) => x.id)
+    if (!ids.length) throw new ApiError(`ไม่พบ ${id}`, 404)
+    detachRunCases(projectId, ids)
+    detachDefectCases(projectId, ids)
+    detachNotificationCases(projectId, ids)
+    detachAuditCases(projectId, ids)
+    save(STORAGE_KEYS.testCases, list.filter((x) => !gone(x)))
+    return ids
   })
 
 /**
