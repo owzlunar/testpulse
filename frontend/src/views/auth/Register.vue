@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import type { VForm } from 'vuetify/components'
 import AppLogo from '@/components/layout/AppLogo.vue'
 import { DEFAULT_AVATAR } from '@/services/user.service'
@@ -8,7 +7,6 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useAuthStore } from '@/stores/auth.store'
 import * as v from '@/utils/validators'
 
-const router = useRouter()
 const auth = useAuthStore()
 
 const titles = ['QA Lead', 'Senior QA Tester', 'Automation Engineer', 'Manual Tester']
@@ -22,8 +20,7 @@ async function submit() {
   if (!result?.valid) return
   await run(async () => {
     const user = await auth.addUser({ name: form.name, email: form.email, roleId: null, title: form.title, avatar: DEFAULT_AVATAR })
-    await auth.loginAs(user)
-    router.push('/dashboard')
+    await auth.switchUser(user, '/dashboard')
   })
 }
 </script>

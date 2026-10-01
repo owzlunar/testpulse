@@ -4,10 +4,12 @@ import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import ProjectAvatar from '@/components/projects/ProjectAvatar.vue'
 import { projectStatusOf } from '@/services/project.service'
+import { useAuthStore } from '@/stores/auth.store'
 import { useProjectStore } from '@/stores/project.store'
 
 // Google Cloud Console style project picker in the app bar
 const router = useRouter()
+const auth = useAuthStore()
 const projectStore = useProjectStore()
 const { projects, currentProject, selectedProjectId } = storeToRefs(projectStore)
 
@@ -42,7 +44,7 @@ function createProject() {
     <v-card width="400" max-width="calc(100vw - 32px)">
       <div class="d-flex align-center justify-space-between px-5 pt-4 pb-3">
         <span class="text-h6">เลือกโปรเจกต์</span>
-        <v-btn variant="text" color="primary" size="small" prepend-icon="tabler:plus" @click="createProject">สร้างใหม่</v-btn>
+        <v-btn v-if="auth.isAdmin" variant="text" color="primary" size="small" prepend-icon="tabler:plus" @click="createProject">สร้างใหม่</v-btn>
       </div>
       <div class="px-5 pb-2">
         <v-text-field

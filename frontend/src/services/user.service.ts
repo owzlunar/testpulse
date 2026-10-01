@@ -92,6 +92,12 @@ export const updateUser = (id: string, patch: Partial<User>) =>
     return user
   })
 
+/** server-side: the signed-in user (the real backend reads it from the session token) */
+export const sessionUser = (): User | null => {
+  const session = load<User>(STORAGE_KEYS.currentUser, MOCK_USERS[0])
+  return session ? users().find((u) => u.id === session.id) ?? null : null
+}
+
 /** GET /auth/me */
 export const fetchSession = () => respond(() => load(STORAGE_KEYS.currentUser, MOCK_USERS[0]), 100)
 

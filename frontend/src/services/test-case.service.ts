@@ -9,6 +9,7 @@ import { ApiError, respond } from './http'
 import { detachNotificationCases, renameNotificationCases } from './notification.service'
 import { casesForRequirement, requirementsForCase, requirementsOf } from './requirement.service'
 import { detachRunCases, renameRunCases, runsOf } from './run.service'
+import { inAccessibleProjects } from './project.service'
 import { STORAGE_KEYS, load, migrateOnce, save } from './storage.service'
 
 // Dev <-> QA lifecycle: Pending Dev -> Ready for Test -> (QA) -> Passed | Failed -> back to Dev
@@ -593,8 +594,8 @@ function testCases(): TestCase[] {
 
 const sameCase = (a: TestCase, projectId: string, id: string) => a.projectId === projectId && a.id === id
 
-/** GET /test-cases */
-export const fetchTestCases = () => respond(testCases)
+/** GET /test-cases (of the projects the signed-in user may open) */
+export const fetchTestCases = () => respond(() => inAccessibleProjects(testCases()))
 
 /**
  * POST /projects/:projectId/test-cases (accepts several for import / AI drafts)

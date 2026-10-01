@@ -1,5 +1,6 @@
 import type { CoverageStatus, Option, Requirement, RequirementChangeResult, RequirementInput, RequirementStatus, RequirementType, TestCase } from '@/types'
 import { ApiError, newId, respond } from './http'
+import { inAccessibleProjects } from './project.service'
 import { STORAGE_KEYS, load, save } from './storage.service'
 import { flagCasesForReview } from './test-case.service'
 
@@ -94,8 +95,8 @@ const requirements = () => load(STORAGE_KEYS.requirements, SEED_REQUIREMENTS)
 /** server-side: the stored requirements of a project */
 export const requirementsOf = (projectId: string): Requirement[] => requirements().filter((r) => r.projectId === projectId)
 
-/** GET /requirements */
-export const fetchRequirements = () => respond(requirements)
+/** GET /requirements (of the projects the signed-in user may open) */
+export const fetchRequirements = () => respond(() => inAccessibleProjects(requirements()))
 
 /** what a requirement says; a change here means the linked cases must be reviewed (type / priority / status don't) */
 const MEANING_FIELDS: { field: 'title' | 'description' | 'acceptanceCriteria'; label: string }[] = [

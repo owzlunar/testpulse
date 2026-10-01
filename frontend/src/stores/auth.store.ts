@@ -1,15 +1,17 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import type { Option, PermissionKey, Role, RoleDiscipline, RoleInput, User } from '@/types'
+import type { Option, PermissionKey, Role, RoleDiscipline, RoleInput, Team, TeamInput, User } from '@/types'
 import * as api from '@/services/user.service'
 import * as roleApi from '@/services/role.service'
+import * as teamApi from '@/services/team.service'
 import { NO_ROLE } from '@/services/role.service'
 import { useAuditStore } from './audit.store'
 
-// Session (mock login / user switching), users and their role groups
+// Session (mock login / user switching), users, their role groups and teams
 export const useAuthStore = defineStore('auth', () => {
   const users = ref<User[]>([])
   const roles = ref<Role[]>([])
+  const teams = ref<Team[]>([])
   const currentUser = ref<User>(api.MOCK_USERS[0])
 
   const roleById = (id: string | null | undefined) => (id ? roles.value.find((r) => r.id === id) ?? null : null)
@@ -20,9 +22,10 @@ export const useAuthStore = defineStore('auth', () => {
   const hasRole = computed(() => !!currentRole.value)
 
   async function load() {
-    const [list, roleList, session] = await Promise.all([api.fetchUsers(), roleApi.fetchRoles(), api.fetchSession()])
+    const [list, roleList, teamList, session] = await Promise.all([api.fetchUsers(), roleApi.fetchRoles(), teamApi.fetchTeams(), api.fetchSession()])
     users.value = list
     roles.value = roleList
+    teams.value = teamList
     currentUser.value = list.find((u) => u.id === session.id) ?? list[0] ?? session
   }
 
@@ -48,6 +51,18 @@ export const useAuthStore = defineStore('auth', () => {
   async function loginAs(user: User) {
     currentUser.value = await api.login(user.id)
   }
+
+  /**
+   * Sign in as someone else and start the app again at `to`: everything loaded so far (projects,
+   * cases, runs …) was filtered for the previous user, so it is reloaded rather than reused.
+   */
+  async function switchUser(user: User, to = window.location.pathname + window.location.search) {
+    await loginAs(user)
+    window.location.assign(to)
+  }
+
+  /** teams of a user (a user can be in several) */
+  const teamsOf = (userId: string) => teams.value.filter((t) => t.memberIds.includes(userId))
 
   const audit = () => useAuditStore()
 
@@ -103,8 +118,32 @@ export const useAuthStore = defineStore('auth', () => {
     })
   }
 
+  async function saveTeam(input: TeamInput): Promise<Team> {
+    const saved = await teamApi.saveTeam(input)
+    const i = teams.value.findIndex((t) => t.id === saved.id)
+    if (i >= 0) teams.value[i] = saved
+    else teams.value.push(saved)
+    audit().record({
+      action: input.id ? 'UPDATE' : 'CREATE',
+      targetType: 'PROJECT',
+      targetId: saved.id,
+      targetTitle: saved.name,
+      details: `${input.id ? 'แก้ไข' : 'สร้าง'}${saved.name} (สมาชิก ${saved.memberIds.length} คน)`,
+    })
+    return saved
+  }
+
+  /** delete a team; returns the projects it was removed from (the project store updates them) */
+  async function deleteTeam(id: string) {
+    const target = teams.value.find((t) => t.id === id)
+    const changed = await teamApi.deleteTeam(id)
+    teams.value = teams.value.filter((t) => t.id !== id)
+    audit().record({ action: 'DELETE', targetType: 'PROJECT', targetId: id, targetTitle: target?.name ?? id, details: `ลบ${target?.name ?? 'ทีม'}` })
+    return changed
+  }
+
   return {
-    users, roles, currentUser, currentRole, isAdmin, hasRole,
+    users, roles, teams, currentUser, teamsOf, switchUser, saveTeam, deleteTeam, currentRole, isAdmin, hasRole,
     roleOptions, load, can, roleOf, roleById, usersIn, loginAs, updateUserRole, addUser, saveRole, deleteRole,
   }
 })

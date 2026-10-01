@@ -1,5 +1,8 @@
-import type { MilestoneType, Option, Project, ProjectInput, ProjectStatus } from '@/types'
+import type { MilestoneType, Option, Project, ProjectInput, ProjectStatus, User } from '@/types'
 import { ApiError, newId, respond } from './http'
+import { roleById } from './role.service'
+import { teams } from './team.service'
+import { sessionUser } from './user.service'
 import { STORAGE_KEYS, load, save, update } from './storage.service'
 
 export const PROJECT_STATUSES: Option<ProjectStatus>[] = [
@@ -34,6 +37,7 @@ const SEED_PROJECTS: Project[] = [
     status: 'active',
     tags: ['FinTech', 'High-Risk', 'Backend-API', 'PCI-DSS'],
     memberCount: 5,
+    teamIds: ['team-payment'],
     milestones: [
       { id: 'm-1', title: 'Sprint 42 Code Freeze', date: '2026-10-02', type: 'code_freeze', description: 'หยุดรับฟีเจอร์ใหม่ มุ่งเน้นแก้ Bug และ Re-test' },
       { id: 'm-2', title: 'UAT Sign-off Deadline', date: '2026-10-15', type: 'uat_signoff', description: 'กำหนดการตรวจรับระบบร่วมกับธนาคารและ Merchant' },
@@ -51,6 +55,7 @@ const SEED_PROJECTS: Project[] = [
     status: 'active',
     tags: ['Mobile-App', 'iOS/Android', 'E-Commerce', 'FlashSale'],
     memberCount: 8,
+    teamIds: ['team-ecommerce'],
   },
   {
     id: 'proj-3',
@@ -80,8 +85,35 @@ function projects(): Project[] {
   return list
 }
 
-/** GET /projects */
-export const fetchProjects = () => respond(projects)
+/**
+ * server-side: may this user open the project? Admins always; otherwise the user needs a role, and
+ * a project with teams is open only to their members (a project without teams is open to every role).
+ */
+export function canAccessProject(user: User | null, project: Pick<Project, 'teamIds'>): boolean {
+  const role = roleById(user?.roleId)
+  if (!user || !role) return false
+  if (role.builtIn === 'admin' || !project.teamIds?.length) return true
+  return teams().some((t) => project.teamIds!.includes(t.id) && t.memberIds.includes(user.id))
+}
+
+/** server-side: ids of the projects the signed-in user may open (every list endpoint filters by it) */
+export function accessibleProjectIds(): Set<string> {
+  const user = sessionUser()
+  return new Set(projects().filter((p) => canAccessProject(user, p)).map((p) => p.id))
+}
+
+/** server-side: keep the records that belong to projects the signed-in user may open (no project = global) */
+export function inAccessibleProjects<T extends { projectId?: string }>(list: T[]): T[] {
+  const ids = accessibleProjectIds()
+  return list.filter((x) => !x.projectId || ids.has(x.projectId))
+}
+
+/** GET /projects (only the ones the signed-in user may open) */
+export const fetchProjects = () =>
+  respond(() => {
+    const user = sessionUser()
+    return projects().filter((p) => canAccessProject(user, p))
+  })
 
 /** POST /projects */
 export const createProject = (input: ProjectInput) =>

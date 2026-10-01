@@ -1,5 +1,6 @@
 import type { NotificationItem, NotificationType, Option, Tone } from '@/types'
 import { respond } from './http'
+import { inAccessibleProjects } from './project.service'
 import { STORAGE_KEYS, load, update } from './storage.service'
 
 export const NOTIFICATION_TYPES: Option<NotificationType>[] = [
@@ -85,7 +86,8 @@ export function detachNotificationCases(projectId: string, caseIds: string[]) {
 }
 
 /** GET /notifications */
-export const fetchNotifications = () => respond(() => load(STORAGE_KEYS.notifications, SEED_NOTIFICATIONS))
+export const fetchNotifications = () =>
+  respond(() => inAccessibleProjects(load(STORAGE_KEYS.notifications, SEED_NOTIFICATIONS)))
 
 /** POST /notifications (on the real backend the server pushes these) */
 export const createNotification = (item: NotificationItem) => respond(() => void write((items) => [item, ...items]), 50)

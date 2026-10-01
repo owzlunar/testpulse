@@ -31,7 +31,8 @@ const router = useRouter()
 const projectStore = useProjectStore()
 const { projects, selectedProjectId, overallStats, currentProject, currentStats } = storeToRefs(projectStore)
 const { activeCases: testCases } = storeToRefs(useTestCaseStore())
-const { currentUser } = storeToRefs(useAuthStore())
+const auth = useAuthStore()
+const { currentUser } = storeToRefs(auth)
 const { sortedLogs } = storeToRefs(useAuditStore())
 const { snackbar, notify } = useSnackbar()
 const { busy: saving, run } = useAsyncAction()
@@ -127,7 +128,7 @@ watch(
   () => route.query.action,
   (action) => {
     if (action !== 'new-project') return
-    openCreate()
+    if (auth.isAdmin) openCreate()
     router.replace({ query: {} })
   },
   { immediate: true },
@@ -138,7 +139,7 @@ watch(
   <FoxPageHeader :eyebrow="`ยินดีต้อนรับ คุณ${firstName(currentUser.name)}`" title="ภาพรวมโปรเจกต์">
     <template #actions>
       <v-btn variant="outlined" prepend-icon="tabler:markdown" @click="exportProject()">ส่งออก .md</v-btn>
-      <v-btn color="primary" prepend-icon="tabler:plus" @click="openCreate">สร้างโปรเจกต์</v-btn>
+      <v-btn v-if="auth.isAdmin" color="primary" prepend-icon="tabler:plus" @click="openCreate">สร้างโปรเจกต์</v-btn>
     </template>
   </FoxPageHeader>
 
@@ -228,7 +229,7 @@ watch(
       <FoxEmptyState icon="tabler:folder-search" title="ไม่พบโปรเจกต์" text="ลองเปลี่ยนคำค้นหาหรือตัวกรอง หรือสร้างโปรเจกต์ใหม่">
         <div class="d-flex ga-2 mt-3">
           <v-btn variant="tonal" color="primary" @click="resetFilters">ล้างตัวกรอง</v-btn>
-          <v-btn color="primary" prepend-icon="tabler:plus" @click="openCreate">สร้างโปรเจกต์</v-btn>
+          <v-btn v-if="auth.isAdmin" color="primary" prepend-icon="tabler:plus" @click="openCreate">สร้างโปรเจกต์</v-btn>
         </div>
       </FoxEmptyState>
     </v-card>

@@ -90,7 +90,13 @@ const routes: RouteRecordRaw[] = [
     path: '/admin/permissions',
     name: 'permissions',
     component: () => import('@/views/permissions/Index.vue'),
-    meta: { title: 'สิทธิ์การใช้งาน' },
+    meta: { title: 'Role และสิทธิ์' },
+  },
+  {
+    path: '/admin/teams',
+    name: 'teams',
+    component: () => import('@/views/teams/Index.vue'),
+    meta: { title: 'ทีม' },
   },
   {
     path: '/settings',

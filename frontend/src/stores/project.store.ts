@@ -84,6 +84,14 @@ export const useProjectStore = defineStore('project', () => {
   }
 
   /** deletes the project and all of its test cases */
+  /** show server copies of projects that changed elsewhere (e.g. a deleted team was removed from them) */
+  function replaceMany(changed: Project[]) {
+    changed.forEach((p) => {
+      const i = projects.value.findIndex((x) => x.id === p.id)
+      if (i >= 0) projects.value[i] = p
+    })
+  }
+
   async function remove(id: string) {
     const target = projects.value.find((p) => p.id === id)
     if (!target) return
@@ -109,6 +117,7 @@ export const useProjectStore = defineStore('project', () => {
   }
 
   return {
+    replaceMany,
     projects, selectedProjectId, currentProject, currentCases, currentTree, currentStats, overallStats,
     load, select, statsFor, save, remove, exportMarkdown,
   }

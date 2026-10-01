@@ -18,6 +18,7 @@ const navigation: NavItem[] = [
   { title: 'Audit Logs', icon: 'tabler:history', to: '/audit-trail', permission: 'audit.view' },
   { title: 'ผู้ใช้งาน', icon: 'tabler:users', to: '/admin/users', adminOnly: true },
   { title: 'Role และสิทธิ์', icon: 'tabler:shield-lock', to: '/admin/permissions', adminOnly: true },
+  { title: 'ทีม', icon: 'tabler:users-group', to: '/admin/teams', adminOnly: true },
   { header: 'ระบบ' },
   { title: 'ตั้งค่า', icon: 'tabler:settings', to: '/settings' },
 ]

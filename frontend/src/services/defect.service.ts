@@ -1,6 +1,7 @@
 import type { Defect, DefectComment, DefectInput, DefectSeverity, DefectStatus, Option } from '@/types'
 import { addDays, todayISO } from '@/utils/date'
 import { ApiError, respond } from './http'
+import { inAccessibleProjects } from './project.service'
 import { STORAGE_KEYS, load, save } from './storage.service'
 
 export const SEVERITIES: Option<DefectSeverity>[] = [
@@ -84,8 +85,8 @@ export function detachDefectCases(projectId: string, caseIds: string[]) {
 /** server-side: the stored defects of a project */
 export const defectsOf = (projectId: string): Defect[] => defects().filter((d) => d.projectId === projectId)
 
-/** GET /defects */
-export const fetchDefects = () => respond(defects)
+/** GET /defects (of the projects the signed-in user may open) */
+export const fetchDefects = () => respond(() => inAccessibleProjects(defects()))
 
 /** POST /projects/:projectId/defects · PUT /defects/:id */
 export const saveDefect = (input: DefectInput, reportedBy: string) =>

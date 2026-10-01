@@ -10,6 +10,7 @@ export const STORAGE_KEYS = {
   selectedProjectId: 'testpulse_selected_project_id',
   users: 'testpulse_users',
   roles: 'testpulse_roles',
+  teams: 'testpulse_teams',
   settings: 'testpulse_settings',
   requirements: 'testpulse_requirements',
   templates: 'testpulse_templates',

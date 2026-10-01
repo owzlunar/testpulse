@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import type { VForm } from 'vuetify/components'
 import AppLogo from '@/components/layout/AppLogo.vue'
@@ -10,7 +9,6 @@ import { useAuthStore } from '@/stores/auth.store'
 import type { User } from '@/types'
 import * as v from '@/utils/validators'
 
-const router = useRouter()
 const auth = useAuthStore()
 const { users } = storeToRefs(auth)
 const { busy: signingIn, run } = useAsyncAction()
@@ -23,7 +21,7 @@ const showPw = ref(false)
 const error = ref('')
 
 function signIn(user: User) {
-  run(() => auth.loginAs(user), () => router.push('/dashboard'))
+  run(() => auth.switchUser(user, '/dashboard'))
 }
 
 async function submit() {

@@ -2,7 +2,9 @@
 import { computed, reactive, ref, watch } from 'vue'
 import type { VForm } from 'vuetify/components'
 import ProjectAvatar from './ProjectAvatar.vue'
+import { storeToRefs } from 'pinia'
 import { MILESTONE_TYPES, PROJECT_STATUSES } from '@/services/project.service'
+import { useAuthStore } from '@/stores/auth.store'
 import type { Project, ProjectInput, ProjectMilestone } from '@/types'
 import { addDays, todayISO } from '@/utils/date'
 import { compressImage } from '@/utils/image'
@@ -12,6 +14,8 @@ const open = defineModel<boolean>({ default: false })
 const props = withDefaults(defineProps<{ project?: Project | null; loading?: boolean }>(), { project: null, loading: false })
 const emit = defineEmits<{ save: [input: ProjectInput] }>()
 
+const { teams } = storeToRefs(useAuthStore())
+
 const formRef = ref<VForm>()
 const fileInput = ref<HTMLInputElement>()
 const dragging = ref(false)
@@ -19,7 +23,7 @@ const logoError = ref('')
 
 const empty = (): ProjectInput => ({
   key: '', name: '', description: '', logo: '', targetDeadline: addDays(todayISO(), 14),
-  status: 'active', tags: [], memberCount: 3, milestones: [],
+  status: 'active', tags: [], memberCount: 3, milestones: [], teamIds: [],
 })
 const form = reactive<ProjectInput>(empty())
 const isEdit = computed(() => !!form.id)
@@ -136,6 +140,30 @@ async function submit() {
             <v-col cols="12">
               <label class="fox-label" for="pj-tags">Tags</label>
               <v-combobox id="pj-tags" v-model="form.tags" multiple chips closable-chips placeholder="พิมพ์แล้วกด Enter เช่น API, Payment" />
+            </v-col>
+            <v-col cols="12">
+              <label class="fox-label" for="pj-teams">ทีมที่เข้าถึงได้</label>
+              <v-autocomplete
+                id="pj-teams"
+                v-model="form.teamIds"
+                :items="teams"
+                item-title="name"
+                item-value="id"
+                multiple
+                chips
+                closable-chips
+                prepend-inner-icon="tabler:users-group"
+                placeholder="ทุกคนที่มี Role"
+                hint="ไม่เลือกทีม = ทุกคนที่มี Role เข้าถึงได้ · Admin เข้าถึงได้ทุกโปรเจกต์"
+                persistent-hint
+              >
+                <template #chip="{ props: chip, item }">
+                  <v-chip v-bind="chip" size="small" :color="item.raw.tone" variant="tonal">{{ item.raw.name }}</v-chip>
+                </template>
+                <template #item="{ props: item, item: { raw } }">
+                  <v-list-item v-bind="item" :subtitle="`${raw.memberIds.length} คน · ${raw.description}`" />
+                </template>
+              </v-autocomplete>
             </v-col>
 
             <!-- timeline -->

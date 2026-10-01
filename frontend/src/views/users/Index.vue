@@ -37,6 +37,7 @@ const headers = [
   { title: 'ผู้ใช้งาน', key: 'name' },
   { title: 'อีเมล', key: 'email' },
   { title: 'Role', key: 'role', width: 220, sortable: false },
+  { title: 'ทีม', key: 'teams', sortable: false },
   { title: '', key: 'actions', sortable: false, align: 'end' },
 ] as const
 
@@ -54,7 +55,7 @@ function changeRole(u: User, roleId: string | null) {
 }
 
 function switchTo(u: User) {
-  run(() => auth.loginAs(u), () => notify(`สลับเป็น ${u.name} (${auth.roleOf(u).label}) แล้ว`))
+  run(() => auth.switchUser(u))
 }
 
 function onSave(input: Omit<User, 'id'>) {
@@ -128,6 +129,12 @@ function onSave(input: Omit<User, 'id'>) {
               <v-list-item v-bind="opt" :prepend-icon="raw.icon" :subtitle="raw.hint" :base-color="raw.tone" />
             </template>
           </v-select>
+        </template>
+        <template #[`item.teams`]="{ item }">
+          <div class="d-flex flex-wrap ga-1 py-2">
+            <v-chip v-for="t in auth.teamsOf(item.id)" :key="t.id" :color="t.tone" size="x-small" variant="tonal">{{ t.name }}</v-chip>
+            <span v-if="!auth.teamsOf(item.id).length" class="text-caption text-muted">-</span>
+          </div>
         </template>
         <template #[`item.actions`]="{ item }">
           <v-btn v-if="item.id !== currentUser.id" variant="tonal" color="primary" size="small" prepend-icon="tabler:switch-horizontal" @click="switchTo(item)">

@@ -43,7 +43,7 @@ const { run } = useAsyncAction()
           :key="u.id"
           :active="u.id === currentUser.id"
           color="primary"
-          @click="run(() => auth.loginAs(u))"
+          @click="run(() => auth.switchUser(u))"
         >
           <template #prepend>
             <UserAvatar :user="u" size="28" class="mr-3" />

@@ -3,6 +3,7 @@ import type {
 } from '@/types'
 import { addDays, todayISO } from '@/utils/date'
 import { ApiError, newId, respond } from './http'
+import { inAccessibleProjects } from './project.service'
 import { STORAGE_KEYS, load, save } from './storage.service'
 import { patchStoredCase, storedCase } from './test-case.service'
 
@@ -121,8 +122,8 @@ export function detachRunCases(projectId: string, caseIds: string[]) {
 /** server-side: the stored runs of a project */
 export const runsOf = (projectId: string): TestRun[] => runs().filter((r) => r.projectId === projectId)
 
-/** GET /test-runs */
-export const fetchRuns = () => respond(runs)
+/** GET /test-runs (of the projects the signed-in user may open) */
+export const fetchRuns = () => respond(() => inAccessibleProjects(runs()))
 
 /** POST /projects/:projectId/test-runs (the server snapshots the selected cases) */
 export const createRun = (input: TestRunInput, cases: TestCase[], createdBy: string) =>

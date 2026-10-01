@@ -26,7 +26,7 @@ watch(settings, () => run(() => settingsStore.save({ ...settings }), () => notif
 function switchUser(id: string) {
   const user = users.value.find((u) => u.id === id)
   if (!user) return
-  run(() => auth.loginAs(user), () => notify(`สลับเป็น ${user.name} แล้ว`))
+  run(() => auth.switchUser(user))
 }
 
 const documentStore = useDocumentStore()

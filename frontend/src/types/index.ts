@@ -111,6 +111,19 @@ export interface User {
   avatar: string
 }
 
+/** A team of people (e.g. "ทีม Payment"); projects list the teams that may open them */
+export interface Team {
+  id: string
+  name: string
+  description: string
+  tone: Tone
+  memberIds: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+export type TeamInput = Omit<Team, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }
+
 /** A role group created by an Admin, e.g. "QA Lead" can do more than "QA Tester" */
 export interface Role {
   id: string
@@ -152,6 +165,8 @@ export interface Project {
   tags: string[]
   memberCount: number
   milestones?: ProjectMilestone[]
+  /** teams that may open the project; empty = everyone with a role (Admins always can) */
+  teamIds?: string[]
 }
 
 /** Project being created (no id) or edited */

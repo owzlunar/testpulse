@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import ProjectAvatar from './ProjectAvatar.vue'
 import TestCaseProgress from '@/components/test-cases/TestCaseProgress.vue'
 import { projectStatusOf } from '@/services/project.service'
+import { useAuthStore } from '@/stores/auth.store'
 import { useProjectStore } from '@/stores/project.store'
 import type { Project } from '@/types'
 import { daysFromToday, formatDateTH } from '@/utils/date'
@@ -10,7 +11,9 @@ import { daysFromToday, formatDateTH } from '@/utils/date'
 const props = defineProps<{ project: Project; selected: boolean }>()
 defineEmits<{ select: [id: string]; open: [id: string]; edit: [project: Project]; delete: [project: Project]; export: [id: string] }>()
 
+const auth = useAuthStore()
 const stats = computed(() => useProjectStore().statsFor(props.project.id))
+const teams = computed(() => auth.teams.filter((t) => props.project.teamIds?.includes(t.id)))
 const status = computed(() => projectStatusOf(props.project.status))
 const daysLeft = computed(() => (props.project.targetDeadline ? daysFromToday(props.project.targetDeadline) : null))
 </script>
@@ -38,15 +41,21 @@ const daysLeft = computed(() => (props.project.targetDeadline ? daysFromToday(pr
         </template>
         <v-list>
           <v-list-item prepend-icon="tabler:markdown" title="ส่งออก Obsidian (.md)" @click="$emit('export', project.id)" />
-          <v-list-item prepend-icon="tabler:pencil" title="แก้ไขโปรเจกต์" @click="$emit('edit', project)" />
-          <v-divider class="my-1" />
-          <v-list-item prepend-icon="tabler:trash" title="ลบโปรเจกต์" base-color="error" @click="$emit('delete', project)" />
+          <!-- projects are managed by Admins -->
+          <template v-if="auth.isAdmin">
+            <v-list-item prepend-icon="tabler:pencil" title="แก้ไขโปรเจกต์" @click="$emit('edit', project)" />
+            <v-divider class="my-1" />
+            <v-list-item prepend-icon="tabler:trash" title="ลบโปรเจกต์" base-color="error" @click="$emit('delete', project)" />
+          </template>
         </v-list>
       </v-menu>
     </div>
 
     <div class="fox-card-body flex-grow-1 d-flex flex-column ga-4">
       <p class="text-body-2 text-muted fox-clamp-2 mb-0">{{ project.description || 'ไม่มีคำอธิบายโปรเจกต์' }}</p>
+      <div v-if="teams.length" class="d-flex flex-wrap ga-1">
+        <v-chip v-for="t in teams" :key="t.id" size="x-small" variant="flat" :color="t.tone" prepend-icon="tabler:users-group">{{ t.name }}</v-chip>
+      </div>
       <div v-if="project.tags.length" class="d-flex flex-wrap ga-1">
         <v-chip v-for="tag in project.tags" :key="tag" size="x-small" variant="tonal" color="secondary">#{{ tag }}</v-chip>
       </div>

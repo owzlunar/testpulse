@@ -7,6 +7,7 @@ import { isOpenDefect } from './defect.service'
 import { ApiError, newId, respond } from './http'
 import { casesForRequirement, coverageStatus, requirementText } from './requirement.service'
 import { resultOf } from './run.service'
+import { inAccessibleProjects } from './project.service'
 import { STORAGE_KEYS, load, save } from './storage.service'
 import { isOverdue, statusOf } from './test-case.service'
 
@@ -151,7 +152,7 @@ const write = (list: DocumentRecord[], doc: DocumentRecord) => {
 }
 
 /** GET /documents */
-export const fetchDocuments = () => respond(documents)
+export const fetchDocuments = () => respond(() => inAccessibleProjects(documents()))
 
 /** POST /documents (the server collects the data and freezes it in `snapshot`) */
 export const generateDocument = (req: DocumentRequest, createdBy: string) =>
