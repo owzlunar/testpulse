@@ -178,7 +178,6 @@ export interface Project {
   targetDeadline?: string
   status: ProjectStatus
   tags: string[]
-  memberCount: number
   milestones?: ProjectMilestone[]
   /** teams that may open the project; empty = everyone with a role (Admins always can) */
   teamIds?: string[]

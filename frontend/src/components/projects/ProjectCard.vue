@@ -14,6 +14,7 @@ defineEmits<{ select: [id: string]; open: [id: string]; edit: [project: Project]
 const auth = useAuthStore()
 const stats = computed(() => useProjectStore().statsFor(props.project.id))
 const teams = computed(() => auth.teams.filter((t) => props.project.teamIds?.includes(t.id)))
+const members = computed(() => auth.membersOf(props.project))
 const status = computed(() => projectStatusOf(props.project.status))
 const daysLeft = computed(() => (props.project.targetDeadline ? daysFromToday(props.project.targetDeadline) : null))
 </script>
@@ -69,6 +70,9 @@ const daysLeft = computed(() => (props.project.targetDeadline ? daysFromToday(pr
         <v-icon icon="tabler:calendar-due" size="16" />
         {{ project.targetDeadline ? formatDateTH(project.targetDeadline) : 'ไม่ระบุกำหนดส่ง' }}
         <template v-if="daysLeft !== null">· {{ daysLeft < 0 ? `เลย ${-daysLeft} วัน` : `อีก ${daysLeft} วัน` }}</template>
+      </span>
+      <span class="d-inline-flex align-center ga-1 text-caption text-muted" :title="members.map((u) => u.name).join(', ')">
+        <v-icon icon="tabler:users" size="16" /><span class="fox-num">{{ members.length }}</span> คน
       </span>
       <v-btn variant="text" color="primary" size="small" append-icon="tabler:arrow-right" @click.stop="$emit('open', project.id)">
         <span class="fox-num">{{ stats.total }}</span

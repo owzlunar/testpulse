@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import type { Option, PermissionKey, Role, RoleDiscipline, RoleInput, Team, TeamInput, User } from '@/types'
+import type { Option, PermissionKey, Project, Role, RoleDiscipline, RoleInput, Team, TeamInput, User } from '@/types'
 import * as api from '@/services/user.service'
 import * as roleApi from '@/services/role.service'
 import * as teamApi from '@/services/team.service'
@@ -59,6 +59,20 @@ export const useAuthStore = defineStore('auth', () => {
   async function switchUser(user: User, to = window.location.pathname + window.location.search) {
     await loginAs(user)
     window.location.assign(to)
+  }
+
+  /**
+   * people who may open a project (same rule as the server's canAccessProject): Admins, plus the members
+   * (with a role) of its teams, or everyone with a role when the project has no team
+   */
+  function membersOf(project: Pick<Project, 'teamIds'>): User[] {
+    const teamIds = project.teamIds ?? []
+    return users.value.filter((u) => {
+      const role = roleById(u.roleId)
+      if (!role) return false
+      if (role.builtIn === 'admin' || !teamIds.length) return true
+      return teams.value.some((t) => teamIds.includes(t.id) && t.memberIds.includes(u.id))
+    })
   }
 
   /** teams of a user (a user can be in several) */
@@ -148,6 +162,7 @@ export const useAuthStore = defineStore('auth', () => {
     teams,
     currentUser,
     teamsOf,
+    membersOf,
     switchUser,
     saveTeam,
     deleteTeam,

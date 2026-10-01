@@ -29,7 +29,6 @@ const empty = (): ProjectInput => ({
   targetDeadline: addDays(todayISO(), 14),
   status: 'active',
   tags: [],
-  memberCount: 3,
   milestones: [],
   teamIds: [],
 })
