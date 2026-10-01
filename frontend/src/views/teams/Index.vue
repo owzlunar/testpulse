@@ -32,10 +32,13 @@ function openTeam(team: Team | null) {
 }
 
 function onSave(input: TeamInput) {
-  run(() => auth.saveTeam(input), (saved) => {
-    dialog.value = false
-    notify(`${input.id ? 'บันทึก' : 'สร้าง'}${saved.name} แล้ว`)
-  })
+  run(
+    () => auth.saveTeam(input),
+    (saved) => {
+      dialog.value = false
+      notify(`${input.id ? 'บันทึก' : 'สร้าง'}${saved.name} แล้ว`)
+    },
+  )
 }
 
 // delete: projects whose only team this is become open to everyone with a role
@@ -46,11 +49,14 @@ const opensUp = computed(() => (deleting.value ? projectsOf(deleting.value).filt
 function onDelete() {
   const team = deleting.value
   if (!team) return
-  run(() => auth.deleteTeam(team.id), (changed) => {
-    projectStore.replaceMany(changed)
-    deleting.value = null
-    notify(`ลบ${team.name} แล้ว`)
-  })
+  run(
+    () => auth.deleteTeam(team.id),
+    (changed) => {
+      projectStore.replaceMany(changed)
+      deleting.value = null
+      notify(`ลบ${team.name} แล้ว`)
+    },
+  )
 }
 </script>
 
@@ -63,8 +69,8 @@ function onDelete() {
 
   <div class="fox-stack">
     <v-alert type="info" variant="tonal" density="compact" icon="tabler:info-circle">
-      โปรเจกต์ที่เลือกทีมไว้ เปิดได้เฉพาะสมาชิกของทีมนั้น (ต้องมี Role ด้วย) โปรเจกต์ที่ไม่ระบุทีม ทุกคนที่มี Role เปิดได้ และ Admin เปิดได้ทุกโปรเจกต์
-      เลือกทีมของโปรเจกต์ได้ที่ "แก้ไขโปรเจกต์" ในหน้าภาพรวม
+      โปรเจกต์ที่เลือกทีมไว้ เปิดได้เฉพาะสมาชิกของทีมนั้น (ต้องมี Role ด้วย) โปรเจกต์ที่ไม่ระบุทีม ทุกคนที่มี Role เปิดได้ และ Admin
+      เปิดได้ทุกโปรเจกต์ เลือกทีมของโปรเจกต์ได้ที่ "แก้ไขโปรเจกต์" ในหน้าภาพรวม
     </v-alert>
 
     <v-row class="fox-grid">
@@ -89,7 +95,9 @@ function onDelete() {
 
           <div class="text-overline text-muted mt-3">โปรเจกต์ที่เข้าถึงได้</div>
           <div v-if="projectsOf(t).length" class="d-flex flex-wrap ga-2">
-            <v-chip v-for="p in projectsOf(t)" :key="p.id" size="small" color="primary" variant="outlined" prepend-icon="tabler:folder">{{ p.name }}</v-chip>
+            <v-chip v-for="p in projectsOf(t)" :key="p.id" size="small" color="primary" variant="outlined" prepend-icon="tabler:folder">{{
+              p.name
+            }}</v-chip>
           </div>
           <p v-else class="text-body-2 text-muted">ยังไม่มีโปรเจกต์ที่เลือกทีมนี้</p>
 
@@ -102,7 +110,9 @@ function onDelete() {
         </v-card>
       </v-col>
       <v-col v-if="!teams.length" cols="12">
-        <v-card><FoxEmptyState icon="tabler:users-group" title="ยังไม่มีทีม" text="สร้างทีมแล้วเลือกทีมให้โปรเจกต์ เพื่อจำกัดว่าใครเปิดโปรเจกต์ได้" /></v-card>
+        <v-card
+          ><FoxEmptyState icon="tabler:users-group" title="ยังไม่มีทีม" text="สร้างทีมแล้วเลือกทีมให้โปรเจกต์ เพื่อจำกัดว่าใครเปิดโปรเจกต์ได้"
+        /></v-card>
       </v-col>
     </v-row>
 

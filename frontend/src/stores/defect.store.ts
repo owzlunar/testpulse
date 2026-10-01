@@ -17,13 +17,16 @@ export const useDefectStore = defineStore('defect', () => {
 
   let loading: Promise<void> | null = null
   function ensureLoaded(): Promise<void> {
-    loading ??= api.fetchDefects().then((list) => {
-      defects.value = list
-      loaded.value = true
-    }).catch((e) => {
-      loading = null
-      throw e
-    })
+    loading ??= api
+      .fetchDefects()
+      .then((list) => {
+        defects.value = list
+        loaded.value = true
+      })
+      .catch((e) => {
+        loading = null
+        throw e
+      })
     return loading
   }
 

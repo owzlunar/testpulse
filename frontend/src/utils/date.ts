@@ -2,8 +2,7 @@ const pad = (n: number) => String(n).padStart(2, '0')
 const DAY = 86_400_000
 
 /** Date -> 'YYYY-MM-DD' in local time */
-export const toISODate = (d: Date): string =>
-  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+export const toISODate = (d: Date): string => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 
 /** Today as 'YYYY-MM-DD' */
 export const todayISO = (): string => toISODate(new Date())
@@ -26,10 +25,8 @@ export function daysBetween(from: string, to: string): number {
 export const daysFromToday = (iso: string): number => daysBetween(todayISO(), iso)
 
 /** 'YYYY-MM-DD' -> "1 ม.ค. 2569" */
-export const formatDateTH = (
-  iso: string,
-  options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' },
-): string => (iso ? new Date(`${iso.slice(0, 10)}T00:00`).toLocaleDateString('th-TH', options) : '-')
+export const formatDateTH = (iso: string, options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' }): string =>
+  iso ? new Date(`${iso.slice(0, 10)}T00:00`).toLocaleDateString('th-TH', options) : '-'
 
 /** ISO timestamp -> "30 ก.ย. 14:20" */
 export const formatDateTime = (
@@ -38,8 +35,7 @@ export const formatDateTime = (
 ): string => (iso ? new Date(iso).toLocaleString('th-TH', options) : '-')
 
 /** ISO timestamp -> "14:20" */
-export const formatTime = (iso: string): string =>
-  new Date(iso).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+export const formatTime = (iso: string): string => new Date(iso).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
 
 /** ISO timestamp -> "5 นาทีที่แล้ว", "เมื่อวาน", "3 วันที่แล้ว" */
 export function formatRelative(iso: string): string {

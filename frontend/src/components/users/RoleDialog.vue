@@ -29,21 +29,24 @@ const formRef = ref<VForm>()
 const isAdminRole = computed(() => props.role?.builtIn === 'admin')
 const title = computed(() => (props.role ? `แก้ไข Role ${props.role.name}` : props.preset ? `สร้าง Role จาก ${props.preset.name}` : 'สร้าง Role'))
 
-watch(open, (isOpen) => {
-  if (!isOpen) return
-  const src = props.role ?? props.preset
-  Object.assign(form, empty(), src ? JSON.parse(JSON.stringify(src)) : {})
-  if (!props.role) {
-    // a copy is a new, ordinary role: never the built-in Admin, whatever it was copied from
-    const copy = form as RoleInput & Partial<Pick<Role, 'builtIn' | 'createdAt' | 'updatedAt'>>
-    delete copy.id
-    delete copy.builtIn
-    delete copy.createdAt
-    delete copy.updatedAt
-    if (props.preset) form.name = `${props.preset.name} (สำเนา)`
-  }
-}, { immediate: true })
-
+watch(
+  open,
+  (isOpen) => {
+    if (!isOpen) return
+    const src = props.role ?? props.preset
+    Object.assign(form, empty(), src ? JSON.parse(JSON.stringify(src)) : {})
+    if (!props.role) {
+      // a copy is a new, ordinary role: never the built-in Admin, whatever it was copied from
+      const copy = form as RoleInput & Partial<Pick<Role, 'builtIn' | 'createdAt' | 'updatedAt'>>
+      delete copy.id
+      delete copy.builtIn
+      delete copy.createdAt
+      delete copy.updatedAt
+      if (props.preset) form.name = `${props.preset.name} (สำเนา)`
+    }
+  },
+  { immediate: true },
+)
 
 async function submit() {
   const result = await formRef.value?.validate()
@@ -75,7 +78,14 @@ async function submit() {
             </v-col>
             <v-col cols="12" sm="6">
               <label class="fox-label" for="role-discipline">สายงาน</label>
-              <v-select id="role-discipline" v-model="form.discipline" :items="DISCIPLINES" item-title="label" item-value="value" :disabled="isAdminRole">
+              <v-select
+                id="role-discipline"
+                v-model="form.discipline"
+                :items="DISCIPLINES"
+                item-title="label"
+                item-value="value"
+                :disabled="isAdminRole"
+              >
                 <template #item="{ props: item, item: { raw } }">
                   <v-list-item v-bind="item" :prepend-icon="raw.icon" :subtitle="raw.hint" :base-color="raw.tone" />
                 </template>

@@ -58,12 +58,42 @@ html {
   // Large headings shrink slightly on phones.
   // -----------------------------------------------------------------------------
   $fox-type: (
-    'h1': (30px, 700, 1.4, 26px),
-    'h2': (28px, 600, 1.4, 24px),
-    'h3': (24px, 600, 1.45, 21px),
-    'h4': (21px, 500, 1.45, 19px),
-    'h5': (18px, 500, 1.5, 17px),
-    'h6': (16px, 500, 1.5, 16px),
+    'h1': (
+      30px,
+      700,
+      1.4,
+      26px,
+    ),
+    'h2': (
+      28px,
+      600,
+      1.4,
+      24px,
+    ),
+    'h3': (
+      24px,
+      600,
+      1.45,
+      21px,
+    ),
+    'h4': (
+      21px,
+      500,
+      1.45,
+      19px,
+    ),
+    'h5': (
+      18px,
+      500,
+      1.5,
+      17px,
+    ),
+    'h6': (
+      16px,
+      500,
+      1.5,
+      16px,
+    ),
   );
 
   @each $name, $v in $fox-type {
@@ -80,18 +110,57 @@ html {
     }
   }
 
-  .text-subtitle-1 { font-size: 15px !important; font-weight: 400 !important; line-height: 1.65 !important; letter-spacing: 0 !important; }
-  .text-subtitle-2 { font-size: 14px !important; font-weight: 500 !important; line-height: 1.6 !important; letter-spacing: 0 !important; }
-  .text-body-1     { font-size: 14px !important; font-weight: 400 !important; line-height: 1.65 !important; letter-spacing: 0 !important; }
-  .text-body-2     { font-size: 13px !important; font-weight: 400 !important; line-height: 1.6 !important; letter-spacing: 0 !important; }
-  .text-caption    { font-size: 12px !important; font-weight: 400 !important; line-height: 1.5 !important; letter-spacing: 0 !important; }
-  .text-overline   { font-size: 12px !important; font-weight: 500 !important; line-height: 1.5 !important; letter-spacing: 0.02em !important; }
-  .text-button     { font-size: 14px !important; font-weight: 500 !important; letter-spacing: 0 !important; text-transform: none !important; }
+  .text-subtitle-1 {
+    font-size: 15px !important;
+    font-weight: 400 !important;
+    line-height: 1.65 !important;
+    letter-spacing: 0 !important;
+  }
+  .text-subtitle-2 {
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    line-height: 1.6 !important;
+    letter-spacing: 0 !important;
+  }
+  .text-body-1 {
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    line-height: 1.65 !important;
+    letter-spacing: 0 !important;
+  }
+  .text-body-2 {
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    line-height: 1.6 !important;
+    letter-spacing: 0 !important;
+  }
+  .text-caption {
+    font-size: 12px !important;
+    font-weight: 400 !important;
+    line-height: 1.5 !important;
+    letter-spacing: 0 !important;
+  }
+  .text-overline {
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    line-height: 1.5 !important;
+    letter-spacing: 0.02em !important;
+  }
+  .text-button {
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    letter-spacing: 0 !important;
+    text-transform: none !important;
+  }
 
-  .text-muted { color: rgb(var(--v-theme-muted)) !important; }
+  .text-muted {
+    color: rgb(var(--v-theme-muted)) !important;
+  }
 
   // tabular figures for numbers in tables, stats and timelines
-  .fox-num { font-variant-numeric: tabular-nums; }
+  .fox-num {
+    font-variant-numeric: tabular-nums;
+  }
 
   // clamp long text (descriptions, notification messages) to two lines
   .fox-clamp-2 {
@@ -496,4 +565,3 @@ html {
     }
   }
 }
-

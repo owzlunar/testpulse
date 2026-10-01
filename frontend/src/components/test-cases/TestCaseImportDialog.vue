@@ -33,9 +33,29 @@ const FIELDS: { key: Field; label: string; required?: boolean; aliases: string[]
 
 const SAMPLE = [
   ['Test Case', 'Requirement', 'Scenario', 'Prerequisite', 'Priority', 'Action', 'Test Data', 'Expected', 'Expected Results'],
-  ['ค้นหาสินค้าด้วยชื่อ', 'REQ-SHOP-10: ค้นหาสินค้า', 'ค้นหาด้วยคำที่มีอยู่', 'มีสินค้าในระบบ', 'High', 'พิมพ์คำค้นในช่องค้นหา', 'iPhone', 'แสดงรายการที่ตรง', 'ผลลัพธ์ถูกต้องภายใน 1 วินาที'],
+  [
+    'ค้นหาสินค้าด้วยชื่อ',
+    'REQ-SHOP-10: ค้นหาสินค้า',
+    'ค้นหาด้วยคำที่มีอยู่',
+    'มีสินค้าในระบบ',
+    'High',
+    'พิมพ์คำค้นในช่องค้นหา',
+    'iPhone',
+    'แสดงรายการที่ตรง',
+    'ผลลัพธ์ถูกต้องภายใน 1 วินาที',
+  ],
   ['', '', '', '', '', 'กดตัวกรองราคา', '10,000–20,000', 'กรองตามช่วงราคา', ''],
-  ['ค้นหาไม่พบสินค้า', 'REQ-SHOP-10: ค้นหาสินค้า', 'ค้นหาด้วยคำที่ไม่มี', '-', 'Medium', 'พิมพ์คำที่ไม่มีอยู่', 'zzzz', 'แสดง Empty state', 'แนะนำคำค้นอื่น'],
+  [
+    'ค้นหาไม่พบสินค้า',
+    'REQ-SHOP-10: ค้นหาสินค้า',
+    'ค้นหาด้วยคำที่ไม่มี',
+    '-',
+    'Medium',
+    'พิมพ์คำที่ไม่มีอยู่',
+    'zzzz',
+    'แสดง Empty state',
+    'แนะนำคำค้นอื่น',
+  ],
 ]
 
 // --- step 1: source --------------------------------------------------------------
@@ -45,12 +65,16 @@ const text = ref('')
 const fileName = ref('')
 const hasHeader = ref(true)
 
-watch(open, (isOpen) => {
-  if (!isOpen) return
-  step.value = 1
-  text.value = ''
-  fileName.value = ''
-}, { immediate: true })
+watch(
+  open,
+  (isOpen) => {
+    if (!isOpen) return
+    step.value = 1
+    text.value = ''
+    fileName.value = ''
+  },
+  { immediate: true },
+)
 
 function onFile(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
@@ -60,7 +84,7 @@ function onFile(e: Event) {
 }
 
 const rows = computed(() => parseDelimited(text.value))
-const header = computed(() => (hasHeader.value ? rows.value[0] ?? [] : (rows.value[0] ?? []).map((_, i) => `คอลัมน์ ${i + 1}`)))
+const header = computed(() => (hasHeader.value ? (rows.value[0] ?? []) : (rows.value[0] ?? []).map((_, i) => `คอลัมน์ ${i + 1}`)))
 const body = computed(() => (hasHeader.value ? rows.value.slice(1) : rows.value))
 
 // --- step 2: mapping ----------------------------------------------------------------
@@ -80,9 +104,11 @@ function autoMap() {
 const columnOptions = computed(() => header.value.map((h, i) => ({ title: h || `คอลัมน์ ${i + 1}`, value: i })))
 const sample = (field: Field) => {
   const col = mapping.value[field]
-  return col === null || col === undefined ? '' : body.value.find((r) => r[col])?.[col] ?? ''
+  return col === null || col === undefined ? '' : (body.value.find((r) => r[col])?.[col] ?? '')
 }
-const mappingValid = computed(() => FIELDS.filter((f) => f.required).every((f) => mapping.value[f.key] !== null && mapping.value[f.key] !== undefined))
+const mappingValid = computed(() =>
+  FIELDS.filter((f) => f.required).every((f) => mapping.value[f.key] !== null && mapping.value[f.key] !== undefined),
+)
 
 // --- step 3: preview ----------------------------------------------------------------
 function toPriority(v: string): TestCasePriority {
@@ -101,7 +127,7 @@ interface Parsed extends TestCaseDraft {
 const parsed = computed<Parsed[]>(() => {
   const cell = (r: string[], f: Field) => {
     const col = mapping.value[f]
-    return col === null || col === undefined ? '' : r[col] ?? ''
+    return col === null || col === undefined ? '' : (r[col] ?? '')
   }
   const out: Parsed[] = []
   body.value.forEach((r, i) => {
@@ -168,7 +194,12 @@ const steps = ['แหล่งข้อมูล', 'จับคู่คอล
 
       <!-- stepper -->
       <div class="imp-steps fox-card-body pb-2">
-        <div v-for="(label, i) in steps" :key="label" class="imp-step" :class="{ 'imp-step--done': step > i + 1, 'imp-step--active': step === i + 1 }">
+        <div
+          v-for="(label, i) in steps"
+          :key="label"
+          class="imp-step"
+          :class="{ 'imp-step--done': step > i + 1, 'imp-step--active': step === i + 1 }"
+        >
           <v-avatar :color="step >= i + 1 ? 'primary' : 'secondary'" :variant="step > i + 1 ? 'flat' : 'tonal'" size="28">
             <v-icon v-if="step > i + 1" icon="tabler:check" size="16" />
             <span v-else class="text-caption fox-num">{{ i + 1 }}</span>
@@ -187,7 +218,12 @@ const steps = ['แหล่งข้อมูล', 'จับคู่คอล
                 <v-btn value="paste" prepend-icon="tabler:clipboard-text">วางจาก Excel</v-btn>
                 <v-btn value="file" prepend-icon="tabler:file-upload">อัปโหลด CSV</v-btn>
               </v-btn-toggle>
-              <v-btn variant="text" color="primary" prepend-icon="tabler:download" @click="downloadText('testpulse-import-template.csv', toCsv(SAMPLE))">
+              <v-btn
+                variant="text"
+                color="primary"
+                prepend-icon="tabler:download"
+                @click="downloadText('testpulse-import-template.csv', toCsv(SAMPLE))"
+              >
                 ดาวน์โหลดไฟล์ตัวอย่าง
               </v-btn>
             </div>
@@ -198,7 +234,14 @@ const steps = ['แหล่งข้อมูล', 'จับคู่คอล
             </template>
             <template v-else>
               <label class="fox-label" for="imp-file">ไฟล์ CSV (UTF-8)</label>
-              <v-file-input id="imp-file" accept=".csv,text/csv" prepend-icon="" prepend-inner-icon="tabler:file-spreadsheet" :label="fileName || 'เลือกไฟล์'" @change="onFile" />
+              <v-file-input
+                id="imp-file"
+                accept=".csv,text/csv"
+                prepend-icon=""
+                prepend-inner-icon="tabler:file-spreadsheet"
+                :label="fileName || 'เลือกไฟล์'"
+                @change="onFile"
+              />
               <p class="text-caption text-muted mt-2">ไฟล์ .xlsx ให้ "บันทึกเป็น CSV UTF-8" ก่อน หรือใช้วิธีคัดลอกวาง</p>
             </template>
 
@@ -225,9 +268,18 @@ const steps = ['แหล่งข้อมูล', 'จับคู่คอล
                 <tr v-for="f in FIELDS" :key="f.key">
                   <td class="text-subtitle-2 text-no-wrap">{{ f.label }}<span v-if="f.required" class="text-error"> *</span></td>
                   <td class="imp-map">
-                    <v-select v-model="mapping[f.key]" :items="columnOptions" density="compact" placeholder="— ไม่นำเข้า —" clearable :aria-label="f.label" />
+                    <v-select
+                      v-model="mapping[f.key]"
+                      :items="columnOptions"
+                      density="compact"
+                      placeholder="— ไม่นำเข้า —"
+                      clearable
+                      :aria-label="f.label"
+                    />
                   </td>
-                  <td class="text-body-2 text-muted"><span class="fox-clamp-2">{{ sample(f.key) || '—' }}</span></td>
+                  <td class="text-body-2 text-muted">
+                    <span class="fox-clamp-2">{{ sample(f.key) || '—' }}</span>
+                  </td>
                 </tr>
               </tbody>
             </v-table>
@@ -237,10 +289,10 @@ const steps = ['แหล่งข้อมูล', 'จับคู่คอล
           <v-window-item :value="3">
             <div class="d-flex flex-wrap ga-2 mb-4">
               <v-chip color="success" variant="tonal" prepend-icon="tabler:circle-check">พร้อมนำเข้า {{ valid.length }} เคส</v-chip>
-              <v-chip v-if="invalid.length" color="error" variant="tonal" prepend-icon="tabler:alert-circle">ข้าม {{ invalid.length }} เคสที่ข้อมูลไม่ครบ</v-chip>
-              <v-chip variant="tonal" prepend-icon="tabler:list-numbers">
-                รวม {{ valid.reduce((n, c) => n + c.steps.length, 0) }} ขั้นตอน
-              </v-chip>
+              <v-chip v-if="invalid.length" color="error" variant="tonal" prepend-icon="tabler:alert-circle"
+                >ข้าม {{ invalid.length }} เคสที่ข้อมูลไม่ครบ</v-chip
+              >
+              <v-chip variant="tonal" prepend-icon="tabler:list-numbers"> รวม {{ valid.reduce((n, c) => n + c.steps.length, 0) }} ขั้นตอน </v-chip>
             </div>
             <v-expansion-panels v-if="parsed.length" variant="accordion">
               <v-expansion-panel v-for="c in parsed" :key="c.row">
@@ -256,7 +308,9 @@ const steps = ['แหล่งข้อมูล', 'จับคู่คอล
                   <v-alert v-if="c.errors.length" type="error" variant="tonal" density="compact" class="mb-3">{{ c.errors.join(' · ') }}</v-alert>
                   <div class="text-body-2 mb-2"><span class="text-muted">Requirement:</span> {{ c.requirement || '—' }}</div>
                   <ol class="text-body-2 pl-5">
-                    <li v-for="(st, i) in c.steps" :key="i">{{ st.action }} <span class="text-muted">· {{ st.testData }}</span> → {{ st.expectedResult }}</li>
+                    <li v-for="(st, i) in c.steps" :key="i">
+                      {{ st.action }} <span class="text-muted">· {{ st.testData }}</span> → {{ st.expectedResult }}
+                    </li>
                   </ol>
                 </v-expansion-panel-text>
               </v-expansion-panel>

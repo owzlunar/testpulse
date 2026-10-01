@@ -22,18 +22,30 @@ const dragging = ref(false)
 const logoError = ref('')
 
 const empty = (): ProjectInput => ({
-  key: '', name: '', description: '', logo: '', targetDeadline: addDays(todayISO(), 14),
-  status: 'active', tags: [], memberCount: 3, milestones: [], teamIds: [],
+  key: '',
+  name: '',
+  description: '',
+  logo: '',
+  targetDeadline: addDays(todayISO(), 14),
+  status: 'active',
+  tags: [],
+  memberCount: 3,
+  milestones: [],
+  teamIds: [],
 })
 const form = reactive<ProjectInput>(empty())
 const isEdit = computed(() => !!form.id)
 
-watch(open, (isOpen) => {
-  if (!isOpen) return
-  logoError.value = ''
-  const p = props.project
-  Object.assign(form, empty(), p ? { ...p, tags: [...p.tags], milestones: (p.milestones ?? []).map((m) => ({ ...m })) } : { id: undefined })
-}, { immediate: true })
+watch(
+  open,
+  (isOpen) => {
+    if (!isOpen) return
+    logoError.value = ''
+    const p = props.project
+    Object.assign(form, empty(), p ? { ...p, tags: [...p.tags], milestones: (p.milestones ?? []).map((m) => ({ ...m })) } : { id: undefined })
+  },
+  { immediate: true },
+)
 
 const rules = {
   required,
@@ -107,7 +119,13 @@ async function submit() {
                 <ProjectAvatar :project="{ name: form.name, key: form.key, logo: form.logo }" size="56" />
                 <span class="text-caption text-muted">{{ form.logo ? 'คลิกเพื่อเปลี่ยน' : 'ลากไฟล์มาวาง หรือคลิก' }}</span>
                 <v-btn v-if="form.logo" variant="text" size="x-small" color="error" @click.stop="form.logo = ''">ลบโลโก้</v-btn>
-                <input ref="fileInput" type="file" accept="image/*" class="d-none" @change="readLogo(($event.target as HTMLInputElement).files?.[0])" />
+                <input
+                  ref="fileInput"
+                  type="file"
+                  accept="image/*"
+                  class="d-none"
+                  @change="readLogo(($event.target as HTMLInputElement).files?.[0])"
+                />
               </div>
               <div v-if="logoError" class="text-caption text-error mt-1">{{ logoError }}</div>
             </v-col>
@@ -229,7 +247,9 @@ async function submit() {
   border: 1px dashed rgba(var(--v-theme-primary), 0.4);
   border-radius: var(--fox-radius-control);
   cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s;
 }
 
 .logo-drop:hover,

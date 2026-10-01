@@ -30,7 +30,9 @@ const projectStore = useProjectStore()
 const { currentProject, currentTree, currentStats, currentCases } = storeToRefs(projectStore)
 const store = useTestCaseStore()
 // cards show linked requirements by code and title; until loaded they show the case's own text
-useRequirementStore().ensureLoaded().catch(() => {})
+useRequirementStore()
+  .ensureLoaded()
+  .catch(() => {})
 const { canCreate, canExportUat } = useTestCasePermissions()
 const { snackbar, notify } = useSnackbar()
 const { busy: saving, run } = useAsyncAction()
@@ -161,18 +163,23 @@ function onRemove() {
 }
 
 function onReviewed(tc: TestCase) {
-  run(() => store.markReviewed(tc.id, tc.projectId), () => notify(`${tc.id}: บันทึกว่าทบทวนแล้ว`))
+  run(
+    () => store.markReviewed(tc.id, tc.projectId),
+    () => notify(`${tc.id}: บันทึกว่าทบทวนแล้ว`),
+  )
 }
 
 function onRestore(tc: TestCase) {
-  run(() => store.restore(tc.id, tc.projectId), () => notify(`กู้คืน ${tc.id} แล้ว`))
+  run(
+    () => store.restore(tc.id, tc.projectId),
+    () => notify(`กู้คืน ${tc.id} แล้ว`),
+  )
 }
 
 function exportMarkdown() {
   const file = projectStore.exportMarkdown()
   if (file) notify(`ดาวน์โหลด ${file} แล้ว`)
 }
-
 
 // deep link from notifications / search: /test-cases?caseId=TC-101
 watch(
@@ -195,20 +202,45 @@ watch(
         </template>
         <v-list min-width="260">
           <v-list-subheader>เอกสารทางการ (Word / PDF)</v-list-subheader>
-          <v-list-item prepend-icon="tabler:file-description" title="Test Specification" subtitle="รายละเอียดเคสและขั้นตอน" :to="{ path: '/documents', query: { create: 'test_spec' } }" />
-          <v-list-item prepend-icon="tabler:table" title="Traceability Matrix" subtitle="Requirement ↔ Test Case" :to="{ path: '/documents', query: { create: 'rtm' } }" />
+          <v-list-item
+            prepend-icon="tabler:file-description"
+            title="Test Specification"
+            subtitle="รายละเอียดเคสและขั้นตอน"
+            :to="{ path: '/documents', query: { create: 'test_spec' } }"
+          />
+          <v-list-item
+            prepend-icon="tabler:table"
+            title="Traceability Matrix"
+            subtitle="Requirement ↔ Test Case"
+            :to="{ path: '/documents', query: { create: 'rtm' } }"
+          />
           <v-divider class="my-1" />
           <v-list-subheader>ไฟล์</v-list-subheader>
           <v-list-item prepend-icon="tabler:markdown" title="Obsidian Markdown (.md)" subtitle="Test Suite และ Vault Notes" @click="exportMarkdown" />
         </v-list>
       </v-menu>
-      <v-btn v-if="canExportUat" variant="tonal" color="primary" prepend-icon="tabler:certificate" :to="{ path: '/documents', query: { create: 'uat' } }">เอกสาร UAT</v-btn>
+      <v-btn
+        v-if="canExportUat"
+        variant="tonal"
+        color="primary"
+        prepend-icon="tabler:certificate"
+        :to="{ path: '/documents', query: { create: 'uat' } }"
+        >เอกสาร UAT</v-btn
+      >
       <v-menu v-if="canCreate" location="bottom end">
         <template #activator="{ props }">
           <v-btn v-bind="props" color="primary" prepend-icon="tabler:plus" append-icon="tabler:chevron-down">สร้าง Test Case</v-btn>
         </template>
         <v-list min-width="300">
-          <v-list-item v-for="o in createOptions" :key="o.title" :prepend-icon="o.icon" :title="o.title" :subtitle="o.subtitle" class="py-2" @click="o.action" />
+          <v-list-item
+            v-for="o in createOptions"
+            :key="o.title"
+            :prepend-icon="o.icon"
+            :title="o.title"
+            :subtitle="o.subtitle"
+            class="py-2"
+            @click="o.action"
+          />
         </v-list>
       </v-menu>
     </template>

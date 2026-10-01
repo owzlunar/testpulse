@@ -37,7 +37,14 @@ function setPerPage(n: number) {
       <v-btn icon="tabler:chevrons-left" variant="text" size="small" :disabled="page <= 1" aria-label="หน้าแรก" @click="page = 1" />
       <v-btn icon="tabler:chevron-left" variant="text" size="small" :disabled="page <= 1" aria-label="ก่อนหน้า" @click="page--" />
       <v-btn icon="tabler:chevron-right" variant="text" size="small" :disabled="page >= pageCount" aria-label="ถัดไป" @click="page++" />
-      <v-btn icon="tabler:chevrons-right" variant="text" size="small" :disabled="page >= pageCount" aria-label="หน้าสุดท้าย" @click="page = pageCount" />
+      <v-btn
+        icon="tabler:chevrons-right"
+        variant="text"
+        size="small"
+        :disabled="page >= pageCount"
+        aria-label="หน้าสุดท้าย"
+        @click="page = pageCount"
+      />
     </div>
   </div>
 </template>

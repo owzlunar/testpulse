@@ -13,7 +13,10 @@ const store = useDocumentStore()
 const { busy, run } = useAsyncAction()
 
 const form = reactive<DocumentTemplate>(JSON.parse(JSON.stringify(store.template)))
-watch(() => store.template, (t) => Object.assign(form, JSON.parse(JSON.stringify(t))))
+watch(
+  () => store.template,
+  (t) => Object.assign(form, JSON.parse(JSON.stringify(t))),
+)
 
 const fileInput = ref<HTMLInputElement>()
 function onLogo(e: Event) {
@@ -24,7 +27,10 @@ function onLogo(e: Event) {
 const sample = computed(() => formatDocNumber(form.docNumberPattern, 'uat', 'PAY', 1))
 
 function save() {
-  run(() => store.saveTemplate(JSON.parse(JSON.stringify(form))), () => emit('saved'))
+  run(
+    () => store.saveTemplate(JSON.parse(JSON.stringify(form))),
+    () => emit('saved'),
+  )
 }
 </script>
 
@@ -51,7 +57,12 @@ function save() {
           </v-col>
           <v-col cols="12" md="6">
             <label class="fox-label" for="tpl-pattern">รูปแบบเลขที่เอกสาร</label>
-            <v-text-field id="tpl-pattern" v-model="form.docNumberPattern" :hint="`ตัวอย่าง: ${sample} · ใช้ {TYPE} {KEY} {YYYYMMDD} {YYYY} {NN}`" persistent-hint />
+            <v-text-field
+              id="tpl-pattern"
+              v-model="form.docNumberPattern"
+              :hint="`ตัวอย่าง: ${sample} · ใช้ {TYPE} {KEY} {YYYYMMDD} {YYYY} {NN}`"
+              persistent-hint
+            />
           </v-col>
           <v-col cols="12">
             <label class="fox-label" for="tpl-address">ที่อยู่</label>
@@ -71,12 +82,29 @@ function save() {
         <span class="fox-label">ผู้ลงนามเริ่มต้น</span>
         <v-row v-for="(sg, i) in form.defaultSignatories" :key="i" dense class="align-center">
           <v-col cols="6" md="5"><v-text-field v-model="sg.role" density="compact" :aria-label="`บทบาท ${i + 1}`" placeholder="บทบาท" /></v-col>
-          <v-col cols="5" md="5"><v-text-field v-model="sg.position" density="compact" :aria-label="`ตำแหน่ง ${i + 1}`" placeholder="ตำแหน่ง" /></v-col>
+          <v-col cols="5" md="5"
+            ><v-text-field v-model="sg.position" density="compact" :aria-label="`ตำแหน่ง ${i + 1}`" placeholder="ตำแหน่ง"
+          /></v-col>
           <v-col cols="1" md="2" class="text-end">
-            <v-btn icon="tabler:trash" variant="text" size="small" color="error" :aria-label="`ลบ ${i + 1}`" @click="form.defaultSignatories.splice(i, 1)" />
+            <v-btn
+              icon="tabler:trash"
+              variant="text"
+              size="small"
+              color="error"
+              :aria-label="`ลบ ${i + 1}`"
+              @click="form.defaultSignatories.splice(i, 1)"
+            />
           </v-col>
         </v-row>
-        <v-btn class="mt-2" variant="tonal" color="primary" size="small" prepend-icon="tabler:plus" @click="form.defaultSignatories.push({ role: '', position: '' })">เพิ่มผู้ลงนาม</v-btn>
+        <v-btn
+          class="mt-2"
+          variant="tonal"
+          color="primary"
+          size="small"
+          prepend-icon="tabler:plus"
+          @click="form.defaultSignatories.push({ role: '', position: '' })"
+          >เพิ่มผู้ลงนาม</v-btn
+        >
       </v-col>
     </v-row>
   </v-card>

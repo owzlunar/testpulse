@@ -33,12 +33,21 @@ const step = ref(1)
 const docType = ref<DocumentType>('uat')
 const title = ref('')
 const docNumber = ref('')
-const options = reactive<DocumentOptions>({ runId: undefined, includeSubCases: true, includeSteps: true, includeEvidence: true, includeDefects: true, includeTraceability: false })
+const options = reactive<DocumentOptions>({
+  runId: undefined,
+  includeSubCases: true,
+  includeSteps: true,
+  includeEvidence: true,
+  includeDefects: true,
+  includeTraceability: false,
+})
 const uat = reactive<UatDetails>({ testPeriod: '', environment: '', decision: 'accepted', remarks: '', riskAcknowledged: false })
 const signatories = ref<Signatory[]>([])
 
 // --- defaults per type ---------------------------------------------------------------------
-const runOptions = computed(() => runStore.current.map((r) => ({ title: `${r.name} · รอบที่ ${r.round} (${r.status === 'completed' ? 'ปิดแล้ว' : 'กำลังทดสอบ'})`, value: r.id })))
+const runOptions = computed(() =>
+  runStore.current.map((r) => ({ title: `${r.name} · รอบที่ ${r.round} (${r.status === 'completed' ? 'ปิดแล้ว' : 'กำลังทดสอบ'})`, value: r.id })),
+)
 const selectedRun = computed(() => runStore.current.find((r) => r.id === options.runId))
 
 function applyType(t: DocumentType) {
@@ -61,27 +70,36 @@ function updateTitle() {
   const name = currentProject.value?.name ?? ''
   const r = selectedRun.value
   title.value =
-    docType.value === 'uat' ? `เอกสารตรวจรับระบบ (UAT Sign-off) ${name}`
-    : docType.value === 'test_summary' ? `รายงานผลการทดสอบ ${r ? `${r.name} รอบที่ ${r.round}` : name}`
-    : docType.value === 'test_spec' ? `เอกสารกรณีทดสอบ (Test Specification) ${name}`
-    : `Requirement Traceability Matrix ${name}`
+    docType.value === 'uat'
+      ? `เอกสารตรวจรับระบบ (UAT Sign-off) ${name}`
+      : docType.value === 'test_summary'
+        ? `รายงานผลการทดสอบ ${r ? `${r.name} รอบที่ ${r.round}` : name}`
+        : docType.value === 'test_spec'
+          ? `เอกสารกรณีทดสอบ (Test Specification) ${name}`
+          : `Requirement Traceability Matrix ${name}`
   if (r) {
     uat.testPeriod = `${formatDateTH(r.plannedStart)} – ${formatDateTH(r.plannedEnd)}`
     uat.environment = [r.environment, r.build].filter(Boolean).join(' · ')
   }
 }
 
-watch(open, async (isOpen) => {
-  if (!isOpen) return
-  step.value = props.type ? 2 : 1
-  await run(() => Promise.all([docStore.ensureLoaded(), runStore.ensureLoaded(), defectStore.ensureLoaded()]))
-  applyType(props.type ?? 'uat')
-  // the gatekeeper forces a conditional decision while risks are open
-  Object.assign(uat, { decision: atRisk.value ? 'conditional' : 'accepted', remarks: '', riskAcknowledged: false })
-  signatories.value = docStore.template.defaultSignatories.map((s, i) => ({
-    ...s, name: i === 0 ? currentUser.value.name : '', status: 'pending',
-  }))
-}, { immediate: true })
+watch(
+  open,
+  async (isOpen) => {
+    if (!isOpen) return
+    step.value = props.type ? 2 : 1
+    await run(() => Promise.all([docStore.ensureLoaded(), runStore.ensureLoaded(), defectStore.ensureLoaded()]))
+    applyType(props.type ?? 'uat')
+    // the gatekeeper forces a conditional decision while risks are open
+    Object.assign(uat, { decision: atRisk.value ? 'conditional' : 'accepted', remarks: '', riskAcknowledged: false })
+    signatories.value = docStore.template.defaultSignatories.map((s, i) => ({
+      ...s,
+      name: i === 0 ? currentUser.value.name : '',
+      status: 'pending',
+    }))
+  },
+  { immediate: true },
+)
 watch(() => options.runId, updateTitle)
 
 // --- release gatekeeper (UAT) ------------------------------------------------------------------
@@ -92,7 +110,10 @@ const risks = computed(() => {
   const overdue = currentCases.value.filter(isOverdue).length
   const openDefects = defectStore.current.filter(isOpenDefect).length
   return [
-    failed && `Failed ${failed} เคส`, blocked && `Blocked ${blocked} เคส`, overdue && `เลยกำหนด ${overdue} เคส`, openDefects && `Defect เปิดอยู่ ${openDefects} รายการ`,
+    failed && `Failed ${failed} เคส`,
+    blocked && `Blocked ${blocked} เคส`,
+    overdue && `เลยกำหนด ${overdue} เคส`,
+    openDefects && `Defect เปิดอยู่ ${openDefects} รายการ`,
   ].filter(Boolean) as string[]
 })
 const atRisk = computed(() => docType.value === 'uat' && risks.value.length > 0)
@@ -143,7 +164,14 @@ const steps = ['ประเภทเอกสาร', 'เนื้อหา', 
       </div>
 
       <div class="wiz-steps fox-card-body pb-2">
-        <button v-for="(label, i) in steps" :key="label" type="button" class="wiz-step" :class="{ 'wiz-step--on': step >= i + 1 }" @click="step = i + 1">
+        <button
+          v-for="(label, i) in steps"
+          :key="label"
+          type="button"
+          class="wiz-step"
+          :class="{ 'wiz-step--on': step >= i + 1 }"
+          @click="step = i + 1"
+        >
           <v-avatar :color="step >= i + 1 ? 'primary' : 'secondary'" :variant="step > i + 1 ? 'flat' : 'tonal'" size="28">
             <v-icon v-if="step > i + 1" icon="tabler:check" size="16" />
             <span v-else class="text-caption">{{ i + 1 }}</span>
@@ -226,7 +254,9 @@ const steps = ['ประเภทเอกสาร', 'เนื้อหา', 
                   </v-col>
                   <v-col v-if="atRisk" cols="12">
                     <v-alert type="error" variant="tonal" icon="tabler:shield-exclamation" title="Release at Risk">
-                      <p class="text-body-2 mb-2">พบ {{ risks.join(' · ') }} — มติ "ผ่านการตรวจรับสมบูรณ์" จะเลือกไม่ได้ และเอกสารจะระบุความเสี่ยงไว้</p>
+                      <p class="text-body-2 mb-2">
+                        พบ {{ risks.join(' · ') }} — มติ "ผ่านการตรวจรับสมบูรณ์" จะเลือกไม่ได้ และเอกสารจะระบุความเสี่ยงไว้
+                      </p>
                       <v-checkbox v-model="uat.riskAcknowledged" color="error" label="รับทราบความเสี่ยงของ Release นี้" />
                     </v-alert>
                   </v-col>
@@ -245,7 +275,13 @@ const steps = ['ประเภทเอกสาร', 'เนื้อหา', 
                   </v-col>
                   <v-col cols="12">
                     <label class="fox-label" for="doc-remarks">ข้อคิดเห็นและข้อตกลง</label>
-                    <v-textarea id="doc-remarks" v-model="uat.remarks" rows="2" auto-grow placeholder="เช่น Defect ระดับ Minor จะแก้ไขในสปรินต์ถัดไป ภายในวันที่ ..." />
+                    <v-textarea
+                      id="doc-remarks"
+                      v-model="uat.remarks"
+                      rows="2"
+                      auto-grow
+                      placeholder="เช่น Defect ระดับ Minor จะแก้ไขในสปรินต์ถัดไป ภายในวันที่ ..."
+                    />
                   </v-col>
                 </template>
               </v-row>
@@ -260,13 +296,26 @@ const steps = ['ประเภทเอกสาร', 'เนื้อหา', 
                     <v-text-field v-model="sg.role" density="compact" :aria-label="`บทบาทผู้ลงนาม ${i + 1}`" placeholder="บทบาท" />
                   </v-col>
                   <v-col cols="12" sm="4">
-                    <v-combobox v-model="sg.name" :items="signerNames" density="compact" :aria-label="`ชื่อผู้ลงนาม ${i + 1}`" placeholder="ชื่อ-นามสกุล" />
+                    <v-combobox
+                      v-model="sg.name"
+                      :items="signerNames"
+                      density="compact"
+                      :aria-label="`ชื่อผู้ลงนาม ${i + 1}`"
+                      placeholder="ชื่อ-นามสกุล"
+                    />
                   </v-col>
                   <v-col cols="10" sm="3">
                     <v-text-field v-model="sg.position" density="compact" :aria-label="`ตำแหน่ง ${i + 1}`" placeholder="ตำแหน่ง" />
                   </v-col>
                   <v-col cols="2" sm="1" class="text-end">
-                    <v-btn icon="tabler:trash" variant="text" size="small" color="error" :aria-label="`ลบผู้ลงนาม ${i + 1}`" @click="signatories.splice(i, 1)" />
+                    <v-btn
+                      icon="tabler:trash"
+                      variant="text"
+                      size="small"
+                      color="error"
+                      :aria-label="`ลบผู้ลงนาม ${i + 1}`"
+                      @click="signatories.splice(i, 1)"
+                    />
                   </v-col>
                 </v-row>
               </div>
@@ -283,7 +332,14 @@ const steps = ['ประเภทเอกสาร', 'เนื้อหา', 
         <v-spacer />
         <v-btn variant="outlined" @click="open = false">ยกเลิก</v-btn>
         <v-btn v-if="step < 3" color="primary" append-icon="tabler:chevron-right" @click="step++">ถัดไป</v-btn>
-        <v-btn v-else color="primary" prepend-icon="tabler:file-certificate" :loading="busy" :disabled="atRisk && !uat.riskAcknowledged" @click="generate">
+        <v-btn
+          v-else
+          color="primary"
+          prepend-icon="tabler:file-certificate"
+          :loading="busy"
+          :disabled="atRisk && !uat.riskAcknowledged"
+          @click="generate"
+        >
           สร้างเอกสาร
         </v-btn>
       </div>
@@ -323,7 +379,9 @@ const steps = ['ประเภทเอกสาร', 'เนื้อหา', 
   cursor: pointer;
   outline: 2px solid transparent;
   outline-offset: -2px;
-  transition: outline-color 0.15s, background-color 0.15s;
+  transition:
+    outline-color 0.15s,
+    background-color 0.15s;
 }
 
 .wiz-type--on {

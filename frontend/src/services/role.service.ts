@@ -91,15 +91,38 @@ export const DISCIPLINES: Option<RoleDiscipline>[] = [
 /** colours and icons a role can pick (theme tones only) */
 export const ROLE_TONES: Tone[] = ['primary', 'secondary', 'info', 'success', 'warning', 'caution', 'error']
 export const ROLE_ICONS = [
-  'tabler:user-shield', 'tabler:crown', 'tabler:flask', 'tabler:checklist', 'tabler:code', 'tabler:bug',
-  'tabler:briefcase', 'tabler:chart-bar', 'tabler:eye', 'tabler:user',
+  'tabler:user-shield',
+  'tabler:crown',
+  'tabler:flask',
+  'tabler:checklist',
+  'tabler:code',
+  'tabler:bug',
+  'tabler:briefcase',
+  'tabler:chart-bar',
+  'tabler:eye',
+  'tabler:user',
 ]
 
 /** how a user without a role is shown */
-export const NO_ROLE: Option<'none'> = { value: 'none', label: 'ยังไม่มี Role', hint: 'เห็นเฉพาะภาพรวมและตั้งค่า', tone: 'secondary', icon: 'tabler:user-question' }
+export const NO_ROLE: Option<'none'> = {
+  value: 'none',
+  label: 'ยังไม่มี Role',
+  hint: 'เห็นเฉพาะภาพรวมและตั้งค่า',
+  tone: 'secondary',
+  icon: 'tabler:user-question',
+}
 
 const at = '2026-09-01T09:00:00Z'
-const VIEW_ALL: PermissionKey[] = ['requirement.view', 'case.view', 'run.view', 'defect.view', 'calendar.view', 'document.view', 'report.view', 'notification.receive']
+const VIEW_ALL: PermissionKey[] = [
+  'requirement.view',
+  'case.view',
+  'run.view',
+  'defect.view',
+  'calendar.view',
+  'document.view',
+  'report.view',
+  'notification.receive',
+]
 
 export const ADMIN_ROLE_ID = 'role-admin'
 
@@ -123,8 +146,24 @@ export const DEFAULT_ROLES: Role[] = [
     discipline: 'qa',
     tone: 'success',
     icon: 'tabler:crown',
-    permissions: [...VIEW_ALL, 'requirement.edit', 'requirement.delete', 'case.edit', 'case.archive', 'case.delete', 'case.reorder',
-      'case.restoreVersion', 'run.create', 'run.execute', 'run.close', 'defect.report', 'defect.resolve', 'document.create', 'document.sign', 'audit.view'],
+    permissions: [
+      ...VIEW_ALL,
+      'requirement.edit',
+      'requirement.delete',
+      'case.edit',
+      'case.archive',
+      'case.delete',
+      'case.reorder',
+      'case.restoreVersion',
+      'run.create',
+      'run.execute',
+      'run.close',
+      'defect.report',
+      'defect.resolve',
+      'document.create',
+      'document.sign',
+      'audit.view',
+    ],
     createdAt: at,
     updatedAt: at,
   },
@@ -165,7 +204,7 @@ function roles(): Role[] {
 }
 
 /** server-side: the stored role of a user (null: no role) */
-export const roleById = (id: string | null | undefined): Role | null => (id ? roles().find((r) => r.id === id) ?? null : null)
+export const roleById = (id: string | null | undefined): Role | null => (id ? (roles().find((r) => r.id === id) ?? null) : null)
 
 /** GET /roles */
 export const fetchRoles = () => respond(roles)
@@ -214,6 +253,9 @@ export const deleteRole = (id: string, moveTo: string | null) =>
     const moved = users.filter((u) => u.roleId === id)
     moved.forEach((u) => (u.roleId = moveTo))
     save(STORAGE_KEYS.users, users)
-    save(STORAGE_KEYS.roles, list.filter((r) => r.id !== id))
+    save(
+      STORAGE_KEYS.roles,
+      list.filter((r) => r.id !== id),
+    )
     return moved
   })

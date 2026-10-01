@@ -31,11 +31,15 @@ const options = reactive<DraftOptions>({ positive: true, negative: true, boundar
 const drafts = ref<(TestCaseDraft & { keep: boolean })[]>([])
 const expanded = ref<number[]>([])
 
-watch(open, (isOpen) => {
-  if (!isOpen) return
-  requirementText.value = props.requirement
-  drafts.value = []
-}, { immediate: true })
+watch(
+  open,
+  (isOpen) => {
+    if (!isOpen) return
+    requirementText.value = props.requirement
+    drafts.value = []
+  },
+  { immediate: true },
+)
 
 // requirements already written on cases in this project, for one-click reuse
 const knownRequirements = computed(() => [...new Set(currentCases.value.map((c) => c.requirement).filter(Boolean))])
@@ -96,7 +100,9 @@ function save() {
                 />
                 <v-menu v-if="knownRequirements.length">
                   <template #activator="{ props: menu }">
-                    <v-btn v-bind="menu" variant="text" size="small" color="primary" prepend-icon="tabler:list-search" class="mt-1">ใช้ Requirement ที่มีในโปรเจกต์</v-btn>
+                    <v-btn v-bind="menu" variant="text" size="small" color="primary" prepend-icon="tabler:list-search" class="mt-1"
+                      >ใช้ Requirement ที่มีในโปรเจกต์</v-btn
+                    >
                   </template>
                   <v-list max-width="420">
                     <v-list-item v-for="r in knownRequirements" :key="r" :title="r" class="text-body-2" @click="requirementText = r" />
@@ -150,13 +156,28 @@ function save() {
                       <v-checkbox-btn v-model="d.keep" class="flex-grow-0" :aria-label="`เลือก ${d.name}`" />
                       <div class="flex-grow-1 overflow-hidden">
                         <div class="d-flex flex-wrap align-center ga-2 mb-2">
-                          <v-chip :color="draftKindOf(d.kind).tone" :prepend-icon="draftKindOf(d.kind).icon" size="x-small" variant="tonal">{{ draftKindOf(d.kind).label }}</v-chip>
+                          <v-chip :color="draftKindOf(d.kind).tone" :prepend-icon="draftKindOf(d.kind).icon" size="x-small" variant="tonal">{{
+                            draftKindOf(d.kind).label
+                          }}</v-chip>
                           <span class="text-caption text-muted">{{ d.steps.length }} ขั้นตอน</span>
                         </div>
                         <v-text-field v-model="d.name" density="compact" :aria-label="`ชื่อเคส ${i + 1}`" class="mb-2" />
                         <div class="d-flex flex-wrap align-center ga-2">
-                          <v-select v-model="d.priority" :items="PRIORITIES" item-title="label" item-value="value" density="compact" class="ai-priority" aria-label="Priority" />
-                          <v-btn variant="text" size="small" :append-icon="expanded.includes(i) ? 'tabler:chevron-up' : 'tabler:chevron-down'" @click="expanded = expanded.includes(i) ? expanded.filter((x) => x !== i) : [...expanded, i]">
+                          <v-select
+                            v-model="d.priority"
+                            :items="PRIORITIES"
+                            item-title="label"
+                            item-value="value"
+                            density="compact"
+                            class="ai-priority"
+                            aria-label="Priority"
+                          />
+                          <v-btn
+                            variant="text"
+                            size="small"
+                            :append-icon="expanded.includes(i) ? 'tabler:chevron-up' : 'tabler:chevron-down'"
+                            @click="expanded = expanded.includes(i) ? expanded.filter((x) => x !== i) : [...expanded, i]"
+                          >
                             ขั้นตอน
                           </v-btn>
                         </div>
@@ -177,7 +198,12 @@ function save() {
                   </v-card>
                 </div>
               </template>
-              <FoxEmptyState v-else icon="tabler:sparkles" title="ร่างจะแสดงที่นี่" text="ระบบจะแยกเคส Positive, Negative และ Boundary ให้ตรวจทานก่อนบันทึก" />
+              <FoxEmptyState
+                v-else
+                icon="tabler:sparkles"
+                title="ร่างจะแสดงที่นี่"
+                text="ระบบจะแยกเคส Positive, Negative และ Boundary ให้ตรวจทานก่อนบันทึก"
+              />
             </div>
           </v-col>
         </v-row>
@@ -188,7 +214,9 @@ function save() {
         <span class="text-body-2 text-muted">เคสที่เพิ่มจะมีสถานะ Pending Dev และตรวจแก้ต่อได้ตามปกติ</span>
         <v-spacer />
         <v-btn variant="outlined" @click="open = false">ยกเลิก</v-btn>
-        <v-btn color="primary" prepend-icon="tabler:plus" :loading="saving.busy.value" :disabled="!kept.length" @click="save">เพิ่ม {{ kept.length }} เคส</v-btn>
+        <v-btn color="primary" prepend-icon="tabler:plus" :loading="saving.busy.value" :disabled="!kept.length" @click="save"
+          >เพิ่ม {{ kept.length }} เคส</v-btn
+        >
       </div>
     </v-card>
   </v-dialog>

@@ -27,18 +27,34 @@ const { currentProject, currentCases } = storeToRefs(useProjectStore())
 
 const formRef = ref<VForm>()
 const empty = (): DefectInput => ({
-  projectId: currentProject.value?.id ?? '', title: '', description: '', stepsToReproduce: '', expected: '', actual: '',
-  severity: 'major', status: 'open', caseId: undefined, runId: undefined, stepNumber: undefined, assignee: '',
-  externalKey: '', environment: '', evidence: [],
+  projectId: currentProject.value?.id ?? '',
+  title: '',
+  description: '',
+  stepsToReproduce: '',
+  expected: '',
+  actual: '',
+  severity: 'major',
+  status: 'open',
+  caseId: undefined,
+  runId: undefined,
+  stepNumber: undefined,
+  assignee: '',
+  externalKey: '',
+  environment: '',
+  evidence: [],
 })
 const form = reactive<DefectInput>(empty())
 const isEdit = computed(() => !!form.id)
 
-watch(open, (isOpen) => {
-  if (!isOpen) return
-  const src = props.defect ? JSON.parse(JSON.stringify(props.defect)) : { id: undefined, ...(props.preset ?? {}) }
-  Object.assign(form, empty(), src)
-}, { immediate: true })
+watch(
+  open,
+  (isOpen) => {
+    if (!isOpen) return
+    const src = props.defect ? JSON.parse(JSON.stringify(props.defect)) : { id: undefined, ...(props.preset ?? {}) }
+    Object.assign(form, empty(), src)
+  },
+  { immediate: true },
+)
 
 const devs = computed(() => auth.usersIn('dev').map((u) => u.name))
 const caseOptions = computed(() => [
@@ -72,7 +88,12 @@ async function submit() {
           <v-row dense class="fox-form-grid">
             <v-col cols="12">
               <label class="fox-label" for="df-title">หัวข้อ *</label>
-              <v-text-field id="df-title" v-model="form.title" placeholder="สรุปอาการสั้นๆ เช่น กดชำระเงินซ้ำแล้วตัดเงินสองครั้ง" :rules="[required]" />
+              <v-text-field
+                id="df-title"
+                v-model="form.title"
+                placeholder="สรุปอาการสั้นๆ เช่น กดชำระเงินซ้ำแล้วตัดเงินสองครั้ง"
+                :rules="[required]"
+              />
             </v-col>
             <v-col cols="12" sm="4">
               <label class="fox-label" for="df-sev">Severity *</label>
@@ -96,7 +117,14 @@ async function submit() {
             </v-col>
             <v-col cols="12" sm="6">
               <label class="fox-label" for="df-case">Test Case ที่เกี่ยวข้อง</label>
-              <v-autocomplete id="df-case" v-model="form.caseId" :items="caseOptions" placeholder="ไม่ระบุ" prepend-inner-icon="tabler:flask" clearable />
+              <v-autocomplete
+                id="df-case"
+                v-model="form.caseId"
+                :items="caseOptions"
+                placeholder="ไม่ระบุ"
+                prepend-inner-icon="tabler:flask"
+                clearable
+              />
             </v-col>
             <v-col cols="6" sm="3">
               <label class="fox-label" for="df-ext">Jira / Issue key</label>

@@ -38,13 +38,7 @@ const { run } = useAsyncAction()
       <v-divider />
       <div class="text-overline text-muted px-5 pt-3">สลับบัญชีทดสอบ</div>
       <v-list class="px-2">
-        <v-list-item
-          v-for="u in users"
-          :key="u.id"
-          :active="u.id === currentUser.id"
-          color="primary"
-          @click="run(() => auth.switchUser(u))"
-        >
+        <v-list-item v-for="u in users" :key="u.id" :active="u.id === currentUser.id" color="primary" @click="run(() => auth.switchUser(u))">
           <template #prepend>
             <UserAvatar :user="u" size="28" class="mr-3" />
           </template>

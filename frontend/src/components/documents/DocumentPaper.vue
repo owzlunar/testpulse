@@ -50,10 +50,22 @@ const no = (key: string) => sections.value.indexOf(key) + 1
         </div>
         <table class="doc-meta">
           <tbody>
-            <tr><th>เลขที่เอกสาร</th><td>{{ doc.docNumber }}</td></tr>
-            <tr><th>เวอร์ชัน</th><td>{{ doc.version }}.0</td></tr>
-            <tr><th>วันที่</th><td>{{ formatDateTH(s.generatedAt, { day: 'numeric', month: 'long', year: 'numeric' }) }}</td></tr>
-            <tr><th>สถานะ</th><td>{{ documentStatusOf(doc.status).label }}</td></tr>
+            <tr>
+              <th>เลขที่เอกสาร</th>
+              <td>{{ doc.docNumber }}</td>
+            </tr>
+            <tr>
+              <th>เวอร์ชัน</th>
+              <td>{{ doc.version }}.0</td>
+            </tr>
+            <tr>
+              <th>วันที่</th>
+              <td>{{ formatDateTH(s.generatedAt, { day: 'numeric', month: 'long', year: 'numeric' }) }}</td>
+            </tr>
+            <tr>
+              <th>สถานะ</th>
+              <td>{{ documentStatusOf(doc.status).label }}</td>
+            </tr>
           </tbody>
         </table>
       </header>
@@ -71,15 +83,44 @@ const no = (key: string) => sections.value.indexOf(key) + 1
         <h2>{{ no('info') }}. ข้อมูลทั่วไป</h2>
         <table class="doc-table doc-kv">
           <tbody>
-            <tr><th>โปรเจกต์</th><td>{{ s.project.name }}</td></tr>
-            <tr v-if="s.project.description"><th>ขอบเขต</th><td>{{ s.project.description }}</td></tr>
-            <tr v-if="s.run"><th>รอบการทดสอบ</th><td>{{ s.run.name }} · รอบที่ {{ s.run.round }} ({{ runTypeOf(s.run.type).label }})</td></tr>
-            <tr v-if="isUat && doc.uat"><th>ช่วงเวลาตรวจรับ</th><td>{{ doc.uat.testPeriod }}</td></tr>
-            <tr v-else-if="s.run"><th>ช่วงเวลาทดสอบ</th><td>{{ formatDateTH(s.run.plannedStart) }} – {{ formatDateTH(s.run.plannedEnd) }}</td></tr>
-            <tr v-if="isUat && doc.uat"><th>สภาพแวดล้อม</th><td>{{ doc.uat.environment }}</td></tr>
-            <tr v-else-if="s.run"><th>สภาพแวดล้อม</th><td>{{ s.run.environment }}<template v-if="s.run.build"> · Build {{ s.run.build }}</template></td></tr>
-            <tr v-if="s.project.targetDeadline"><th>กำหนดส่งมอบ</th><td>{{ formatDateTH(s.project.targetDeadline) }}</td></tr>
-            <tr><th>จัดทำโดย</th><td>{{ doc.createdBy }} · {{ formatDateTime(s.generatedAt) }}</td></tr>
+            <tr>
+              <th>โปรเจกต์</th>
+              <td>{{ s.project.name }}</td>
+            </tr>
+            <tr v-if="s.project.description">
+              <th>ขอบเขต</th>
+              <td>{{ s.project.description }}</td>
+            </tr>
+            <tr v-if="s.run">
+              <th>รอบการทดสอบ</th>
+              <td>{{ s.run.name }} · รอบที่ {{ s.run.round }} ({{ runTypeOf(s.run.type).label }})</td>
+            </tr>
+            <tr v-if="isUat && doc.uat">
+              <th>ช่วงเวลาตรวจรับ</th>
+              <td>{{ doc.uat.testPeriod }}</td>
+            </tr>
+            <tr v-else-if="s.run">
+              <th>ช่วงเวลาทดสอบ</th>
+              <td>{{ formatDateTH(s.run.plannedStart) }} – {{ formatDateTH(s.run.plannedEnd) }}</td>
+            </tr>
+            <tr v-if="isUat && doc.uat">
+              <th>สภาพแวดล้อม</th>
+              <td>{{ doc.uat.environment }}</td>
+            </tr>
+            <tr v-else-if="s.run">
+              <th>สภาพแวดล้อม</th>
+              <td>
+                {{ s.run.environment }}<template v-if="s.run.build"> · Build {{ s.run.build }}</template>
+              </td>
+            </tr>
+            <tr v-if="s.project.targetDeadline">
+              <th>กำหนดส่งมอบ</th>
+              <td>{{ formatDateTH(s.project.targetDeadline) }}</td>
+            </tr>
+            <tr>
+              <th>จัดทำโดย</th>
+              <td>{{ doc.createdBy }} · {{ formatDateTime(s.generatedAt) }}</td>
+            </tr>
           </tbody>
         </table>
       </section>
@@ -88,27 +129,56 @@ const no = (key: string) => sections.value.indexOf(key) + 1
       <section v-if="sections.includes('summary')">
         <h2>{{ no('summary') }}. สรุปผล</h2>
         <table class="doc-table doc-summary">
-          <thead><tr><th>ทั้งหมด</th><th>ผ่าน</th><th>ไม่ผ่าน</th><th>Blocked</th><th>ยังไม่ทดสอบ</th><th>Pass rate</th></tr></thead>
+          <thead>
+            <tr>
+              <th>ทั้งหมด</th>
+              <th>ผ่าน</th>
+              <th>ไม่ผ่าน</th>
+              <th>Blocked</th>
+              <th>ยังไม่ทดสอบ</th>
+              <th>Pass rate</th>
+            </tr>
+          </thead>
           <tbody>
             <tr>
-              <td>{{ s.summary.total }}</td><td>{{ s.summary.passed }}</td><td>{{ s.summary.failed }}</td>
-              <td>{{ s.summary.blocked }}</td><td>{{ s.summary.notRun }}</td><td><strong>{{ formatPercent(s.summary.passRate) }}</strong></td>
+              <td>{{ s.summary.total }}</td>
+              <td>{{ s.summary.passed }}</td>
+              <td>{{ s.summary.failed }}</td>
+              <td>{{ s.summary.blocked }}</td>
+              <td>{{ s.summary.notRun }}</td>
+              <td>
+                <strong>{{ formatPercent(s.summary.passRate) }}</strong>
+              </td>
             </tr>
           </tbody>
         </table>
         <div v-if="s.risks.length && doc.type !== 'test_spec'" class="doc-callout">
           <strong>ประเด็นความเสี่ยง ณ วันที่จัดทำเอกสาร</strong>
-          <ul><li v-for="r in s.risks" :key="r">{{ r }}</li></ul>
+          <ul>
+            <li v-for="r in s.risks" :key="r">{{ r }}</li>
+          </ul>
         </div>
       </section>
 
       <!-- test spec: cases list -->
       <section v-if="doc.type === 'test_spec'">
         <table class="doc-table">
-          <thead><tr><th>รหัส</th><th>ชื่อ Test Case</th><th>Requirement</th><th>Priority</th><th>ขั้นตอน</th></tr></thead>
+          <thead>
+            <tr>
+              <th>รหัส</th>
+              <th>ชื่อ Test Case</th>
+              <th>Requirement</th>
+              <th>Priority</th>
+              <th>ขั้นตอน</th>
+            </tr>
+          </thead>
           <tbody>
             <tr v-for="c in s.cases" :key="c.id">
-              <td class="doc-nowrap">{{ c.id }}</td><td>{{ c.name }}</td><td class="doc-pre">{{ c.requirement }}</td><td>{{ priorityOf(c.priority).label }}</td><td class="doc-center">{{ c.steps.length }}</td>
+              <td class="doc-nowrap">{{ c.id }}</td>
+              <td>{{ c.name }}</td>
+              <td class="doc-pre">{{ c.requirement }}</td>
+              <td>{{ priorityOf(c.priority).label }}</td>
+              <td class="doc-center">{{ c.steps.length }}</td>
             </tr>
           </tbody>
         </table>
@@ -118,14 +188,30 @@ const no = (key: string) => sections.value.indexOf(key) + 1
       <section v-if="sections.includes('results')">
         <h2>{{ no('results') }}. ผลการทดสอบรายเคส</h2>
         <table class="doc-table">
-          <thead><tr><th>รหัส</th><th>ชื่อ Test Case</th><th>Priority</th><th>ผล</th><th>ผู้ทดสอบ / วันที่</th></tr></thead>
+          <thead>
+            <tr>
+              <th>รหัส</th>
+              <th>ชื่อ Test Case</th>
+              <th>Priority</th>
+              <th>ผล</th>
+              <th>ผู้ทดสอบ / วันที่</th>
+            </tr>
+          </thead>
           <tbody>
             <tr v-for="c in s.cases" :key="c.id">
               <td class="doc-nowrap">{{ c.id }}</td>
-              <td>{{ c.name }}<div v-if="c.actualResults" class="doc-small doc-muted">{{ c.actualResults }}</div></td>
+              <td>
+                {{ c.name }}
+                <div v-if="c.actualResults" class="doc-small doc-muted">{{ c.actualResults }}</div>
+              </td>
               <td>{{ priorityOf(c.priority).label }}</td>
-              <td class="doc-nowrap"><span class="doc-badge" :class="`doc-badge--${c.outcome}`">{{ c.result }}</span></td>
-              <td class="doc-small">{{ c.executedBy || '-' }}<div v-if="c.executedAt" class="doc-muted">{{ formatDateTime(c.executedAt) }}</div></td>
+              <td class="doc-nowrap">
+                <span class="doc-badge" :class="`doc-badge--${c.outcome}`">{{ c.result }}</span>
+              </td>
+              <td class="doc-small">
+                {{ c.executedBy || '-' }}
+                <div v-if="c.executedAt" class="doc-muted">{{ formatDateTime(c.executedAt) }}</div>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -135,12 +221,27 @@ const no = (key: string) => sections.value.indexOf(key) + 1
       <section v-if="sections.includes('defects')">
         <h2>{{ no('defects') }}. Defect ที่พบ</h2>
         <table class="doc-table">
-          <thead><tr><th>รหัส</th><th>หัวข้อ</th><th>Severity</th><th>สถานะ</th><th>Test Case</th><th>ผู้รับผิดชอบ</th></tr></thead>
+          <thead>
+            <tr>
+              <th>รหัส</th>
+              <th>หัวข้อ</th>
+              <th>Severity</th>
+              <th>สถานะ</th>
+              <th>Test Case</th>
+              <th>ผู้รับผิดชอบ</th>
+            </tr>
+          </thead>
           <tbody>
             <tr v-for="d in s.defects" :key="d.id">
-              <td class="doc-nowrap">{{ d.id }}<div v-if="d.externalKey" class="doc-small doc-muted">{{ d.externalKey }}</div></td>
-              <td>{{ d.title }}</td><td>{{ severityOf(d.severity).label }}</td><td>{{ defectStatusOf(d.status).label }}</td>
-              <td>{{ d.caseId || '-' }}</td><td class="doc-small">{{ d.assignee || '-' }}</td>
+              <td class="doc-nowrap">
+                {{ d.id }}
+                <div v-if="d.externalKey" class="doc-small doc-muted">{{ d.externalKey }}</div>
+              </td>
+              <td>{{ d.title }}</td>
+              <td>{{ severityOf(d.severity).label }}</td>
+              <td>{{ defectStatusOf(d.status).label }}</td>
+              <td>{{ d.caseId || '-' }}</td>
+              <td class="doc-small">{{ d.assignee || '-' }}</td>
             </tr>
           </tbody>
         </table>
@@ -150,10 +251,20 @@ const no = (key: string) => sections.value.indexOf(key) + 1
       <section v-if="sections.includes('rtm')">
         <h2>{{ no('rtm') }}. Requirement Traceability Matrix</h2>
         <table class="doc-table">
-          <thead><tr><th>Requirement</th><th>ชื่อ</th><th>Test Cases</th><th>Coverage</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Requirement</th>
+              <th>ชื่อ</th>
+              <th>Test Cases</th>
+              <th>Coverage</th>
+            </tr>
+          </thead>
           <tbody>
             <tr v-for="r in s.requirements" :key="r.code">
-              <td class="doc-nowrap">{{ r.code }}</td><td>{{ r.title }}</td><td>{{ r.caseIds.join(', ') || '—' }}</td><td>{{ coverageOf(r.coverage).label }}</td>
+              <td class="doc-nowrap">{{ r.code }}</td>
+              <td>{{ r.title }}</td>
+              <td>{{ r.caseIds.join(', ') || '—' }}</td>
+              <td>{{ coverageOf(r.coverage).label }}</td>
             </tr>
           </tbody>
         </table>
@@ -166,20 +277,40 @@ const no = (key: string) => sections.value.indexOf(key) + 1
           <h3>{{ c.id }} · {{ c.name }}</h3>
           <table class="doc-table doc-kv">
             <tbody>
-              <tr><th>Requirement</th><td class="doc-pre">{{ c.requirement || '-' }}</td></tr>
-              <tr><th>Scenario</th><td>{{ c.testScenario }}</td></tr>
-              <tr v-if="c.prerequisite"><th>Prerequisite</th><td class="doc-pre">{{ c.prerequisite }}</td></tr>
+              <tr>
+                <th>Requirement</th>
+                <td class="doc-pre">{{ c.requirement || '-' }}</td>
+              </tr>
+              <tr>
+                <th>Scenario</th>
+                <td>{{ c.testScenario }}</td>
+              </tr>
+              <tr v-if="c.prerequisite">
+                <th>Prerequisite</th>
+                <td class="doc-pre">{{ c.prerequisite }}</td>
+              </tr>
             </tbody>
           </table>
           <table class="doc-table doc-steps">
             <thead>
-              <tr><th>#</th><th>ขั้นตอน</th><th>Test Data</th><th>ผลที่คาดหวัง</th><th v-if="c.stepResults">ผล</th></tr>
+              <tr>
+                <th>#</th>
+                <th>ขั้นตอน</th>
+                <th>Test Data</th>
+                <th>ผลที่คาดหวัง</th>
+                <th v-if="c.stepResults">ผล</th>
+              </tr>
             </thead>
             <tbody>
               <tr v-for="(st, i) in c.steps" :key="st.id">
-                <td class="doc-center">{{ i + 1 }}</td><td class="doc-pre">{{ st.action }}</td><td class="doc-pre">{{ st.testData }}</td><td class="doc-pre">{{ st.expectedResult }}</td>
+                <td class="doc-center">{{ i + 1 }}</td>
+                <td class="doc-pre">{{ st.action }}</td>
+                <td class="doc-pre">{{ st.testData }}</td>
+                <td class="doc-pre">{{ st.expectedResult }}</td>
                 <td v-if="c.stepResults" class="doc-nowrap">
-                  <span class="doc-badge" :class="`doc-badge--${c.stepResults[i]?.status === 'untested' ? 'not_run' : c.stepResults[i]?.status}`">{{ resultOf(c.stepResults[i]?.status ?? 'untested').label }}</span>
+                  <span class="doc-badge" :class="`doc-badge--${c.stepResults[i]?.status === 'untested' ? 'not_run' : c.stepResults[i]?.status}`">{{
+                    resultOf(c.stepResults[i]?.status ?? 'untested').label
+                  }}</span>
                   <div v-if="c.stepResults[i]?.actual" class="doc-small">{{ c.stepResults[i].actual }}</div>
                 </td>
               </tr>

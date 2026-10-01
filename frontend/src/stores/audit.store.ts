@@ -5,7 +5,10 @@ import { createAuditLog, fetchAuditLogs } from '@/services/audit.service'
 import { newId } from '@/services/http'
 import { useAuthStore } from './auth.store'
 
-export type AuditInput = Pick<AuditTrailEntry, 'action' | 'targetType' | 'targetId' | 'projectId' | 'targetDeleted' | 'targetTitle' | 'details' | 'changes'>
+export type AuditInput = Pick<
+  AuditTrailEntry,
+  'action' | 'targetType' | 'targetId' | 'projectId' | 'targetDeleted' | 'targetTitle' | 'details' | 'changes'
+>
 
 export const useAuditStore = defineStore('audit', () => {
   const logs = ref<AuditTrailEntry[]>([])

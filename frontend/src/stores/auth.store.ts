@@ -14,7 +14,7 @@ export const useAuthStore = defineStore('auth', () => {
   const teams = ref<Team[]>([])
   const currentUser = ref<User>(api.MOCK_USERS[0])
 
-  const roleById = (id: string | null | undefined) => (id ? roles.value.find((r) => r.id === id) ?? null : null)
+  const roleById = (id: string | null | undefined) => (id ? (roles.value.find((r) => r.id === id) ?? null) : null)
   /** null: a new user without a role (sees only the dashboard and settings) */
   const currentRole = computed(() => roleById(currentUser.value.roleId))
   /** the built-in Admin role: every permission, and the only one that manages users, roles, teams and projects */
@@ -143,7 +143,27 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   return {
-    users, roles, teams, currentUser, teamsOf, switchUser, saveTeam, deleteTeam, currentRole, isAdmin, hasRole,
-    roleOptions, load, can, roleOf, roleById, usersIn, loginAs, updateUserRole, addUser, saveRole, deleteRole,
+    users,
+    roles,
+    teams,
+    currentUser,
+    teamsOf,
+    switchUser,
+    saveTeam,
+    deleteTeam,
+    currentRole,
+    isAdmin,
+    hasRole,
+    roleOptions,
+    load,
+    can,
+    roleOf,
+    roleById,
+    usersIn,
+    loginAs,
+    updateUserRole,
+    addUser,
+    saveRole,
+    deleteRole,
   }
 })

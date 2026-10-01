@@ -21,7 +21,12 @@ const settingsStore = useSettingsStore()
 const { run } = useAsyncAction()
 const settings = reactive({ ...settingsStore.settings })
 // auto-save every change
-watch(settings, () => run(() => settingsStore.save({ ...settings }), () => notify('บันทึกการตั้งค่าแล้ว')))
+watch(settings, () =>
+  run(
+    () => settingsStore.save({ ...settings }),
+    () => notify('บันทึกการตั้งค่าแล้ว'),
+  ),
+)
 
 function switchUser(id: string) {
   const user = users.value.find((u) => u.id === id)
@@ -66,8 +71,7 @@ function reset() {
           <div class="mt-4">
             <v-switch v-model="settings.stickyPageHeader" label="ตรึงหัวหน้าเพจไว้ด้านบนเมื่อเลื่อนหน้าจอ" hide-details />
             <p class="text-caption text-muted">
-              ใช้กับหน้าที่ยาว (Test Cases, Requirements, Defects, Audit Logs) หัวข้อและปุ่มจะย่อลงเมื่อเกาะด้านบน
-              ทำงานบนจอกว้างตั้งแต่ 960px
+              ใช้กับหน้าที่ยาว (Test Cases, Requirements, Defects, Audit Logs) หัวข้อและปุ่มจะย่อลงเมื่อเกาะด้านบน ทำงานบนจอกว้างตั้งแต่ 960px
             </p>
           </div>
         </v-card>

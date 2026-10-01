@@ -40,7 +40,14 @@ async function submit() {
           </v-col>
           <v-col cols="12">
             <label class="fox-label" for="reg-email">อีเมล *</label>
-            <v-text-field id="reg-email" v-model="form.email" type="email" autocomplete="email" prepend-inner-icon="tabler:mail" :rules="[v.required, v.email]" />
+            <v-text-field
+              id="reg-email"
+              v-model="form.email"
+              type="email"
+              autocomplete="email"
+              prepend-inner-icon="tabler:mail"
+              :rules="[v.required, v.email]"
+            />
           </v-col>
           <v-col cols="12">
             <label class="fox-label" for="reg-title">ตำแหน่ง</label>

@@ -54,12 +54,9 @@ const quiet = computed(() => !!impact.value && !impact.value.runs.length && !imp
         </div>
         <p class="text-body-2 mb-4">
           <template v-if="isDelete">
-            ลบออกจากระบบและกู้คืนไม่ได้ ผลในรอบทดสอบและ Defect จะเก็บรหัสเดิมไว้เป็นประวัติเท่านั้น
-            และรหัสนี้อาจถูกใช้กับเคสใหม่ในภายหลัง
+            ลบออกจากระบบและกู้คืนไม่ได้ ผลในรอบทดสอบและ Defect จะเก็บรหัสเดิมไว้เป็นประวัติเท่านั้น และรหัสนี้อาจถูกใช้กับเคสใหม่ในภายหลัง
           </template>
-          <template v-else>
-            เคสจะถูกซ่อนจากรายการ สถิติ Coverage และการสร้างรอบทดสอบใหม่ แต่ยังคงรหัสและประวัติทั้งหมด กู้คืนได้ทุกเมื่อ
-          </template>
+          <template v-else> เคสจะถูกซ่อนจากรายการ สถิติ Coverage และการสร้างรอบทดสอบใหม่ แต่ยังคงรหัสและประวัติทั้งหมด กู้คืนได้ทุกเมื่อ </template>
         </p>
 
         <div v-if="!impact && !failed" class="d-flex align-center ga-2 text-body-2 text-muted py-2">

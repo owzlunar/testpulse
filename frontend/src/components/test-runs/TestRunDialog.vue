@@ -22,8 +22,16 @@ const { currentProject, currentCases } = storeToRefs(useProjectStore())
 
 const formRef = ref<VForm>()
 const empty = (): TestRunInput => ({
-  projectId: currentProject.value?.id ?? '', name: '', type: 'functional', round: 1, environment: 'Staging', build: '',
-  plannedStart: todayISO(), plannedEnd: addDays(todayISO(), 5), caseIds: [], assignee: '',
+  projectId: currentProject.value?.id ?? '',
+  name: '',
+  type: 'functional',
+  round: 1,
+  environment: 'Staging',
+  build: '',
+  plannedStart: todayISO(),
+  plannedEnd: addDays(todayISO(), 5),
+  caseIds: [],
+  assignee: '',
 })
 const form = reactive<TestRunInput>(empty())
 
@@ -31,19 +39,28 @@ const lastRun = computed(() => runStore.current[0] ?? null)
 const nameOptions = computed(() => [...new Set(runStore.current.map((r) => r.name))])
 const qaUsers = computed(() => auth.usersIn('qa').map((u) => u.name))
 
-watch(open, (isOpen) => {
-  if (!isOpen) return
-  Object.assign(form, empty(), {
-    name: lastRun.value?.name ?? `${currentProject.value?.key ?? ''} · Functional`,
-    caseIds: currentCases.value.map((c) => c.id),
-  })
-  form.round = runStore.nextRound(form.name)
-}, { immediate: true })
-watch(() => form.name, (name) => (form.round = runStore.nextRound(name)))
+watch(
+  open,
+  (isOpen) => {
+    if (!isOpen) return
+    Object.assign(form, empty(), {
+      name: lastRun.value?.name ?? `${currentProject.value?.key ?? ''} · Functional`,
+      caseIds: currentCases.value.map((c) => c.id),
+    })
+    form.round = runStore.nextRound(form.name)
+  },
+  { immediate: true },
+)
+watch(
+  () => form.name,
+  (name) => (form.round = runStore.nextRound(name)),
+)
 
 // --- case selection ------------------------------------------------------------------
 const cases = computed(() => [...currentCases.value].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })))
-const failedLastRound = computed(() => new Set(lastRun.value?.results.filter((r) => !r.caseDeleted && (r.status === 'failed' || r.status === 'blocked')).map((r) => r.caseId)))
+const failedLastRound = computed(
+  () => new Set(lastRun.value?.results.filter((r) => !r.caseDeleted && (r.status === 'failed' || r.status === 'blocked')).map((r) => r.caseId)),
+)
 
 const presets = computed(() => [
   { label: 'ทั้งหมด', ids: cases.value.map((c) => c.id) },
@@ -113,7 +130,14 @@ async function submit() {
                 </v-col>
                 <v-col cols="12">
                   <label class="fox-label" for="run-assignee">ผู้ทดสอบ</label>
-                  <v-select id="run-assignee" v-model="form.assignee" :items="qaUsers" placeholder="ตาม QA ของแต่ละเคส" prepend-inner-icon="tabler:user-check" clearable />
+                  <v-select
+                    id="run-assignee"
+                    v-model="form.assignee"
+                    :items="qaUsers"
+                    placeholder="ตาม QA ของแต่ละเคส"
+                    prepend-inner-icon="tabler:user-check"
+                    clearable
+                  />
                 </v-col>
               </v-row>
             </v-col>
@@ -124,13 +148,26 @@ async function submit() {
                 <v-btn variant="text" size="small" @click="form.caseIds = []">ล้าง</v-btn>
               </div>
               <div class="d-flex flex-wrap ga-2 mb-3">
-                <v-chip v-for="p in presets" :key="p.label" size="small" variant="tonal" color="primary" :disabled="!p.ids.length" @click="form.caseIds = p.ids">
+                <v-chip
+                  v-for="p in presets"
+                  :key="p.label"
+                  size="small"
+                  variant="tonal"
+                  color="primary"
+                  :disabled="!p.ids.length"
+                  @click="form.caseIds = p.ids"
+                >
                   {{ p.label }} <span class="fox-num ml-1">{{ p.ids.length }}</span>
                 </v-chip>
               </div>
               <div class="run-cases">
                 <label v-for="c in cases" :key="c.id" class="run-case" :class="{ 'run-case--sub': c.parentId }">
-                  <v-checkbox-btn :model-value="form.caseIds.includes(c.id)" density="compact" class="flex-grow-0" @update:model-value="toggle(c.id)" />
+                  <v-checkbox-btn
+                    :model-value="form.caseIds.includes(c.id)"
+                    density="compact"
+                    class="flex-grow-0"
+                    @update:model-value="toggle(c.id)"
+                  />
                   <span class="text-subtitle-2 text-primary fox-num">{{ c.id }}</span>
                   <span class="text-body-2 text-truncate flex-grow-1">{{ c.name }}</span>
                   <TestCasePriorityChip :priority="c.priority" />

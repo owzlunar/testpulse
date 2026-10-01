@@ -95,7 +95,14 @@ const highlights: { icon: string; text: string }[] = [
         <v-form ref="formRef" @submit.prevent="submit">
           <div class="mb-5">
             <label class="fox-label" for="login-email">อีเมล</label>
-            <v-text-field id="login-email" v-model="form.email" type="email" autocomplete="email" prepend-inner-icon="tabler:mail" :rules="[v.required, v.email]" />
+            <v-text-field
+              id="login-email"
+              v-model="form.email"
+              type="email"
+              autocomplete="email"
+              prepend-inner-icon="tabler:mail"
+              :rules="[v.required, v.email]"
+            />
           </div>
           <div class="mb-6">
             <label class="fox-label" for="login-pw">รหัสผ่าน</label>

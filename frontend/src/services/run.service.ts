@@ -1,5 +1,16 @@
 import type {
-  Actor, Option, ResultStatus, RunResult, RunResultSaveResult, RunStatus, RunType, StepResult, TestCase, TestCaseStatus, TestRun, TestRunInput,
+  Actor,
+  Option,
+  ResultStatus,
+  RunResult,
+  RunResultSaveResult,
+  RunStatus,
+  RunType,
+  StepResult,
+  TestCase,
+  TestCaseStatus,
+  TestRun,
+  TestRunInput,
 } from '@/types'
 import { addDays, todayISO } from '@/utils/date'
 import { ApiError, newId, respond } from './http'
@@ -50,9 +61,18 @@ export function runCounts(run: TestRun): Record<ResultStatus, number> & { total:
 
 /** snapshot of a case for a run */
 export const resultFor = (tc: TestCase, assignee?: string): RunResult => ({
-  caseId: tc.id, caseName: tc.name, caseVersion: tc.version, priority: tc.priority, steps: tc.steps, assignee: assignee ?? tc.assignedTo,
-  status: 'untested', stepResults: tc.steps.map((s) => ({ stepId: s.id, status: 'untested', actual: '', evidence: [] })),
-  actualResults: '', evidence: [], defectIds: [], notes: '',
+  caseId: tc.id,
+  caseName: tc.name,
+  caseVersion: tc.version,
+  priority: tc.priority,
+  steps: tc.steps,
+  assignee: assignee ?? tc.assignedTo,
+  status: 'untested',
+  stepResults: tc.steps.map((s) => ({ stepId: s.id, status: 'untested', actual: '', evidence: [] })),
+  actualResults: '',
+  evidence: [],
+  defectIds: [],
+  notes: '',
 })
 
 // --- seed: two rounds on the demo project, built from the seeded cases ---------------------
@@ -60,25 +80,60 @@ function seedRuns(): TestRun[] {
   const cases = load<TestCase[]>(STORAGE_KEYS.testCases, []).filter((c) => c.projectId === 'proj-1')
   if (!cases.length) return []
   const exec = (r: RunResult, status: ResultStatus, by: string, at: string, actual = '', failAt = -1): RunResult => ({
-    ...r, status, executedBy: by, executedAt: at, actualResults: actual,
-    stepResults: r.stepResults.map((s, i) => ({ ...s, status: failAt === i ? 'failed' : failAt >= 0 && i > failAt ? 'untested' : 'passed', actual: failAt === i ? actual : '' })),
+    ...r,
+    status,
+    executedBy: by,
+    executedAt: at,
+    actualResults: actual,
+    stepResults: r.stepResults.map((s, i) => ({
+      ...s,
+      status: failAt === i ? 'failed' : failAt >= 0 && i > failAt ? 'untested' : 'passed',
+      actual: failAt === i ? actual : '',
+    })),
   })
   const round1 = cases.map((c) => resultFor(c))
   const qa = 'สมชาย ประเสริฐ (QA Lead)'
   return [
     {
-      id: 'run-1', projectId: 'proj-1', name: 'Sprint 42 · Functional', type: 'functional', round: 1, environment: 'Staging', build: 'v3.2.0-rc1',
-      status: 'completed', plannedStart: '2026-09-21', plannedEnd: '2026-09-25', startedAt: '2026-09-21T09:00:00Z', completedAt: '2026-09-25T17:00:00Z',
-      createdBy: qa, createdAt: '2026-09-20T10:00:00Z',
+      id: 'run-1',
+      projectId: 'proj-1',
+      name: 'Sprint 42 · Functional',
+      type: 'functional',
+      round: 1,
+      environment: 'Staging',
+      build: 'v3.2.0-rc1',
+      status: 'completed',
+      plannedStart: '2026-09-21',
+      plannedEnd: '2026-09-25',
+      startedAt: '2026-09-21T09:00:00Z',
+      completedAt: '2026-09-25T17:00:00Z',
+      createdBy: qa,
+      createdAt: '2026-09-20T10:00:00Z',
       results: round1.map((r) =>
-        r.caseId === 'TC-103' ? { ...exec(r, 'failed', qa, '2026-09-23T14:20:00Z', 'พบรายการซ้ำ 2 รายการเมื่อยิง Webhook พร้อมกัน', r.steps.length - 1), defectIds: ['BUG-001'] }
-        : r.caseId === 'TC-104' ? exec(r, 'blocked', qa, '2026-09-24T10:00:00Z', 'Sandbox DLQ ยังไม่พร้อม', 0)
-        : exec(r, 'passed', qa, '2026-09-22T11:00:00Z')),
+        r.caseId === 'TC-103'
+          ? {
+              ...exec(r, 'failed', qa, '2026-09-23T14:20:00Z', 'พบรายการซ้ำ 2 รายการเมื่อยิง Webhook พร้อมกัน', r.steps.length - 1),
+              defectIds: ['BUG-001'],
+            }
+          : r.caseId === 'TC-104'
+            ? exec(r, 'blocked', qa, '2026-09-24T10:00:00Z', 'Sandbox DLQ ยังไม่พร้อม', 0)
+            : exec(r, 'passed', qa, '2026-09-22T11:00:00Z'),
+      ),
     },
     {
-      id: 'run-2', projectId: 'proj-1', name: 'Sprint 42 · Regression', type: 'regression', round: 2, environment: 'Staging', build: 'v3.2.0-rc2',
-      status: 'in_progress', plannedStart: addDays(todayISO(), -2), plannedEnd: addDays(todayISO(), 3), startedAt: `${addDays(todayISO(), -2)}T09:00:00Z`,
-      createdBy: qa, createdAt: `${addDays(todayISO(), -3)}T10:00:00Z`,
+      id: 'run-2',
+      projectId: 'proj-1',
+      name: 'Sprint 42 · Regression',
+      type: 'regression',
+      round: 2,
+      environment: 'Staging',
+      build: 'v3.2.0-rc2',
+      status: 'in_progress',
+      plannedStart: addDays(todayISO(), -2),
+      plannedEnd: addDays(todayISO(), 3),
+      startedAt: `${addDays(todayISO(), -2)}T09:00:00Z`,
+      createdBy: qa,
+      createdAt: `${addDays(todayISO(), -3)}T10:00:00Z`,
       results: round1.map((r) => (r.caseId.startsWith('TC-101') ? exec(r, 'passed', qa, `${addDays(todayISO(), -1)}T10:30:00Z`) : r)),
     },
   ]
@@ -104,18 +159,26 @@ const find = (list: TestRun[], id: string) => {
 /** server-side: follow renumbered case ids (old id -> new id) in every run of the project */
 export function renameRunCases(projectId: string, renames: Record<string, string>) {
   const list = runs()
-  list.filter((r) => r.projectId === projectId).forEach((run) => run.results.forEach((r) => {
-    if (!r.caseDeleted) r.caseId = renames[r.caseId] ?? r.caseId
-  }))
+  list
+    .filter((r) => r.projectId === projectId)
+    .forEach((run) =>
+      run.results.forEach((r) => {
+        if (!r.caseDeleted) r.caseId = renames[r.caseId] ?? r.caseId
+      }),
+    )
   save(STORAGE_KEYS.testRuns, list)
 }
 
 /** server-side: results of deleted cases stay in their runs as history, detached from the id */
 export function detachRunCases(projectId: string, caseIds: string[]) {
   const list = runs()
-  list.filter((r) => r.projectId === projectId).forEach((run) => run.results.forEach((r) => {
-    if (caseIds.includes(r.caseId)) r.caseDeleted = true
-  }))
+  list
+    .filter((r) => r.projectId === projectId)
+    .forEach((run) =>
+      run.results.forEach((r) => {
+        if (caseIds.includes(r.caseId)) r.caseDeleted = true
+      }),
+    )
   save(STORAGE_KEYS.testRuns, list)
 }
 
@@ -130,9 +193,18 @@ export const createRun = (input: TestRunInput, cases: TestCase[], createdBy: str
   respond(() => {
     assertCan('run.create', input.projectId)
     const run: TestRun = {
-      id: newId('run'), projectId: input.projectId, name: input.name, type: input.type, round: input.round,
-      environment: input.environment, build: input.build, plannedStart: input.plannedStart, plannedEnd: input.plannedEnd,
-      status: 'planned', createdBy, createdAt: new Date().toISOString(),
+      id: newId('run'),
+      projectId: input.projectId,
+      name: input.name,
+      type: input.type,
+      round: input.round,
+      environment: input.environment,
+      build: input.build,
+      plannedStart: input.plannedStart,
+      plannedEnd: input.plannedEnd,
+      status: 'planned',
+      createdBy,
+      createdAt: new Date().toISOString(),
       results: cases.filter((c) => input.caseIds.includes(c.id)).map((c) => resultFor(c, input.assignee)),
     }
     save(STORAGE_KEYS.testRuns, [run, ...runs()])
@@ -167,7 +239,10 @@ export function caseSyncBlock(run: TestRun, result: RunResult, tc: TestCase | un
   if (tc.archivedAt) return 'Test Case นี้อยู่ในคลังเก็บ'
   if (tc.version !== result.caseVersion) return `ผลนี้ทดสอบกับ ${result.caseVersion} แต่เคสเป็น ${tc.version} แล้ว`
   const newer = allRuns.find(
-    (r) => r.projectId === run.projectId && r.id !== run.id && r.createdAt > run.createdAt &&
+    (r) =>
+      r.projectId === run.projectId &&
+      r.id !== run.id &&
+      r.createdAt > run.createdAt &&
       r.results.some((x) => x.caseId === result.caseId && !x.caseDeleted && x.status !== 'untested'),
   )
   return newer ? `มีผลที่ใหม่กว่าใน ${newer.name} รอบที่ ${newer.round}` : null
@@ -198,12 +273,17 @@ export const saveResult = (runId: string, result: RunResult, actor: Actor) =>
     const tc = stamped.caseDeleted ? undefined : storedCase(run.projectId, stamped.caseId)
     const caseUpdate =
       caseStatus && tc && tc.status !== caseStatus && !caseSyncBlock(run, stamped, tc, list)
-        ? patchStoredCase(run.projectId, tc.id, {
-            status: caseStatus,
-            actualResults: stamped.actualResults || tc.actualResults,
-            executedBy: stamped.executedBy,
-            executedAt: stamped.executedAt,
-          }, actor)
+        ? patchStoredCase(
+            run.projectId,
+            tc.id,
+            {
+              status: caseStatus,
+              actualResults: stamped.actualResults || tc.actualResults,
+              executedBy: stamped.executedBy,
+              executedAt: stamped.executedAt,
+            },
+            actor,
+          )
         : null
     return { run, caseUpdate }
   })
@@ -213,5 +293,8 @@ export const deleteRun = (id: string) =>
   respond(() => {
     const list = runs()
     assertCan('run.create', find(list, id).projectId)
-    save(STORAGE_KEYS.testRuns, list.filter((r) => r.id !== id))
+    save(
+      STORAGE_KEYS.testRuns,
+      list.filter((r) => r.id !== id),
+    )
   })

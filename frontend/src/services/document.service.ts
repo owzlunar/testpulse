@@ -1,6 +1,19 @@
 import type {
-  Defect, DocCase, DocumentRecord, DocumentRequest, DocumentSnapshot, DocumentStatus, DocumentTemplate, DocumentType,
-  Option, Project, Requirement, Signatory, TestCase, TestRun, UatDecision,
+  Defect,
+  DocCase,
+  DocumentRecord,
+  DocumentRequest,
+  DocumentSnapshot,
+  DocumentStatus,
+  DocumentTemplate,
+  DocumentType,
+  Option,
+  Project,
+  Requirement,
+  Signatory,
+  TestCase,
+  TestRun,
+  UatDecision,
 } from '@/types'
 import { todayISO } from '@/utils/date'
 import { isOpenDefect } from './defect.service'
@@ -12,14 +25,42 @@ import { STORAGE_KEYS, load, save } from './storage.service'
 import { isOverdue, statusOf } from './test-case.service'
 
 export const DOCUMENT_TYPES: (Option<DocumentType> & { description: string; code: string })[] = [
-  { value: 'uat', code: 'UAT', label: 'UAT Sign-off', hint: 'เอกสารตรวจรับระบบ', icon: 'tabler:certificate', tone: 'success',
-    description: 'สรุปผลการตรวจรับ มติ (ผ่าน / มีเงื่อนไข / ไม่ผ่าน) Defect ที่ค้าง และช่องลงนามผู้ส่งมอบและผู้รับมอบ' },
-  { value: 'test_summary', code: 'TSR', label: 'Test Summary Report', hint: 'รายงานผลรอบการทดสอบ', icon: 'tabler:report-analytics', tone: 'primary',
-    description: 'ผลของรอบทดสอบ: Pass rate, ผลรายเคส, Defect ที่พบ และรายละเอียดเคสที่ไม่ผ่านพร้อมหลักฐาน' },
-  { value: 'test_spec', code: 'TSP', label: 'Test Specification', hint: 'เอกสารกรณีทดสอบ', icon: 'tabler:file-description', tone: 'info',
-    description: 'รายละเอียด Test Case ทั้งหมด: Requirement, Scenario, Prerequisite และตารางขั้นตอน ใช้ส่งให้ลูกค้าตรวจก่อนทดสอบ' },
-  { value: 'rtm', code: 'RTM', label: 'Traceability Matrix', hint: 'ตารางความครอบคลุม', icon: 'tabler:table', tone: 'warning',
-    description: 'ตาราง Requirement ↔ Test Case พร้อมสถานะความครอบคลุม ใช้ยืนยันว่าทุก Requirement ถูกทดสอบ' },
+  {
+    value: 'uat',
+    code: 'UAT',
+    label: 'UAT Sign-off',
+    hint: 'เอกสารตรวจรับระบบ',
+    icon: 'tabler:certificate',
+    tone: 'success',
+    description: 'สรุปผลการตรวจรับ มติ (ผ่าน / มีเงื่อนไข / ไม่ผ่าน) Defect ที่ค้าง และช่องลงนามผู้ส่งมอบและผู้รับมอบ',
+  },
+  {
+    value: 'test_summary',
+    code: 'TSR',
+    label: 'Test Summary Report',
+    hint: 'รายงานผลรอบการทดสอบ',
+    icon: 'tabler:report-analytics',
+    tone: 'primary',
+    description: 'ผลของรอบทดสอบ: Pass rate, ผลรายเคส, Defect ที่พบ และรายละเอียดเคสที่ไม่ผ่านพร้อมหลักฐาน',
+  },
+  {
+    value: 'test_spec',
+    code: 'TSP',
+    label: 'Test Specification',
+    hint: 'เอกสารกรณีทดสอบ',
+    icon: 'tabler:file-description',
+    tone: 'info',
+    description: 'รายละเอียด Test Case ทั้งหมด: Requirement, Scenario, Prerequisite และตารางขั้นตอน ใช้ส่งให้ลูกค้าตรวจก่อนทดสอบ',
+  },
+  {
+    value: 'rtm',
+    code: 'RTM',
+    label: 'Traceability Matrix',
+    hint: 'ตารางความครอบคลุม',
+    icon: 'tabler:table',
+    tone: 'warning',
+    description: 'ตาราง Requirement ↔ Test Case พร้อมสถานะความครอบคลุม ใช้ยืนยันว่าทุก Requirement ถูกทดสอบ',
+  },
 ]
 
 export const DOCUMENT_STATUSES: Option<DocumentStatus>[] = [
@@ -31,7 +72,13 @@ export const DOCUMENT_STATUSES: Option<DocumentStatus>[] = [
 
 export const UAT_DECISIONS: (Option<UatDecision> & { full: string })[] = [
   { value: 'accepted', label: 'ผ่านการตรวจรับ', full: 'FULL ACCEPTANCE (ผ่านการตรวจรับสมบูรณ์)', tone: 'success', icon: 'tabler:circle-check' },
-  { value: 'conditional', label: 'ผ่านแบบมีเงื่อนไข', full: 'CONDITIONAL ACCEPTANCE (รับมอบแบบมีเงื่อนไข)', tone: 'warning', icon: 'tabler:alert-triangle' },
+  {
+    value: 'conditional',
+    label: 'ผ่านแบบมีเงื่อนไข',
+    full: 'CONDITIONAL ACCEPTANCE (รับมอบแบบมีเงื่อนไข)',
+    tone: 'warning',
+    icon: 'tabler:alert-triangle',
+  },
   { value: 'rejected', label: 'ไม่ผ่านการตรวจรับ', full: 'REJECTED (ไม่ผ่านการตรวจรับ)', tone: 'error', icon: 'tabler:circle-x' },
 ]
 
@@ -64,8 +111,7 @@ export function formatDocNumber(pattern: string, type: DocumentType, key: string
 }
 
 // --- snapshot builder (server-side on the real backend) ------------------------------
-const outcomeOf = (status: string): DocCase['outcome'] =>
-  status === 'passed' || status === 'failed' || status === 'blocked' ? status : 'not_run'
+const outcomeOf = (status: string): DocCase['outcome'] => (status === 'passed' || status === 'failed' || status === 'blocked' ? status : 'not_run')
 
 function buildSnapshot(req: DocumentRequest): DocumentSnapshot {
   const project = load<Project[]>(STORAGE_KEYS.projects, []).find((p) => p.id === req.projectId)
@@ -85,25 +131,53 @@ function buildSnapshot(req: DocumentRequest): DocumentSnapshot {
       const tc = r.caseDeleted ? undefined : projectCases.find((c) => c.id === r.caseId)
       const res = resultOf(r.status)
       return {
-        id: r.caseDeleted ? `${r.caseId} (ลบแล้ว)` : r.caseId, name: r.caseName, parentId: tc?.parentId, requirement: tc ? requirementText(tc, requirements) : '', testScenario: tc?.testScenario ?? '',
-        prerequisite: tc?.prerequisite ?? '', priority: r.priority, steps: r.steps, expectedResults: tc?.expectedResults ?? '',
-        outcome: outcomeOf(r.status), result: res.label, resultTone: res.tone, actualResults: r.actualResults, executedBy: r.executedBy, executedAt: r.executedAt,
-        stepResults: r.stepResults, evidence: [...r.evidence, ...r.stepResults.flatMap((s) => s.evidence)], defectIds: r.defectIds,
+        id: r.caseDeleted ? `${r.caseId} (ลบแล้ว)` : r.caseId,
+        name: r.caseName,
+        parentId: tc?.parentId,
+        requirement: tc ? requirementText(tc, requirements) : '',
+        testScenario: tc?.testScenario ?? '',
+        prerequisite: tc?.prerequisite ?? '',
+        priority: r.priority,
+        steps: r.steps,
+        expectedResults: tc?.expectedResults ?? '',
+        outcome: outcomeOf(r.status),
+        result: res.label,
+        resultTone: res.tone,
+        actualResults: r.actualResults,
+        executedBy: r.executedBy,
+        executedAt: r.executedAt,
+        stepResults: r.stepResults,
+        evidence: [...r.evidence, ...r.stepResults.flatMap((s) => s.evidence)],
+        defectIds: r.defectIds,
       }
     })
   } else {
     cases = allCases.map((tc) => {
       const st = statusOf(tc.status)
       return {
-        id: tc.id, name: tc.name, parentId: tc.parentId, requirement: requirementText(tc, requirements), testScenario: tc.testScenario, prerequisite: tc.prerequisite,
-        priority: tc.priority, steps: tc.steps, expectedResults: tc.expectedResults, outcome: outcomeOf(tc.status), result: st.label, resultTone: st.tone,
-        actualResults: tc.actualResults, executedBy: tc.executedBy, executedAt: tc.executedAt, evidence: [...tc.expectedImages, ...tc.actualImages],
+        id: tc.id,
+        name: tc.name,
+        parentId: tc.parentId,
+        requirement: requirementText(tc, requirements),
+        testScenario: tc.testScenario,
+        prerequisite: tc.prerequisite,
+        priority: tc.priority,
+        steps: tc.steps,
+        expectedResults: tc.expectedResults,
+        outcome: outcomeOf(tc.status),
+        result: st.label,
+        resultTone: st.tone,
+        actualResults: tc.actualResults,
+        executedBy: tc.executedBy,
+        executedAt: tc.executedAt,
+        evidence: [...tc.expectedImages, ...tc.actualImages],
         defectIds: defects.filter((d) => d.caseId === tc.id).map((d) => d.id),
       }
     })
   }
   if (!req.options.includeSubCases) cases = cases.filter((c) => !c.parentId)
-  if (!req.options.includeEvidence) cases = cases.map((c) => ({ ...c, evidence: [], stepResults: c.stepResults?.map((s) => ({ ...s, evidence: [] })) }))
+  if (!req.options.includeEvidence)
+    cases = cases.map((c) => ({ ...c, evidence: [], stepResults: c.stepResults?.map((s) => ({ ...s, evidence: [] })) }))
   cases.sort(sortId)
 
   const count = (o: DocCase['outcome']) => cases.filter((c) => c.outcome === o).length
@@ -124,16 +198,44 @@ function buildSnapshot(req: DocumentRequest): DocumentSnapshot {
   return {
     generatedAt: new Date().toISOString(),
     project: { name: project.name, key: project.key, description: project.description, targetDeadline: project.targetDeadline },
-    run: run && { name: run.name, round: run.round, type: run.type, environment: run.environment, build: run.build, plannedStart: run.plannedStart, plannedEnd: run.plannedEnd, startedAt: run.startedAt, completedAt: run.completedAt },
-    summary: { total: cases.length, passed, failed, blocked, notRun: cases.length - passed - failed - blocked, passRate: cases.length ? (passed / cases.length) * 100 : 0 },
+    run: run && {
+      name: run.name,
+      round: run.round,
+      type: run.type,
+      environment: run.environment,
+      build: run.build,
+      plannedStart: run.plannedStart,
+      plannedEnd: run.plannedEnd,
+      startedAt: run.startedAt,
+      completedAt: run.completedAt,
+    },
+    summary: {
+      total: cases.length,
+      passed,
+      failed,
+      blocked,
+      notRun: cases.length - passed - failed - blocked,
+      passRate: cases.length ? (passed / cases.length) * 100 : 0,
+    },
     cases,
-    defects: (req.options.includeDefects ? defects.filter((d) => !d.caseId || d.caseDeleted || caseIds.has(d.caseId)) : []).map(({ id, title, severity, status, caseId, caseDeleted, assignee, externalKey }) => ({ id, title, severity, status, caseId: caseId && caseDeleted ? `${caseId} (ลบแล้ว)` : caseId, assignee, externalKey })),
-    requirements: req.options.includeTraceability || req.type === 'rtm'
-      ? requirements.map((r) => {
-          const linked = casesForRequirement(r, allCases)
-          return { code: r.code, title: r.title, caseIds: linked.map((c) => c.id), coverage: coverageStatus(linked) }
-        })
-      : [],
+    defects: (req.options.includeDefects ? defects.filter((d) => !d.caseId || d.caseDeleted || caseIds.has(d.caseId)) : []).map(
+      ({ id, title, severity, status, caseId, caseDeleted, assignee, externalKey }) => ({
+        id,
+        title,
+        severity,
+        status,
+        caseId: caseId && caseDeleted ? `${caseId} (ลบแล้ว)` : caseId,
+        assignee,
+        externalKey,
+      }),
+    ),
+    requirements:
+      req.options.includeTraceability || req.type === 'rtm'
+        ? requirements.map((r) => {
+            const linked = casesForRequirement(r, allCases)
+            return { code: r.code, title: r.title, caseIds: linked.map((c) => c.id), coverage: coverageStatus(linked) }
+          })
+        : [],
     risks,
   }
 }
@@ -213,7 +315,10 @@ export const deleteDocument = (id: string) =>
     const list = documents()
     assertCan('document.create', find(list, id).projectId)
     if (find(list, id).status === 'signed') throw new ApiError('เอกสารที่ลงนามแล้วลบไม่ได้', 409)
-    save(STORAGE_KEYS.documents, list.filter((d) => d.id !== id))
+    save(
+      STORAGE_KEYS.documents,
+      list.filter((d) => d.id !== id),
+    )
   })
 
 /** GET /organization/document-template */

@@ -51,12 +51,20 @@ function downloadWord() {
 const confirmRegen = ref(false)
 function regenerate() {
   const d = doc.value
-  if (d) run(() => store.regenerate(d.id), (updated) => notify(`สร้างเวอร์ชัน ${updated.version}.0 จากข้อมูลล่าสุดแล้ว`))
+  if (d)
+    run(
+      () => store.regenerate(d.id),
+      (updated) => notify(`สร้างเวอร์ชัน ${updated.version}.0 จากข้อมูลล่าสุดแล้ว`),
+    )
 }
 
 function requestSignoff() {
   const d = doc.value
-  if (d) run(() => store.requestSignoff(d.id), () => notify('ส่งขอลงนามแล้ว'))
+  if (d)
+    run(
+      () => store.requestSignoff(d.id),
+      () => notify('ส่งขอลงนามแล้ว'),
+    )
 }
 
 // mock sign-off: in production each signer receives a link and signs as themselves
@@ -73,10 +81,13 @@ function openSign(i: number, decision: 'signed' | 'rejected') {
 function confirmSign() {
   const d = doc.value
   if (!d) return
-  run(() => store.sign(d.id, signIndex.value, signDecision.value, signComment.value), () => {
-    signDialog.value = false
-    notify(signDecision.value === 'signed' ? 'ลงนามแล้ว' : 'บันทึกการปฏิเสธแล้ว', signDecision.value === 'signed' ? 'success' : 'error')
-  })
+  run(
+    () => store.sign(d.id, signIndex.value, signDecision.value, signComment.value),
+    () => {
+      signDialog.value = false
+      notify(signDecision.value === 'signed' ? 'ลงนามแล้ว' : 'บันทึกการปฏิเสธแล้ว', signDecision.value === 'signed' ? 'success' : 'error')
+    },
+  )
 }
 </script>
 
@@ -89,11 +100,22 @@ function confirmSign() {
   </v-card>
 
   <template v-else>
-    <FoxPageHeader class="no-print" :title="doc.docNumber" :breadcrumbs="[{ title: 'เอกสาร', to: '/documents' }, { title: documentTypeOf(doc.type).label }]">
+    <FoxPageHeader
+      class="no-print"
+      :title="doc.docNumber"
+      :breadcrumbs="[{ title: 'เอกสาร', to: '/documents' }, { title: documentTypeOf(doc.type).label }]"
+    >
       <template #actions>
         <v-btn variant="outlined" prepend-icon="tabler:printer" @click="print">พิมพ์ / PDF</v-btn>
         <v-btn variant="outlined" prepend-icon="tabler:file-type-doc" @click="downloadWord">ดาวน์โหลด Word</v-btn>
-        <v-btn v-if="doc.status === 'draft' && doc.signatories.length && auth.can('document.create')" color="primary" prepend-icon="tabler:signature" :loading="busy" @click="requestSignoff">ส่งขอลงนาม</v-btn>
+        <v-btn
+          v-if="doc.status === 'draft' && doc.signatories.length && auth.can('document.create')"
+          color="primary"
+          prepend-icon="tabler:signature"
+          :loading="busy"
+          @click="requestSignoff"
+          >ส่งขอลงนาม</v-btn
+        >
       </template>
     </FoxPageHeader>
 
@@ -110,11 +132,18 @@ function confirmSign() {
               {{ documentStatusOf(doc.status).label }}
             </v-chip>
             <dl class="doc-facts text-body-2">
-              <dt>เวอร์ชัน</dt><dd class="fox-num">{{ doc.version }}.0</dd>
-              <dt>ข้อมูล ณ</dt><dd>{{ formatDateTime(doc.snapshot.generatedAt) }}</dd>
-              <dt>จัดทำโดย</dt><dd>{{ doc.createdBy }}</dd>
-              <dt>Test Cases</dt><dd class="fox-num">{{ doc.snapshot.summary.total }}</dd>
-              <template v-if="doc.uat"><dt>มติ</dt><dd :class="`text-${uatDecisionOf(doc.uat.decision).tone}`">{{ uatDecisionOf(doc.uat.decision).label }}</dd></template>
+              <dt>เวอร์ชัน</dt>
+              <dd class="fox-num">{{ doc.version }}.0</dd>
+              <dt>ข้อมูล ณ</dt>
+              <dd>{{ formatDateTime(doc.snapshot.generatedAt) }}</dd>
+              <dt>จัดทำโดย</dt>
+              <dd>{{ doc.createdBy }}</dd>
+              <dt>Test Cases</dt>
+              <dd class="fox-num">{{ doc.snapshot.summary.total }}</dd>
+              <template v-if="doc.uat"
+                ><dt>มติ</dt>
+                <dd :class="`text-${uatDecisionOf(doc.uat.decision).tone}`">{{ uatDecisionOf(doc.uat.decision).label }}</dd></template
+              >
             </dl>
             <v-alert v-if="staleCount && doc.status !== 'signed'" type="info" variant="tonal" density="compact" icon="tabler:refresh" class="mt-4">
               มี {{ staleCount }} เคสที่แก้ไขหลังสร้างเอกสาร
@@ -136,15 +165,14 @@ function confirmSign() {
           <v-card class="fox-card-body">
             <div class="d-flex align-center justify-space-between mb-3">
               <span class="text-overline text-muted">ผู้ลงนาม</span>
-              <span class="text-caption text-muted fox-num">{{ doc.signatories.filter((s) => s.status === 'signed').length }}/{{ doc.signatories.length }}</span>
+              <span class="text-caption text-muted fox-num"
+                >{{ doc.signatories.filter((s) => s.status === 'signed').length }}/{{ doc.signatories.length }}</span
+              >
             </div>
             <div class="d-flex flex-column ga-4">
               <div v-for="(sg, i) in doc.signatories" :key="i">
                 <div class="d-flex align-start ga-3">
-                  <v-avatar
-                    :color="sg.status === 'signed' ? 'success' : sg.status === 'rejected' ? 'error' : 'secondary'"
-                    size="32"
-                  >
+                  <v-avatar :color="sg.status === 'signed' ? 'success' : sg.status === 'rejected' ? 'error' : 'secondary'" size="32">
                     <v-icon :icon="sg.status === 'signed' ? 'tabler:check' : sg.status === 'rejected' ? 'tabler:x' : 'tabler:clock'" size="16" />
                   </v-avatar>
                   <div class="overflow-hidden flex-grow-1">
@@ -172,7 +200,9 @@ function confirmSign() {
     <v-dialog v-model="signDialog" max-width="460">
       <v-card class="fox-card-body">
         <h2 class="text-h5 mb-1">{{ signDecision === 'signed' ? 'ยืนยันการลงนาม' : 'ปฏิเสธเอกสาร' }}</h2>
-        <p class="text-body-2 text-muted">{{ doc.signatories[signIndex]?.name || doc.signatories[signIndex]?.role }} · {{ doc.docNumber }} v{{ doc.version }}.0</p>
+        <p class="text-body-2 text-muted">
+          {{ doc.signatories[signIndex]?.name || doc.signatories[signIndex]?.role }} · {{ doc.docNumber }} v{{ doc.version }}.0
+        </p>
         <label class="fox-label mt-4" for="sign-comment">{{ signDecision === 'signed' ? 'หมายเหตุ (ถ้ามี)' : 'เหตุผลที่ปฏิเสธ *' }}</label>
         <v-textarea id="sign-comment" v-model="signComment" rows="2" auto-grow />
         <div class="d-flex justify-end ga-3 mt-6">

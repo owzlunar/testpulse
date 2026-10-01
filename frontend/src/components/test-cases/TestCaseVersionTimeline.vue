@@ -23,9 +23,7 @@ const props = withDefaults(
 const emit = defineEmits<{ restored: [version: string] }>()
 
 const records = computed(() => [...props.history].reverse())
-const items = computed<TimelineItem[]>(() =>
-  records.value.map((r) => ({ time: r.version, text: r.changeSummary, tone: statusOf(r.status).tone })),
-)
+const items = computed<TimelineItem[]>(() => records.value.map((r) => ({ time: r.version, text: r.changeSummary, tone: statusOf(r.status).tone })))
 
 const store = useTestCaseStore()
 const { busy, run } = useAsyncAction()
@@ -40,10 +38,13 @@ function view(record: TestCaseVersionRecord) {
 function restore(version: string) {
   const tc = props.testCase
   if (!tc) return
-  run(() => store.restoreVersion(tc.id, tc.projectId, version), () => {
-    viewOpen.value = false
-    emit('restored', version)
-  })
+  run(
+    () => store.restoreVersion(tc.id, tc.projectId, version),
+    () => {
+      viewOpen.value = false
+      emit('restored', version)
+    },
+  )
 }
 </script>
 

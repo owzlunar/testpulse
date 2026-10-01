@@ -11,10 +11,10 @@ export function generateProjectMarkdown(
   testCases: TestCase[],
   stats: ProjectStats,
   /** linked requirement text of a case (see requirementText); defaults to the case's own text */
-  requirementOf: (tc: TestCase) => string = (tc) => tc.requirement
+  requirementOf: (tc: TestCase) => string = (tc) => tc.requirement,
 ): string {
   const now = new Date().toISOString()
-  const tags = ['qa', 'test-suite', 'testpulse', project.key.toLowerCase(), ...project.tags.map(t => t.toLowerCase())]
+  const tags = ['qa', 'test-suite', 'testpulse', project.key.toLowerCase(), ...project.tags.map((t) => t.toLowerCase())]
 
   let md = `---
 title: "${project.name} - Test Case Specification & Execution Report"
@@ -29,7 +29,7 @@ in_progress: ${stats.inProgress}
 untested: ${stats.untested}
 pass_rate: "${stats.passRate.toFixed(1)}%"
 tags:
-${tags.map(t => `  - ${t}`).join('\n')}
+${tags.map((t) => `  - ${t}`).join('\n')}
 ---
 
 # 📋 ${project.name} (\`${project.key}\`)
@@ -56,15 +56,15 @@ ${tags.map(t => `  - ${t}`).join('\n')}
 `
 
   // Separate parents and sub-cases
-  const parentCases = testCases.filter(tc => !tc.parentId)
-  const getSubcases = (parentId: string) => testCases.filter(tc => tc.parentId === parentId)
+  const parentCases = testCases.filter((tc) => !tc.parentId)
+  const getSubcases = (parentId: string) => testCases.filter((tc) => tc.parentId === parentId)
 
-  parentCases.forEach(tc => {
+  parentCases.forEach((tc) => {
     const subcases = getSubcases(tc.id)
     const statusIcon = getStatusIcon(tc.status)
     md += `| [${tc.id}](#${slugify(tc.id + ' ' + tc.name)}) | ${tc.name} | \`${tc.priority.toUpperCase()}\` | ${statusIcon} ${tc.status.toUpperCase()} | ${subcases.length} |\n`
 
-    subcases.forEach(sub => {
+    subcases.forEach((sub) => {
       const subStatusIcon = getStatusIcon(sub.status)
       md += `| ↳ [${sub.id}](#${slugify(sub.id + ' ' + sub.name)}) | *${sub.name}* | \`${sub.priority.toUpperCase()}\` | ${subStatusIcon} ${sub.status.toUpperCase()} | Sub-case |\n`
     })
@@ -72,13 +72,13 @@ ${tags.map(t => `  - ${t}`).join('\n')}
 
   md += `\n---\n\n## 🧪 Detailed Test Case Specifications\n\n`
 
-  parentCases.forEach(tc => {
+  parentCases.forEach((tc) => {
     md += renderTestCaseMarkdown(tc, requirementOf)
 
     const subcases = getSubcases(tc.id)
     if (subcases.length > 0) {
       md += `\n### 🗂️ Sub-Test Cases for \`${tc.id}\`\n\n`
-      subcases.forEach(sub => {
+      subcases.forEach((sub) => {
         md += renderTestCaseMarkdown(sub, requirementOf, true)
       })
     }
@@ -113,14 +113,21 @@ ${tc.parentId ? `> - **Parent Test Case**: [[${tc.parentId}]]` : ''}
 ${tc.description || 'No description provided.'}
 
 #### Prerequisites
-${tc.prerequisite ? tc.prerequisite.split('\n').map(p => `- ${p}`).join('\n') : '*None specified*'}
+${
+  tc.prerequisite
+    ? tc.prerequisite
+        .split('\n')
+        .map((p) => `- ${p}`)
+        .join('\n')
+    : '*None specified*'
+}
 
 #### 📝 Test Execution Steps
 | Step # | Action | Test Data | Expected Step Result |
 | :---: | :--- | :--- | :--- |
 `
   if (tc.steps && tc.steps.length > 0) {
-    tc.steps.forEach(s => {
+    tc.steps.forEach((s) => {
       out += `| **${s.stepNumber}** | ${mdCell(s.action)} | ${mdCell(s.testData, true) || '`-`'} | ${mdCell(s.expectedResult)} |\n`
     })
   } else {
@@ -169,11 +176,16 @@ function mdCell(text: string, code = false): string {
 
 function getStatusIcon(status: string): string {
   switch (status) {
-    case 'passed': return '✅'
-    case 'failed': return '❌'
-    case 'blocked': return '🚫'
-    case 'in_progress': return '⏳'
-    default: return '⚪'
+    case 'passed':
+      return '✅'
+    case 'failed':
+      return '❌'
+    case 'blocked':
+      return '🚫'
+    case 'in_progress':
+      return '⏳'
+    default:
+      return '⚪'
   }
 }
 

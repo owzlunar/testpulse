@@ -6,11 +6,18 @@ export const formatPercent = (n: number, digits = 1): string => `${n.toFixed(dig
 
 /** "ศุภชัย วัฒนา (Admin)" -> "ศุ" ; "Somchai Prasert" -> "SP" */
 export function initials(name: string): string {
-  const words = name.replace(/\(.*?\)/g, '').trim().split(/\s+/).filter(Boolean)
+  const words = name
+    .replace(/\(.*?\)/g, '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
   if (!words.length) return '?'
   // Thai has no capitals and stacked marks: use the first two characters of the first word
   if (/[฀-๿]/.test(words[0])) return words[0].slice(0, 2)
-  return words.slice(0, 2).map((w) => w[0].toUpperCase()).join('')
+  return words
+    .slice(0, 2)
+    .map((w) => w[0].toUpperCase())
+    .join('')
 }
 
 /** "ศุภชัย วัฒนา (Admin)" -> "ศุภชัย" */

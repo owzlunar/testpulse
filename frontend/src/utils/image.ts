@@ -30,4 +30,7 @@ export async function compressImage(file: File, maxSide = 1600, quality = 0.8): 
 
 /** Images on the clipboard (Ctrl/Cmd+V of a screenshot) */
 export const imagesFromClipboard = (e: ClipboardEvent): File[] =>
-  [...(e.clipboardData?.items ?? [])].filter((i) => i.type.startsWith('image/')).map((i) => i.getAsFile()).filter((f): f is File => !!f)
+  [...(e.clipboardData?.items ?? [])]
+    .filter((i) => i.type.startsWith('image/'))
+    .map((i) => i.getAsFile())
+    .filter((f): f is File => !!f)

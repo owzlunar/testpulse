@@ -32,7 +32,9 @@ export const useCalendarStore = defineStore('calendar', () => {
   const selection = ref<Selection>({ kind: 'date', date: todayISO() })
   /** extend-due-date dialog, opened from the aside or by dragging a case */
   const extend = ref<{ open: boolean; caseId: string | null; suggestedDate: string | null }>({
-    open: false, caseId: null, suggestedDate: null,
+    open: false,
+    caseId: null,
+    suggestedDate: null,
   })
 
   const milestones = computed(() => [...(currentProject.value?.milestones ?? [])].sort((a, b) => a.date.localeCompare(b.date)))
@@ -80,13 +82,13 @@ export const useCalendarStore = defineStore('calendar', () => {
   ])
 
   const selectedCase = computed(() =>
-    selection.value.kind === 'case' ? cases.value.find((c) => c.id === (selection.value as { id: string }).id) ?? null : null,
+    selection.value.kind === 'case' ? (cases.value.find((c) => c.id === (selection.value as { id: string }).id) ?? null) : null,
   )
   const selectedMilestone = computed(() =>
-    selection.value.kind === 'milestone' ? milestones.value.find((m) => m.id === (selection.value as { id: string }).id) ?? null : null,
+    selection.value.kind === 'milestone' ? (milestones.value.find((m) => m.id === (selection.value as { id: string }).id) ?? null) : null,
   )
   const selectedDate = computed(() =>
-    selection.value.kind === 'date' ? selection.value.date : selectedCase.value?.expiryDate ?? selectedMilestone.value?.date ?? todayISO(),
+    selection.value.kind === 'date' ? selection.value.date : (selectedCase.value?.expiryDate ?? selectedMilestone.value?.date ?? todayISO()),
   )
   const selectedEventId = computed(() =>
     selection.value.kind === 'case' ? selection.value.id : selection.value.kind === 'milestone' ? `ms-${selection.value.id}` : null,
@@ -112,9 +114,30 @@ export const useCalendarStore = defineStore('calendar', () => {
   }
 
   return {
-    quickFilter, devFilter, rootCauseFilter, selection, extend,
-    milestones, nextMilestone, churnCases, overdueCases, devOptions, rootCauseOptions, filteredCases, events,
-    selectedCase, selectedMilestone, selectedDate, selectedEventId, casesOnSelectedDate, casesBeforeMilestone,
-    countOf, selectCase, selectMilestone, selectDate, selectEvent, openExtend,
+    quickFilter,
+    devFilter,
+    rootCauseFilter,
+    selection,
+    extend,
+    milestones,
+    nextMilestone,
+    churnCases,
+    overdueCases,
+    devOptions,
+    rootCauseOptions,
+    filteredCases,
+    events,
+    selectedCase,
+    selectedMilestone,
+    selectedDate,
+    selectedEventId,
+    casesOnSelectedDate,
+    casesBeforeMilestone,
+    countOf,
+    selectCase,
+    selectMilestone,
+    selectDate,
+    selectEvent,
+    openExtend,
   }
 })

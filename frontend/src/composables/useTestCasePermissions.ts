@@ -27,7 +27,16 @@ export function useTestCasePermissions() {
   const allowedStatuses = computed(() => STATUSES.filter((s) => canSetStatus(s.value)))
 
   return {
-    canCreate, canEdit, canArchive, canPurge, canReorder, canRestoreVersion, canHandOff, canExecute, canExportUat,
-    canSetStatus, allowedStatuses,
+    canCreate,
+    canEdit,
+    canArchive,
+    canPurge,
+    canReorder,
+    canRestoreVersion,
+    canHandOff,
+    canExecute,
+    canExportUat,
+    canSetStatus,
+    allowedStatuses,
   }
 }

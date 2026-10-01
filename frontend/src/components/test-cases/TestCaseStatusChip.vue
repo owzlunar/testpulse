@@ -3,10 +3,10 @@ import { computed } from 'vue'
 import type { TestCaseStatus } from '@/types'
 import { statusOf } from '@/services/test-case.service'
 
-const props = withDefaults(
-  defineProps<{ status: TestCaseStatus; size?: 'x-small' | 'small' | 'default'; variant?: 'flat' | 'tonal' }>(),
-  { size: 'small', variant: 'tonal' },
-)
+const props = withDefaults(defineProps<{ status: TestCaseStatus; size?: 'x-small' | 'small' | 'default'; variant?: 'flat' | 'tonal' }>(), {
+  size: 'small',
+  variant: 'tonal',
+})
 const option = computed(() => statusOf(props.status))
 </script>
 

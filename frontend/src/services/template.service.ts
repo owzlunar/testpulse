@@ -10,10 +10,16 @@ const step = (action: string, testData: string, expectedResult: string) => ({ ac
 // Common test patterns that QA writes again and again
 const SEED_TEMPLATES: TestCaseTemplate[] = [
   {
-    id: 'tpl-login-ok', name: 'เข้าสู่ระบบสำเร็จ', category: 'Authentication', builtIn: true, usageCount: 18,
+    id: 'tpl-login-ok',
+    name: 'เข้าสู่ระบบสำเร็จ',
+    category: 'Authentication',
+    builtIn: true,
+    usageCount: 18,
     description: 'ผู้ใช้กรอกอีเมลและรหัสผ่านถูกต้องแล้วเข้าสู่ระบบได้',
     draft: {
-      name: 'เข้าสู่ระบบด้วยบัญชีที่ถูกต้อง', testScenario: 'ผู้ใช้ที่ลงทะเบียนแล้วเข้าสู่ระบบด้วยข้อมูลถูกต้อง', priority: 'critical',
+      name: 'เข้าสู่ระบบด้วยบัญชีที่ถูกต้อง',
+      testScenario: 'ผู้ใช้ที่ลงทะเบียนแล้วเข้าสู่ระบบด้วยข้อมูลถูกต้อง',
+      priority: 'critical',
       prerequisite: '1. มีบัญชีผู้ใช้ที่ยืนยันอีเมลแล้ว\n2. ผู้ใช้อยู่ในสถานะออกจากระบบ',
       steps: [
         step('เปิดหน้าเข้าสู่ระบบ', 'URL: /login', 'แสดงฟอร์มอีเมลและรหัสผ่าน'),
@@ -24,13 +30,23 @@ const SEED_TEMPLATES: TestCaseTemplate[] = [
     },
   },
   {
-    id: 'tpl-login-fail', name: 'เข้าสู่ระบบด้วยรหัสผ่านผิด', category: 'Authentication', builtIn: true, usageCount: 15,
+    id: 'tpl-login-fail',
+    name: 'เข้าสู่ระบบด้วยรหัสผ่านผิด',
+    category: 'Authentication',
+    builtIn: true,
+    usageCount: 15,
     description: 'Negative case: รหัสผ่านไม่ถูกต้อง และการล็อกบัญชีเมื่อผิดเกินกำหนด',
     draft: {
-      name: 'ปฏิเสธการเข้าสู่ระบบเมื่อรหัสผ่านไม่ถูกต้อง', testScenario: 'กรอกรหัสผ่านผิดซ้ำจนถึงเกณฑ์ล็อกบัญชี', priority: 'high',
+      name: 'ปฏิเสธการเข้าสู่ระบบเมื่อรหัสผ่านไม่ถูกต้อง',
+      testScenario: 'กรอกรหัสผ่านผิดซ้ำจนถึงเกณฑ์ล็อกบัญชี',
+      priority: 'high',
       prerequisite: 'มีบัญชีผู้ใช้ที่ใช้งานได้ และทราบเกณฑ์ล็อกบัญชี (เช่น 5 ครั้ง)',
       steps: [
-        step('กรอกอีเมลถูกต้องและรหัสผ่านผิด แล้วกดเข้าสู่ระบบ', 'qa@example.com / wrong-pass', 'แสดงข้อความ "อีเมลหรือรหัสผ่านไม่ถูกต้อง" โดยไม่บอกว่าช่องไหนผิด'),
+        step(
+          'กรอกอีเมลถูกต้องและรหัสผ่านผิด แล้วกดเข้าสู่ระบบ',
+          'qa@example.com / wrong-pass',
+          'แสดงข้อความ "อีเมลหรือรหัสผ่านไม่ถูกต้อง" โดยไม่บอกว่าช่องไหนผิด',
+        ),
         step('ทำซ้ำจนครบเกณฑ์', 'ผิด 5 ครั้งติดกัน', 'บัญชีถูกล็อกชั่วคราว และแสดงเวลาที่ลองใหม่ได้'),
         step('กรอกรหัสผ่านที่ถูกต้องระหว่างถูกล็อก', 'P@ssw0rd!', 'ยังเข้าสู่ระบบไม่ได้จนกว่าจะพ้นเวลาล็อก'),
       ],
@@ -38,10 +54,16 @@ const SEED_TEMPLATES: TestCaseTemplate[] = [
     },
   },
   {
-    id: 'tpl-form-required', name: 'ตรวจสอบช่องบังคับกรอก', category: 'Form & Validation', builtIn: true, usageCount: 22,
+    id: 'tpl-form-required',
+    name: 'ตรวจสอบช่องบังคับกรอก',
+    category: 'Form & Validation',
+    builtIn: true,
+    usageCount: 22,
     description: 'ส่งฟอร์มโดยเว้นช่องบังคับ และตรวจรูปแบบข้อมูล',
     draft: {
-      name: 'ฟอร์มแจ้งเตือนเมื่อไม่กรอกช่องบังคับ', testScenario: 'ส่งฟอร์มที่ข้อมูลไม่ครบหรือรูปแบบไม่ถูกต้อง', priority: 'medium',
+      name: 'ฟอร์มแจ้งเตือนเมื่อไม่กรอกช่องบังคับ',
+      testScenario: 'ส่งฟอร์มที่ข้อมูลไม่ครบหรือรูปแบบไม่ถูกต้อง',
+      priority: 'medium',
       prerequisite: 'เปิดหน้าฟอร์มที่ต้องการทดสอบ',
       steps: [
         step('กดบันทึกโดยไม่กรอกข้อมูล', '-', 'ทุกช่องบังคับแสดงข้อความแจ้งเตือน และไม่ส่งข้อมูล'),
@@ -53,10 +75,16 @@ const SEED_TEMPLATES: TestCaseTemplate[] = [
     },
   },
   {
-    id: 'tpl-crud', name: 'สร้าง แก้ไข ลบ ข้อมูล (CRUD)', category: 'CRUD', builtIn: true, usageCount: 12,
+    id: 'tpl-crud',
+    name: 'สร้าง แก้ไข ลบ ข้อมูล (CRUD)',
+    category: 'CRUD',
+    builtIn: true,
+    usageCount: 12,
     description: 'วงจรข้อมูลครบทั้งสร้าง ดู แก้ไข และลบ',
     draft: {
-      name: 'จัดการข้อมูลครบวงจร (CRUD)', testScenario: 'สร้าง แก้ไข และลบรายการ แล้วตรวจสอบรายการในตาราง', priority: 'high',
+      name: 'จัดการข้อมูลครบวงจร (CRUD)',
+      testScenario: 'สร้าง แก้ไข และลบรายการ แล้วตรวจสอบรายการในตาราง',
+      priority: 'high',
       prerequisite: 'ผู้ใช้มีสิทธิ์จัดการข้อมูลในหน้านี้',
       steps: [
         step('กดปุ่มเพิ่มและกรอกข้อมูลที่ถูกต้อง', 'ข้อมูลตัวอย่าง', 'รายการใหม่แสดงในตารางบนสุด'),
@@ -68,10 +96,16 @@ const SEED_TEMPLATES: TestCaseTemplate[] = [
     },
   },
   {
-    id: 'tpl-api-contract', name: 'API Response และ Error codes', category: 'API', builtIn: true, usageCount: 9,
+    id: 'tpl-api-contract',
+    name: 'API Response และ Error codes',
+    category: 'API',
+    builtIn: true,
+    usageCount: 9,
     description: 'ตรวจ Status code, schema และ error ของ REST API',
     draft: {
-      name: 'API ตอบกลับตามสัญญา (Contract)', testScenario: 'เรียก API ด้วยข้อมูลถูกต้อง ไม่ครบ และไม่มีสิทธิ์', priority: 'high',
+      name: 'API ตอบกลับตามสัญญา (Contract)',
+      testScenario: 'เรียก API ด้วยข้อมูลถูกต้อง ไม่ครบ และไม่มีสิทธิ์',
+      priority: 'high',
       prerequisite: 'มี Access token ที่ใช้งานได้ และ Postman/Newman collection',
       steps: [
         step('เรียก API ด้วย payload ถูกต้อง', '{ "amount": 100 }', 'HTTP 200/201 และ JSON ตรงตาม Schema'),
@@ -83,10 +117,16 @@ const SEED_TEMPLATES: TestCaseTemplate[] = [
     },
   },
   {
-    id: 'tpl-payment', name: 'ชำระเงินสำเร็จ / ล้มเหลว', category: 'Payment', builtIn: true, usageCount: 7,
+    id: 'tpl-payment',
+    name: 'ชำระเงินสำเร็จ / ล้มเหลว',
+    category: 'Payment',
+    builtIn: true,
+    usageCount: 7,
     description: 'ชำระเงินและตรวจสอบสถานะคำสั่งซื้อ รวมถึง callback ซ้ำ',
     draft: {
-      name: 'ชำระเงินและอัปเดตสถานะคำสั่งซื้อ', testScenario: 'ชำระเงินผ่าน Gateway แล้วตรวจ callback และสถานะ', priority: 'critical',
+      name: 'ชำระเงินและอัปเดตสถานะคำสั่งซื้อ',
+      testScenario: 'ชำระเงินผ่าน Gateway แล้วตรวจ callback และสถานะ',
+      priority: 'critical',
       prerequisite: 'Sandbox payment gateway พร้อมใช้งาน และมีคำสั่งซื้อรอชำระ',
       steps: [
         step('เลือกวิธีชำระเงินและยืนยัน', 'ยอด 1,500.00 บาท', 'ไปหน้าชำระเงินของ Gateway'),
@@ -98,10 +138,16 @@ const SEED_TEMPLATES: TestCaseTemplate[] = [
     },
   },
   {
-    id: 'tpl-search', name: 'ค้นหาและตัวกรอง', category: 'Search & Filter', builtIn: true, usageCount: 6,
+    id: 'tpl-search',
+    name: 'ค้นหาและตัวกรอง',
+    category: 'Search & Filter',
+    builtIn: true,
+    usageCount: 6,
     description: 'ค้นหาด้วยคำ ตัวกรองหลายตัว และกรณีไม่พบผลลัพธ์',
     draft: {
-      name: 'ค้นหาและกรองรายการ', testScenario: 'ค้นหาด้วยคำและตัวกรองร่วมกัน', priority: 'medium',
+      name: 'ค้นหาและกรองรายการ',
+      testScenario: 'ค้นหาด้วยคำและตัวกรองร่วมกัน',
+      priority: 'medium',
       prerequisite: 'มีข้อมูลตัวอย่างอย่างน้อย 20 รายการ',
       steps: [
         step('ค้นหาด้วยคำที่มีอยู่', 'คำค้นตัวอย่าง', 'แสดงเฉพาะรายการที่ตรง'),
@@ -112,10 +158,16 @@ const SEED_TEMPLATES: TestCaseTemplate[] = [
     },
   },
   {
-    id: 'tpl-upload', name: 'อัปโหลดไฟล์', category: 'File', builtIn: true, usageCount: 5,
+    id: 'tpl-upload',
+    name: 'อัปโหลดไฟล์',
+    category: 'File',
+    builtIn: true,
+    usageCount: 5,
     description: 'ชนิดไฟล์ ขนาดไฟล์ และการแสดงตัวอย่าง',
     draft: {
-      name: 'อัปโหลดไฟล์ตามชนิดและขนาดที่กำหนด', testScenario: 'อัปโหลดไฟล์ที่อนุญาตและไม่อนุญาต', priority: 'medium',
+      name: 'อัปโหลดไฟล์ตามชนิดและขนาดที่กำหนด',
+      testScenario: 'อัปโหลดไฟล์ที่อนุญาตและไม่อนุญาต',
+      priority: 'medium',
       prerequisite: 'เตรียมไฟล์ .jpg 1MB, .pdf 12MB และ .exe',
       steps: [
         step('อัปโหลดไฟล์ที่อนุญาต', 'photo.jpg (1MB)', 'อัปโหลดสำเร็จ และแสดงตัวอย่าง'),
@@ -126,10 +178,16 @@ const SEED_TEMPLATES: TestCaseTemplate[] = [
     },
   },
   {
-    id: 'tpl-rbac', name: 'สิทธิ์ตาม Role', category: 'Permission', builtIn: true, usageCount: 8,
+    id: 'tpl-rbac',
+    name: 'สิทธิ์ตาม Role',
+    category: 'Permission',
+    builtIn: true,
+    usageCount: 8,
     description: 'ตรวจว่าแต่ละ Role เห็นและทำได้เฉพาะสิ่งที่อนุญาต',
     draft: {
-      name: 'ควบคุมสิทธิ์การเข้าถึงตาม Role', testScenario: 'เข้าใช้งานฟังก์ชันเดียวกันด้วย Role ต่างกัน', priority: 'high',
+      name: 'ควบคุมสิทธิ์การเข้าถึงตาม Role',
+      testScenario: 'เข้าใช้งานฟังก์ชันเดียวกันด้วย Role ต่างกัน',
+      priority: 'high',
       prerequisite: 'มีบัญชีทดสอบของทุก Role',
       steps: [
         step('เข้าสู่ระบบด้วย Role ที่มีสิทธิ์', 'Admin', 'เห็นเมนูและทำรายการได้'),
@@ -172,5 +230,8 @@ export const deleteTemplate = (id: string) =>
     assertCan('case.edit')
     const list = templates()
     if (list.find((t) => t.id === id)?.builtIn) throw new ApiError('ลบ Template มาตรฐานของระบบไม่ได้', 403)
-    save(STORAGE_KEYS.templates, list.filter((t) => t.id !== id))
+    save(
+      STORAGE_KEYS.templates,
+      list.filter((t) => t.id !== id),
+    )
   })

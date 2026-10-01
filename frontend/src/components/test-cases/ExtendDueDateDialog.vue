@@ -29,13 +29,17 @@ const note = ref('')
 
 const overdue = computed(() => (props.testCase ? isOverdue(props.testCase) : false))
 
-watch(open, (isOpen) => {
-  if (!isOpen || !props.testCase) return
-  const base = props.testCase.expiryDate && props.testCase.expiryDate > todayISO() ? props.testCase.expiryDate : todayISO()
-  newDate.value = props.suggestedDate ?? addDays(base, 3)
-  category.value = EXTEND_REASONS[0]
-  note.value = ''
-}, { immediate: true })
+watch(
+  open,
+  (isOpen) => {
+    if (!isOpen || !props.testCase) return
+    const base = props.testCase.expiryDate && props.testCase.expiryDate > todayISO() ? props.testCase.expiryDate : todayISO()
+    newDate.value = props.suggestedDate ?? addDays(base, 3)
+    category.value = EXTEND_REASONS[0]
+    note.value = ''
+  },
+  { immediate: true },
+)
 
 const rules = {
   required,
@@ -84,7 +88,13 @@ async function submit() {
             </v-col>
             <v-col cols="12" sm="6">
               <label class="fox-label" for="ext-date">กำหนดใหม่ *</label>
-              <v-text-field id="ext-date" v-model="newDate" type="date" prepend-inner-icon="tabler:calendar-plus" :rules="[rules.required, rules.afterOld]" />
+              <v-text-field
+                id="ext-date"
+                v-model="newDate"
+                type="date"
+                prepend-inner-icon="tabler:calendar-plus"
+                :rules="[rules.required, rules.afterOld]"
+              />
             </v-col>
             <v-col cols="12">
               <label class="fox-label" for="ext-reason">สาเหตุ *</label>

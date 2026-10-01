@@ -21,8 +21,7 @@ export const MILESTONE_TYPES: Option<MilestoneType>[] = [
   { value: 'go_live', label: 'Go-Live', hint: 'ขึ้น Production', tone: 'success', icon: 'tabler:rocket' },
 ]
 
-export const milestoneTypeOf = (type: MilestoneType): Option<MilestoneType> =>
-  MILESTONE_TYPES.find((m) => m.value === type) ?? MILESTONE_TYPES[0]
+export const milestoneTypeOf = (type: MilestoneType): Option<MilestoneType> => MILESTONE_TYPES.find((m) => m.value === type) ?? MILESTONE_TYPES[0]
 
 const SEED_PROJECTS: Project[] = [
   {
@@ -39,8 +38,20 @@ const SEED_PROJECTS: Project[] = [
     memberCount: 5,
     teamIds: ['team-payment'],
     milestones: [
-      { id: 'm-1', title: 'Sprint 42 Code Freeze', date: '2026-10-02', type: 'code_freeze', description: 'หยุดรับฟีเจอร์ใหม่ มุ่งเน้นแก้ Bug และ Re-test' },
-      { id: 'm-2', title: 'UAT Sign-off Deadline', date: '2026-10-15', type: 'uat_signoff', description: 'กำหนดการตรวจรับระบบร่วมกับธนาคารและ Merchant' },
+      {
+        id: 'm-1',
+        title: 'Sprint 42 Code Freeze',
+        date: '2026-10-02',
+        type: 'code_freeze',
+        description: 'หยุดรับฟีเจอร์ใหม่ มุ่งเน้นแก้ Bug และ Re-test',
+      },
+      {
+        id: 'm-2',
+        title: 'UAT Sign-off Deadline',
+        date: '2026-10-15',
+        type: 'uat_signoff',
+        description: 'กำหนดการตรวจรับระบบร่วมกับธนาคารและ Merchant',
+      },
       { id: 'm-3', title: 'Production Go-Live', date: '2026-10-25', type: 'go_live', description: 'Deploy ระบบขึ้น Production Cluster' },
     ],
   },
@@ -99,7 +110,11 @@ export function canAccessProject(user: User | null, project: Pick<Project, 'team
 /** server-side: ids of the projects the signed-in user may open (every list endpoint filters by it) */
 export function accessibleProjectIds(): Set<string> {
   const user = sessionUser()
-  return new Set(projects().filter((p) => canAccessProject(user, p)).map((p) => p.id))
+  return new Set(
+    projects()
+      .filter((p) => canAccessProject(user, p))
+      .map((p) => p.id),
+  )
 }
 
 /**
@@ -171,7 +186,10 @@ export const updateProject = (id: string, input: ProjectInput) =>
 export const deleteProject = (id: string) =>
   respond(() => {
     assertCan('admin')
-    save(STORAGE_KEYS.projects, projects().filter((p) => p.id !== id))
+    save(
+      STORAGE_KEYS.projects,
+      projects().filter((p) => p.id !== id),
+    )
     update(STORAGE_KEYS.testCases, [] as { projectId: string }[], (cases) => cases.filter((c) => c.projectId !== id))
   })
 

@@ -194,7 +194,10 @@ function applyMove(src: DragSource, target: DropTarget) {
   if (src.kind === 'parent') {
     const [moved] = list.splice(src.index, 1)
     list.splice(target.index > src.index ? target.index - 1 : target.index, 0, moved)
-    run(() => store.reorder(props.projectId, list), () => emit('reordered', 'จัดลำดับ Test Case และรันรหัสใหม่แล้ว'))
+    run(
+      () => store.reorder(props.projectId, list),
+      () => emit('reordered', 'จัดลำดับ Test Case และรันรหัสใหม่แล้ว'),
+    )
     return
   }
   const from = list.find((p) => p.id === src.parentId)
@@ -203,7 +206,10 @@ function applyMove(src: DragSource, target: DropTarget) {
   const [moved] = from.subCases.splice(src.index, 1)
   to.subCases.splice(from === to && target.index > src.index ? target.index - 1 : target.index, 0, moved)
   const parentNo = list.indexOf(to) + 101
-  run(() => store.reorder(props.projectId, list), () => emit('reordered', `จัดลำดับ Sub-case และรันรหัสใหม่ (TC-${parentNo}-1 …) แล้ว`))
+  run(
+    () => store.reorder(props.projectId, list),
+    () => emit('reordered', `จัดลำดับ Sub-case และรันรหัสใหม่ (TC-${parentNo}-1 …) แล้ว`),
+  )
 }
 
 function onSubsDrop(e: DragEvent) {
@@ -247,8 +253,12 @@ function insertClass(list: string, index: number, length: number) {
           class="mb-4"
           :disabled="reorderMode"
         >
-          <v-btn value="active" prepend-icon="tabler:flask">ใช้งานอยู่ <span class="fox-num ml-1">{{ cases.length }}</span></v-btn>
-          <v-btn value="archive" prepend-icon="tabler:archive">คลังเก็บ <span class="fox-num ml-1">{{ archived.length }}</span></v-btn>
+          <v-btn value="active" prepend-icon="tabler:flask"
+            >ใช้งานอยู่ <span class="fox-num ml-1">{{ cases.length }}</span></v-btn
+          >
+          <v-btn value="archive" prepend-icon="tabler:archive"
+            >คลังเก็บ <span class="fox-num ml-1">{{ archived.length }}</span></v-btn
+          >
         </v-btn-toggle>
         <p v-if="view === 'archive'" class="text-body-2 text-muted">
           เคสในคลังถูกซ่อนจากรายการ สถิติ Coverage และการสร้างรอบทดสอบ แต่ยังคงรหัสและประวัติไว้ กู้คืนหรือลบถาวรได้จากที่นี่
@@ -320,7 +330,10 @@ function insertClass(list: string, index: number, length: number) {
           <div class="d-flex flex-wrap align-center ga-3 fox-card-body py-4">
             <v-icon icon="tabler:archive" class="text-muted" />
             <div class="flex-grow-1 overflow-hidden">
-              <div class="text-subtitle-2 text-truncate"><span class="text-primary fox-num mr-2">{{ tc.id }}</span>{{ tc.name }}</div>
+              <div class="text-subtitle-2 text-truncate">
+                <span class="text-primary fox-num mr-2">{{ tc.id }}</span
+                >{{ tc.name }}
+              </div>
               <div class="text-caption text-muted">
                 <template v-if="tc.parentId">Sub-case ของ {{ tc.parentId }} · </template>
                 {{ tc.version }} · เก็บเมื่อ {{ formatDateTime(tc.archivedAt!) }}<template v-if="tc.archivedBy"> โดย {{ tc.archivedBy }}</template>
@@ -328,8 +341,18 @@ function insertClass(list: string, index: number, length: number) {
             </div>
             <div class="d-flex align-center ga-1 flex-shrink-0">
               <v-btn icon="tabler:eye" variant="text" size="small" :aria-label="`ดู ${tc.id}`" @click="emit('edit', tc)" />
-              <v-btn v-if="canArchive" variant="tonal" color="primary" size="small" prepend-icon="tabler:archive-off" @click="emit('restore', tc)">กู้คืน</v-btn>
-              <v-btn v-if="canPurge" icon="tabler:trash" variant="text" size="small" color="error" :aria-label="`ลบถาวร ${tc.id}`" @click="emit('purge', tc)" />
+              <v-btn v-if="canArchive" variant="tonal" color="primary" size="small" prepend-icon="tabler:archive-off" @click="emit('restore', tc)"
+                >กู้คืน</v-btn
+              >
+              <v-btn
+                v-if="canPurge"
+                icon="tabler:trash"
+                variant="text"
+                size="small"
+                color="error"
+                :aria-label="`ลบถาวร ${tc.id}`"
+                @click="emit('purge', tc)"
+              />
             </div>
           </div>
         </template>
@@ -341,13 +364,11 @@ function insertClass(list: string, index: number, length: number) {
       v-else-if="visible.length"
       class="fox-stack"
       :class="{ 'tc-list--reordering': reorderMode }"
-      @dragover="onParentsDragOver" @dragleave="onDragLeave" @drop.prevent="onDrop">
-      <div
-        v-for="(parent, pIdx) in visible"
-        :key="parent.id"
-        class="tc-slot"
-        :class="insertClass('parents', pIdx, visible.length)"
-      >
+      @dragover="onParentsDragOver"
+      @dragleave="onDragLeave"
+      @drop.prevent="onDrop"
+    >
+      <div v-for="(parent, pIdx) in visible" :key="parent.id" class="tc-slot" :class="insertClass('parents', pIdx, visible.length)">
         <v-card class="tc-card" :class="{ 'tc-card--dragging': dragging?.kind === 'parent' && dragging.index === pIdx }">
           <div class="fox-card-body">
             <div class="d-flex align-start ga-3">
@@ -396,10 +417,7 @@ function insertClass(list: string, index: number, length: number) {
                 <span v-if="parent.expectedImages.length + parent.actualImages.length" class="d-inline-flex align-center ga-1">
                   <v-icon icon="tabler:photo" size="16" />{{ parent.expectedImages.length + parent.actualImages.length }} ภาพ
                 </span>
-                <span
-                  class="d-inline-flex align-center ga-1"
-                  :class="{ 'text-error': isOverdue(parent), 'text-warning': isDueSoon(parent) }"
-                >
+                <span class="d-inline-flex align-center ga-1" :class="{ 'text-error': isOverdue(parent), 'text-warning': isDueSoon(parent) }">
                   <v-icon icon="tabler:calendar-due" size="16" />{{ formatDateTH(parent.expiryDate) }}
                 </span>
                 <span v-if="parent.assignedDev" class="d-inline-flex align-center ga-1">
@@ -424,21 +442,30 @@ function insertClass(list: string, index: number, length: number) {
                   ส่งมอบพร้อมเทส
                 </v-btn>
                 <TestCaseStatusMenu :status="parent.status" @change="setStatus(parent, $event)" />
-                <v-btn v-if="canCreate" variant="tonal" size="small" prepend-icon="tabler:subtask" @click="emit('add-subcase', parent.id)">Sub-case</v-btn>
-                <v-btn icon="tabler:pencil" variant="text" size="small" color="primary" :aria-label="`เปิด ${parent.id}`" @click="emit('edit', parent)" />
+                <v-btn v-if="canCreate" variant="tonal" size="small" prepend-icon="tabler:subtask" @click="emit('add-subcase', parent.id)"
+                  >Sub-case</v-btn
+                >
+                <v-btn
+                  icon="tabler:pencil"
+                  variant="text"
+                  size="small"
+                  color="primary"
+                  :aria-label="`เปิด ${parent.id}`"
+                  @click="emit('edit', parent)"
+                />
                 <v-menu location="bottom end">
                   <template #activator="{ props: menu }">
                     <v-btn v-bind="menu" icon="tabler:dots-vertical" variant="text" size="small" :aria-label="`ตัวเลือก ${parent.id}`" />
                   </template>
                   <v-list>
                     <v-list-item
-                  v-if="parent.reviewNeeded && canEdit"
-                  prepend-icon="tabler:circle-check"
-                  title="ทบทวนแล้ว ไม่ต้องแก้ไข"
-                  base-color="warning"
-                  @click="emit('reviewed', parent)"
-                />
-                <v-list-item prepend-icon="tabler:history" title="ประวัติและ Audit" @click="emit('history', parent)" />
+                      v-if="parent.reviewNeeded && canEdit"
+                      prepend-icon="tabler:circle-check"
+                      title="ทบทวนแล้ว ไม่ต้องแก้ไข"
+                      base-color="warning"
+                      @click="emit('reviewed', parent)"
+                    />
+                    <v-list-item prepend-icon="tabler:history" title="ประวัติและ Audit" @click="emit('history', parent)" />
                     <v-list-item prepend-icon="tabler:calendar-time" title="ขอขยายเวลา" @click="emit('extend', parent)" />
                     <template v-if="canCreate">
                       <v-list-item prepend-icon="tabler:copy" title="ทำสำเนา (Clone)" @click="emit('clone', parent)" />
@@ -516,7 +543,14 @@ function insertClass(list: string, index: number, length: number) {
                           @click="emit('reviewed', sub)"
                         />
                         <v-btn icon="tabler:history" variant="text" size="x-small" :aria-label="`ประวัติ ${sub.id}`" @click="emit('history', sub)" />
-                        <v-btn icon="tabler:pencil" variant="text" size="x-small" color="primary" :aria-label="`เปิด ${sub.id}`" @click="emit('edit', sub)" />
+                        <v-btn
+                          icon="tabler:pencil"
+                          variant="text"
+                          size="x-small"
+                          color="primary"
+                          :aria-label="`เปิด ${sub.id}`"
+                          @click="emit('edit', sub)"
+                        />
                         <v-btn
                           v-if="canArchive"
                           icon="tabler:archive"
@@ -569,7 +603,9 @@ function insertClass(list: string, index: number, length: number) {
 
 <style scoped>
 .tc-card {
-  transition: opacity 0.15s, box-shadow 0.15s;
+  transition:
+    opacity 0.15s,
+    box-shadow 0.15s;
 }
 
 .tc-list--reordering {
@@ -619,7 +655,9 @@ function insertClass(list: string, index: number, length: number) {
   flex: none;
   border-radius: 4px;
   cursor: grab;
-  transition: background-color 0.15s, color 0.15s;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
 }
 
 .tc-grip:hover {

@@ -66,7 +66,11 @@ function askDelete(d: DocumentRecord) {
 }
 function onDelete() {
   const d = deleting.value
-  if (d) run(() => store.remove(d.id), () => notify(`ลบ ${d.docNumber} แล้ว`))
+  if (d)
+    run(
+      () => store.remove(d.id),
+      () => notify(`ลบ ${d.docNumber} แล้ว`),
+    )
 }
 </script>
 
@@ -103,8 +107,26 @@ function onDelete() {
       <div class="fox-card-body d-flex flex-wrap align-center justify-space-between ga-3">
         <h2 class="text-h5">เอกสารทั้งหมด</h2>
         <div class="d-flex flex-wrap ga-2 doc-filters">
-          <v-select v-model="type" :items="DOCUMENT_TYPES" item-title="label" item-value="value" density="compact" placeholder="ทุกประเภท" aria-label="ประเภท" clearable />
-          <v-select v-model="status" :items="DOCUMENT_STATUSES" item-title="label" item-value="value" density="compact" placeholder="ทุกสถานะ" aria-label="สถานะ" clearable />
+          <v-select
+            v-model="type"
+            :items="DOCUMENT_TYPES"
+            item-title="label"
+            item-value="value"
+            density="compact"
+            placeholder="ทุกประเภท"
+            aria-label="ประเภท"
+            clearable
+          />
+          <v-select
+            v-model="status"
+            :items="DOCUMENT_STATUSES"
+            item-title="label"
+            item-value="value"
+            density="compact"
+            placeholder="ทุกสถานะ"
+            aria-label="สถานะ"
+            clearable
+          />
         </div>
       </div>
       <v-divider />
@@ -122,7 +144,9 @@ function onDelete() {
           <tr v-for="d in filtered" :key="d.id" class="doc-row" @click="router.push(`/documents/${d.id}`)">
             <td>
               <div class="d-flex align-center ga-3 py-2">
-                <v-avatar :color="documentTypeOf(d.type).tone" rounded="lg" size="40"><v-icon :icon="documentTypeOf(d.type).icon" size="20" /></v-avatar>
+                <v-avatar :color="documentTypeOf(d.type).tone" rounded="lg" size="40"
+                  ><v-icon :icon="documentTypeOf(d.type).icon" size="20"
+                /></v-avatar>
                 <div class="overflow-hidden">
                   <div class="text-subtitle-2 text-truncate">{{ d.title }}</div>
                   <div class="text-caption text-muted fox-num">{{ d.docNumber }} · v{{ d.version }}.0 · {{ documentTypeOf(d.type).label }}</div>
@@ -130,7 +154,9 @@ function onDelete() {
               </div>
             </td>
             <td>
-              <v-chip :color="documentStatusOf(d.status).tone" :prepend-icon="documentStatusOf(d.status).icon" size="small" variant="tonal">{{ documentStatusOf(d.status).label }}</v-chip>
+              <v-chip :color="documentStatusOf(d.status).tone" :prepend-icon="documentStatusOf(d.status).icon" size="small" variant="tonal">{{
+                documentStatusOf(d.status).label
+              }}</v-chip>
             </td>
             <td class="text-center fox-num">{{ signedCount(d) }}/{{ d.signatories.length }}</td>
             <td class="text-caption text-muted text-no-wrap">{{ formatRelative(d.updatedAt) }}</td>
@@ -159,7 +185,13 @@ function onDelete() {
   </div>
 
   <DocumentWizardDialog v-model="wizard" :type="wizardType" :run-id="wizardRun" @generated="onGenerated" />
-  <FoxConfirmDialog v-model="confirmOpen" title="ลบเอกสาร?" :text="deleting ? `${deleting.docNumber} จะถูกลบถาวร` : ''" confirm-text="ลบ" @confirm="onDelete" />
+  <FoxConfirmDialog
+    v-model="confirmOpen"
+    title="ลบเอกสาร?"
+    :text="deleting ? `${deleting.docNumber} จะถูกลบถาวร` : ''"
+    confirm-text="ลบ"
+    @confirm="onDelete"
+  />
   <v-snackbar v-model="snackbar.show" :color="snackbar.color">{{ snackbar.text }}</v-snackbar>
 </template>
 

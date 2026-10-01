@@ -17,13 +17,16 @@ export const useRunStore = defineStore('run', () => {
 
   let loading: Promise<void> | null = null
   function ensureLoaded(): Promise<void> {
-    loading ??= api.fetchRuns().then((list) => {
-      runs.value = list
-      loaded.value = true
-    }).catch((e) => {
-      loading = null
-      throw e
-    })
+    loading ??= api
+      .fetchRuns()
+      .then((list) => {
+        runs.value = list
+        loaded.value = true
+      })
+      .catch((e) => {
+        loading = null
+        throw e
+      })
     return loading
   }
 
@@ -38,7 +41,13 @@ export const useRunStore = defineStore('run', () => {
   async function create(input: TestRunInput): Promise<TestRun> {
     const run = await api.createRun(input, testCaseStore.casesOf(input.projectId), auth.currentUser.name)
     runs.value.unshift(run)
-    audit.record({ action: 'CREATE', targetType: 'PROJECT', targetId: run.id, targetTitle: run.name, details: `สร้างรอบทดสอบ ${run.name} รอบที่ ${run.round} (${run.results.length} เคส)` })
+    audit.record({
+      action: 'CREATE',
+      targetType: 'PROJECT',
+      targetId: run.id,
+      targetTitle: run.name,
+      details: `สร้างรอบทดสอบ ${run.name} รอบที่ ${run.round} (${run.results.length} เคส)`,
+    })
     return run
   }
 
@@ -49,7 +58,14 @@ export const useRunStore = defineStore('run', () => {
   async function complete(id: string) {
     await update(id, { status: 'completed', completedAt: new Date().toISOString() })
     const run = getById(id)
-    if (run) audit.record({ action: 'STATUS_CHANGE', targetType: 'PROJECT', targetId: run.id, targetTitle: run.name, details: `ปิดรอบทดสอบ ${run.name} รอบที่ ${run.round}` })
+    if (run)
+      audit.record({
+        action: 'STATUS_CHANGE',
+        targetType: 'PROJECT',
+        targetId: run.id,
+        targetTitle: run.name,
+        details: `ปิดรอบทดสอบ ${run.name} รอบที่ ${run.round}`,
+      })
   }
 
   /** why a verdict in this run won't become the case status (rules live in the service) */
@@ -58,7 +74,11 @@ export const useRunStore = defineStore('run', () => {
 
   /** save one case's execution; the server also updates the case when the verdict counts (see caseSyncBlock) */
   async function saveResult(runId: string, result: RunResult) {
-    const { run, caseUpdate } = await api.saveResult(runId, result, { id: auth.currentUser.id, name: auth.currentUser.name, avatar: auth.currentUser.avatar })
+    const { run, caseUpdate } = await api.saveResult(runId, result, {
+      id: auth.currentUser.id,
+      name: auth.currentUser.name,
+      avatar: auth.currentUser.avatar,
+    })
     replace(run)
     if (caseUpdate) testCaseStore.applyUpdate(caseUpdate)
     return run
@@ -66,16 +86,24 @@ export const useRunStore = defineStore('run', () => {
 
   /** a reorder renumbered case ids (the server already re-keyed its copy) */
   function renameCases(projectId: string, renames: Record<string, string>) {
-    runs.value.filter((r) => r.projectId === projectId).forEach((run) => run.results.forEach((r) => {
-      if (!r.caseDeleted) r.caseId = renames[r.caseId] ?? r.caseId
-    }))
+    runs.value
+      .filter((r) => r.projectId === projectId)
+      .forEach((run) =>
+        run.results.forEach((r) => {
+          if (!r.caseDeleted) r.caseId = renames[r.caseId] ?? r.caseId
+        }),
+      )
   }
 
   /** cases were deleted (the server already detached its copy) */
   function detachCases(projectId: string, caseIds: string[]) {
-    runs.value.filter((r) => r.projectId === projectId).forEach((run) => run.results.forEach((r) => {
-      if (caseIds.includes(r.caseId)) r.caseDeleted = true
-    }))
+    runs.value
+      .filter((r) => r.projectId === projectId)
+      .forEach((run) =>
+        run.results.forEach((r) => {
+          if (caseIds.includes(r.caseId)) r.caseDeleted = true
+        }),
+      )
   }
 
   async function remove(id: string) {
@@ -86,5 +114,20 @@ export const useRunStore = defineStore('run', () => {
   /** next round number for a run name in this project */
   const nextRound = (name: string) => Math.max(0, ...current.value.filter((r) => r.name === name).map((r) => r.round)) + 1
 
-  return { runs, loaded, current, ensureLoaded, getById, create, update, complete, saveResult, remove, nextRound, renameCases, detachCases, caseSyncBlock }
+  return {
+    runs,
+    loaded,
+    current,
+    ensureLoaded,
+    getById,
+    create,
+    update,
+    complete,
+    saveResult,
+    remove,
+    nextRound,
+    renameCases,
+    detachCases,
+    caseSyncBlock,
+  }
 })

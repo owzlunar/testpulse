@@ -14,7 +14,13 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useSnackbar } from '@/composables/useSnackbar'
 import { useTestCasePermissions } from '@/composables/useTestCasePermissions'
 import {
-  COVERAGE, REQUIREMENT_STATUSES, casesForRequirement, coverageOf, coverageStatus, requirementStatusOf, requirementTypeOf,
+  COVERAGE,
+  REQUIREMENT_STATUSES,
+  casesForRequirement,
+  coverageOf,
+  coverageStatus,
+  requirementStatusOf,
+  requirementTypeOf,
 } from '@/services/requirement.service'
 import { statusOf } from '@/services/test-case.service'
 import { useAuthStore } from '@/stores/auth.store'
@@ -51,9 +57,24 @@ const stats = computed(() => {
   const covered = active.filter((r) => r.coverage !== 'not_covered').length
   return [
     { label: 'Requirement ทั้งหมด', value: active.length, icon: 'tabler:clipboard-list', tone: 'primary' as Tone },
-    { label: `ครอบคลุมด้วย Test Case · ${formatPercent(active.length ? (covered / active.length) * 100 : 0, 0)}`, value: covered, icon: 'tabler:link', tone: 'info' as Tone },
-    { label: 'ยังไม่มี Test Case', value: active.filter((r) => r.coverage === 'not_covered').length, icon: 'tabler:circle-dashed', tone: 'error' as Tone },
-    { label: 'เปลี่ยนแปลง ต้องทบทวนเคส', value: active.filter((r) => r.status === 'changed').length, icon: 'tabler:alert-triangle', tone: 'caution' as Tone },
+    {
+      label: `ครอบคลุมด้วย Test Case · ${formatPercent(active.length ? (covered / active.length) * 100 : 0, 0)}`,
+      value: covered,
+      icon: 'tabler:link',
+      tone: 'info' as Tone,
+    },
+    {
+      label: 'ยังไม่มี Test Case',
+      value: active.filter((r) => r.coverage === 'not_covered').length,
+      icon: 'tabler:circle-dashed',
+      tone: 'error' as Tone,
+    },
+    {
+      label: 'เปลี่ยนแปลง ต้องทบทวนเคส',
+      value: active.filter((r) => r.status === 'changed').length,
+      icon: 'tabler:alert-triangle',
+      tone: 'caution' as Tone,
+    },
   ]
 })
 
@@ -88,10 +109,13 @@ function openEdit(r: Requirement) {
 }
 
 function onSave(input: RequirementInput) {
-  run(() => store.save(input), (saved) => {
-    dialog.value = false
-    notify(`บันทึก ${saved.code} แล้ว`)
-  })
+  run(
+    () => store.save(input),
+    (saved) => {
+      dialog.value = false
+      notify(`บันทึก ${saved.code} แล้ว`)
+    },
+  )
 }
 
 function askDelete(r: Requirement) {
@@ -101,14 +125,20 @@ function askDelete(r: Requirement) {
 
 function onDelete() {
   const r = deleting.value
-  if (r) run(() => store.remove(r.id), () => notify(`ลบ ${r.code} แล้ว`))
+  if (r)
+    run(
+      () => store.remove(r.id),
+      () => notify(`ลบ ${r.code} แล้ว`),
+    )
 }
 
 // --- AI drafts for one requirement ---------------------------------------------------
 const aiOpen = ref(false)
 const aiFor = ref<Requirement | null>(null)
 const aiText = computed(() =>
-  aiFor.value ? `${aiFor.value.code}: ${aiFor.value.title}\n${aiFor.value.description}\n${aiFor.value.acceptanceCriteria.map((c) => `- ${c}`).join('\n')}`.trim() : '',
+  aiFor.value
+    ? `${aiFor.value.code}: ${aiFor.value.title}\n${aiFor.value.description}\n${aiFor.value.acceptanceCriteria.map((c) => `- ${c}`).join('\n')}`.trim()
+    : '',
 )
 function draftFor(r: Requirement) {
   aiFor.value = r
@@ -120,8 +150,13 @@ const openCase = (id: string) => router.push({ path: '/test-cases', query: { cas
 function exportRtm() {
   const header = ['Requirement', 'ชื่อ', 'Priority', 'สถานะ', 'Test Cases', 'ผลล่าสุด', 'Coverage']
   const data = rows.value.map((r) => [
-    r.code, r.title, r.priority, requirementStatusOf(r.status).label,
-    r.cases.map((c) => c.id).join(' '), r.cases.map((c) => `${c.id}:${statusOf(c.status).label}`).join(' '), coverageOf(r.coverage).label,
+    r.code,
+    r.title,
+    r.priority,
+    requirementStatusOf(r.status).label,
+    r.cases.map((c) => c.id).join(' '),
+    r.cases.map((c) => `${c.id}:${statusOf(c.status).label}`).join(' '),
+    coverageOf(r.coverage).label,
   ])
   downloadText(`${currentProject.value?.key ?? 'PRJ'}_RTM.csv`, toCsv([header, ...data]))
   notify('ดาวน์โหลด Traceability Matrix (.csv) แล้ว')
@@ -154,13 +189,38 @@ function exportRtm() {
       <div class="fox-card-body pb-0">
         <v-row dense class="row-gap-3 align-center">
           <v-col cols="12" md="5">
-            <v-text-field v-model="search" density="compact" placeholder="ค้นหารหัส ชื่อ หรือรายละเอียด" prepend-inner-icon="tabler:search" aria-label="ค้นหา Requirement" clearable />
+            <v-text-field
+              v-model="search"
+              density="compact"
+              placeholder="ค้นหารหัส ชื่อ หรือรายละเอียด"
+              prepend-inner-icon="tabler:search"
+              aria-label="ค้นหา Requirement"
+              clearable
+            />
           </v-col>
           <v-col cols="6" md="3">
-            <v-select v-model="status" :items="REQUIREMENT_STATUSES" item-title="label" item-value="value" density="compact" placeholder="ทุกสถานะ" aria-label="สถานะ" clearable />
+            <v-select
+              v-model="status"
+              :items="REQUIREMENT_STATUSES"
+              item-title="label"
+              item-value="value"
+              density="compact"
+              placeholder="ทุกสถานะ"
+              aria-label="สถานะ"
+              clearable
+            />
           </v-col>
           <v-col cols="6" md="3">
-            <v-select v-model="coverage" :items="COVERAGE" item-title="label" item-value="value" density="compact" placeholder="ทุก Coverage" aria-label="Coverage" clearable />
+            <v-select
+              v-model="coverage"
+              :items="COVERAGE"
+              item-title="label"
+              item-value="value"
+              density="compact"
+              placeholder="ทุก Coverage"
+              aria-label="Coverage"
+              clearable
+            />
           </v-col>
         </v-row>
       </div>
@@ -174,10 +234,17 @@ function exportRtm() {
                 <div class="flex-grow-1 overflow-hidden req-main">
                   <div class="d-flex flex-wrap align-center ga-2 mb-1">
                     <v-chip color="primary" size="small" variant="flat" class="fox-num">{{ r.code }}</v-chip>
-                    <v-chip :color="requirementStatusOf(r.status).tone" :prepend-icon="requirementStatusOf(r.status).icon" size="small" variant="tonal">
+                    <v-chip
+                      :color="requirementStatusOf(r.status).tone"
+                      :prepend-icon="requirementStatusOf(r.status).icon"
+                      size="small"
+                      variant="tonal"
+                    >
                       {{ requirementStatusOf(r.status).label }}
                     </v-chip>
-                    <v-chip :prepend-icon="requirementTypeOf(r.type).icon" size="small" variant="outlined" color="secondary">{{ requirementTypeOf(r.type).label }}</v-chip>
+                    <v-chip :prepend-icon="requirementTypeOf(r.type).icon" size="small" variant="outlined" color="secondary">{{
+                      requirementTypeOf(r.type).label
+                    }}</v-chip>
                     <TestCasePriorityChip :priority="r.priority" />
                   </div>
                   <h3 class="text-h6">{{ r.title }}</h3>
@@ -205,14 +272,37 @@ function exportRtm() {
                     </v-chip>
                   </div>
                   <div class="d-flex flex-wrap ga-2">
-                    <v-btn v-if="canCreate" variant="tonal" color="primary" size="small" prepend-icon="tabler:sparkles" @click="draftFor(r)">ร่างเคสด้วย AI</v-btn>
-                    <v-btn v-if="canEditRequirement" icon="tabler:pencil" variant="text" size="small" color="primary" :aria-label="`แก้ไข ${r.code}`" @click="openEdit(r)" />
-                    <v-btn v-if="auth.can('requirement.delete')" icon="tabler:trash" variant="text" size="small" color="error" :aria-label="`ลบ ${r.code}`" @click="askDelete(r)" />
+                    <v-btn v-if="canCreate" variant="tonal" color="primary" size="small" prepend-icon="tabler:sparkles" @click="draftFor(r)"
+                      >ร่างเคสด้วย AI</v-btn
+                    >
+                    <v-btn
+                      v-if="canEditRequirement"
+                      icon="tabler:pencil"
+                      variant="text"
+                      size="small"
+                      color="primary"
+                      :aria-label="`แก้ไข ${r.code}`"
+                      @click="openEdit(r)"
+                    />
+                    <v-btn
+                      v-if="auth.can('requirement.delete')"
+                      icon="tabler:trash"
+                      variant="text"
+                      size="small"
+                      color="error"
+                      :aria-label="`ลบ ${r.code}`"
+                      @click="askDelete(r)"
+                    />
                   </div>
                 </div>
               </div>
             </v-card>
-            <FoxEmptyState v-if="!filtered.length" icon="tabler:clipboard-list" title="ไม่พบ Requirement" text="เพิ่ม Requirement เพื่อเชื่อมโยงกับ Test Case" />
+            <FoxEmptyState
+              v-if="!filtered.length"
+              icon="tabler:clipboard-list"
+              title="ไม่พบ Requirement"
+              text="เพิ่ม Requirement เพื่อเชื่อมโยงกับ Test Case"
+            />
           </div>
         </v-window-item>
 
@@ -231,7 +321,10 @@ function exportRtm() {
               <tr v-for="r in filtered" :key="r.id">
                 <td>
                   <div class="py-3">
-                    <div class="text-subtitle-2"><span class="text-primary fox-num mr-1">{{ r.code }}</span>{{ r.title }}</div>
+                    <div class="text-subtitle-2">
+                      <span class="text-primary fox-num mr-1">{{ r.code }}</span
+                      >{{ r.title }}
+                    </div>
                     <div class="text-caption text-muted">{{ requirementStatusOf(r.status).label }} · {{ requirementTypeOf(r.type).label }}</div>
                   </div>
                 </td>
@@ -254,7 +347,9 @@ function exportRtm() {
                 </td>
                 <td class="text-center fox-num">{{ r.cases.filter((c) => c.status === 'passed').length }} / {{ r.cases.length }}</td>
                 <td>
-                  <v-chip :color="coverageOf(r.coverage).tone" :prepend-icon="coverageOf(r.coverage).icon" size="small" variant="tonal">{{ coverageOf(r.coverage).label }}</v-chip>
+                  <v-chip :color="coverageOf(r.coverage).tone" :prepend-icon="coverageOf(r.coverage).icon" size="small" variant="tonal">{{
+                    coverageOf(r.coverage).label
+                  }}</v-chip>
                 </td>
               </tr>
             </tbody>

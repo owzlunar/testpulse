@@ -51,7 +51,10 @@ const stats = computed(() => [
 const dialog = ref(false)
 
 function changeRole(u: User, roleId: string | null) {
-  run(() => auth.updateUserRole(u.id, roleId), () => notify(`เปลี่ยน Role ของ ${u.name} เป็น ${auth.roleOf({ roleId }).label} แล้ว`))
+  run(
+    () => auth.updateUserRole(u.id, roleId),
+    () => notify(`เปลี่ยน Role ของ ${u.name} เป็น ${auth.roleOf({ roleId }).label} แล้ว`),
+  )
 }
 
 function switchTo(u: User) {
@@ -87,10 +90,26 @@ function onSave(input: Omit<User, 'id'>) {
       <div class="fox-card-body">
         <v-row dense class="row-gap-3 align-center">
           <v-col cols="12" md="5" lg="4">
-            <v-text-field v-model="search" density="compact" placeholder="ค้นหาชื่อ อีเมล หรือตำแหน่ง" prepend-inner-icon="tabler:search" aria-label="ค้นหาผู้ใช้" clearable />
+            <v-text-field
+              v-model="search"
+              density="compact"
+              placeholder="ค้นหาชื่อ อีเมล หรือตำแหน่ง"
+              prepend-inner-icon="tabler:search"
+              aria-label="ค้นหาผู้ใช้"
+              clearable
+            />
           </v-col>
           <v-col cols="12" sm="6" md="3">
-            <v-select v-model="role" :items="roleFilters" item-title="label" item-value="value" density="compact" placeholder="ทุก Role" aria-label="Role" clearable />
+            <v-select
+              v-model="role"
+              :items="roleFilters"
+              item-title="label"
+              item-value="value"
+              density="compact"
+              placeholder="ทุก Role"
+              aria-label="Role"
+              clearable
+            />
           </v-col>
         </v-row>
       </div>
@@ -137,7 +156,14 @@ function onSave(input: Omit<User, 'id'>) {
           </div>
         </template>
         <template #[`item.actions`]="{ item }">
-          <v-btn v-if="item.id !== currentUser.id" variant="tonal" color="primary" size="small" prepend-icon="tabler:switch-horizontal" @click="switchTo(item)">
+          <v-btn
+            v-if="item.id !== currentUser.id"
+            variant="tonal"
+            color="primary"
+            size="small"
+            prepend-icon="tabler:switch-horizontal"
+            @click="switchTo(item)"
+          >
             Login as
           </v-btn>
           <v-chip v-else color="success" size="small" variant="tonal">ใช้งานอยู่</v-chip>

@@ -16,8 +16,7 @@ export const AUDIT_ACTIONS: Option<AuditAction>[] = [
   { value: 'DELETE', label: 'ลบข้อมูล', tone: 'error', icon: 'tabler:trash' },
 ]
 
-export const auditActionOf = (action: AuditAction): Option<AuditAction> =>
-  AUDIT_ACTIONS.find((a) => a.value === action) ?? AUDIT_ACTIONS[1]
+export const auditActionOf = (action: AuditAction): Option<AuditAction> => AUDIT_ACTIONS.find((a) => a.value === action) ?? AUDIT_ACTIONS[1]
 
 const SEED_AUDIT_LOGS: AuditTrailEntry[] = [
   {
@@ -34,7 +33,7 @@ const SEED_AUDIT_LOGS: AuditTrailEntry[] = [
     changes: [
       { field: 'status', oldValue: 'in_progress', newValue: 'passed' },
       { field: 'actualResults', oldValue: '', newValue: 'ระบบทำงานได้สมบูรณ์ตามเกณฑ์ ทุกขั้นตอนผ่านฉลุย Response Time เฉลี่ย 230ms' },
-    ]
+    ],
   },
   {
     id: 'aud-2',
@@ -47,9 +46,7 @@ const SEED_AUDIT_LOGS: AuditTrailEntry[] = [
     targetId: 'TC-103',
     targetTitle: 'Concurrency & Idempotency Test สำหรับ Bank Callback',
     details: 'รัน k6 automated concurrency test แล้วพบ Bug Race Condition ปรับสถานะเป็น "failed"',
-    changes: [
-      { field: 'status', oldValue: 'untested', newValue: 'failed' },
-    ]
+    changes: [{ field: 'status', oldValue: 'untested', newValue: 'failed' }],
   },
   {
     id: 'aud-3',

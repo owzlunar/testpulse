@@ -34,7 +34,12 @@ const { activeCases: testCases } = storeToRefs(useTestCaseStore())
 const auth = useAuthStore()
 const { currentUser, users } = storeToRefs(auth)
 const canSeeAudit = computed(() => auth.can('audit.view'))
-const admins = computed(() => users.value.filter((u) => auth.roleById(u.roleId)?.builtIn === 'admin').map((u) => u.name).join(', '))
+const admins = computed(() =>
+  users.value
+    .filter((u) => auth.roleById(u.roleId)?.builtIn === 'admin')
+    .map((u) => u.name)
+    .join(', '),
+)
 const { sortedLogs } = storeToRefs(useAuditStore())
 const { snackbar, notify } = useSnackbar()
 const { busy: saving, run } = useAsyncAction()
@@ -68,8 +73,7 @@ const filtered = computed(() => {
   const q = search.value?.trim().toLowerCase() ?? ''
   return projects.value.filter(
     (p) =>
-      (!q || `${p.name} ${p.key} ${p.description} ${p.tags.join(' ')}`.toLowerCase().includes(q)) &&
-      (!status.value || p.status === status.value),
+      (!q || `${p.name} ${p.key} ${p.description} ${p.tags.join(' ')}`.toLowerCase().includes(q)) && (!status.value || p.status === status.value),
   )
 })
 
@@ -112,7 +116,10 @@ function askDelete(p: Project) {
 function onDelete() {
   const target = deleting.value
   if (!target) return
-  run(() => projectStore.remove(target.id), () => notify(`ลบ ${target.name} แล้ว`))
+  run(
+    () => projectStore.remove(target.id),
+    () => notify(`ลบ ${target.name} แล้ว`),
+  )
 }
 
 function openProject(id: string) {
@@ -140,14 +147,20 @@ watch(
 <template>
   <FoxPageHeader :eyebrow="`ยินดีต้อนรับ คุณ${firstName(currentUser.name)}`" title="ภาพรวมโปรเจกต์">
     <template #actions>
-      <v-btn v-if="auth.can('case.view') && projects.length" variant="outlined" prepend-icon="tabler:markdown" @click="exportProject()">ส่งออก .md</v-btn>
+      <v-btn v-if="auth.can('case.view') && projects.length" variant="outlined" prepend-icon="tabler:markdown" @click="exportProject()"
+        >ส่งออก .md</v-btn
+      >
       <v-btn v-if="auth.isAdmin" color="primary" prepend-icon="tabler:plus" @click="openCreate">สร้างโปรเจกต์</v-btn>
     </template>
   </FoxPageHeader>
 
   <!-- a new user without a role: only the dashboard and settings until an Admin assigns one -->
   <v-card v-if="!auth.hasRole" class="fox-card-body">
-    <FoxEmptyState icon="tabler:user-question" title="บัญชีของคุณยังไม่มี Role" text="ผู้ดูแลระบบ (Admin) จะกำหนด Role และทีมให้ จากนั้นคุณจะเห็นโปรเจกต์และเมนูตามสิทธิ์ ระหว่างนี้เปิดได้เฉพาะภาพรวมและตั้งค่า">
+    <FoxEmptyState
+      icon="tabler:user-question"
+      title="บัญชีของคุณยังไม่มี Role"
+      text="ผู้ดูแลระบบ (Admin) จะกำหนด Role และทีมให้ จากนั้นคุณจะเห็นโปรเจกต์และเมนูตามสิทธิ์ ระหว่างนี้เปิดได้เฉพาะภาพรวมและตั้งค่า"
+    >
       <div class="text-body-2 text-muted mt-3">Admin: {{ admins || '-' }}</div>
       <v-btn class="mt-3" variant="tonal" color="primary" prepend-icon="tabler:settings" to="/settings">ไปที่ตั้งค่า</v-btn>
     </FoxEmptyState>
@@ -239,7 +252,13 @@ watch(
       <FoxEmptyState
         icon="tabler:folder-search"
         :title="projects.length ? 'ไม่พบโปรเจกต์' : 'ยังไม่มีโปรเจกต์ที่คุณเข้าถึงได้'"
-        :text="projects.length ? 'ลองเปลี่ยนคำค้นหาหรือตัวกรอง' : auth.isAdmin ? 'สร้างโปรเจกต์แรก' : 'โปรเจกต์จะแสดงเมื่อ Admin เพิ่มคุณเข้าทีมของโปรเจกต์'"
+        :text="
+          projects.length
+            ? 'ลองเปลี่ยนคำค้นหาหรือตัวกรอง'
+            : auth.isAdmin
+              ? 'สร้างโปรเจกต์แรก'
+              : 'โปรเจกต์จะแสดงเมื่อ Admin เพิ่มคุณเข้าทีมของโปรเจกต์'
+        "
       >
         <div class="d-flex ga-2 mt-3">
           <v-btn v-if="projects.length" variant="tonal" color="primary" @click="resetFilters">ล้างตัวกรอง</v-btn>
@@ -247,7 +266,6 @@ watch(
         </div>
       </FoxEmptyState>
     </v-card>
-
   </div>
 
   <ProjectDialog v-model="dialog" :project="editing" :loading="saving" @save="onSave" />

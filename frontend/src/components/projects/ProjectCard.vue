@@ -71,7 +71,8 @@ const daysLeft = computed(() => (props.project.targetDeadline ? daysFromToday(pr
         <template v-if="daysLeft !== null">· {{ daysLeft < 0 ? `เลย ${-daysLeft} วัน` : `อีก ${daysLeft} วัน` }}</template>
       </span>
       <v-btn variant="text" color="primary" size="small" append-icon="tabler:arrow-right" @click.stop="$emit('open', project.id)">
-        <span class="fox-num">{{ stats.total }}</span>&nbsp;Test Cases
+        <span class="fox-num">{{ stats.total }}</span
+        >&nbsp;Test Cases
       </v-btn>
     </div>
   </v-card>
@@ -82,7 +83,9 @@ const daysLeft = computed(() => (props.project.targetDeadline ? daysFromToday(pr
   cursor: pointer;
   outline: 2px solid transparent;
   outline-offset: -2px;
-  transition: outline-color 0.15s, transform 0.15s;
+  transition:
+    outline-color 0.15s,
+    transform 0.15s;
 }
 
 .project-card:hover {

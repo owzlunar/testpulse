@@ -41,9 +41,7 @@ const { currentUser } = storeToRefs(auth)
 const { currentProject, currentCases } = storeToRefs(useProjectStore())
 const testCaseStore = useTestCaseStore()
 const requirementStore = useRequirementStore()
-const requirementOptions = computed(() =>
-  requirementStore.current.map((r) => ({ title: `${r.code}: ${r.title}`, value: r.id, code: r.code })),
-)
+const requirementOptions = computed(() => requirementStore.current.map((r) => ({ title: `${r.code}: ${r.title}`, value: r.id, code: r.code })))
 
 // linked Requirement records are the source of truth; the text field is an optional note,
 // required only when nothing is linked (no copy of the requirement title is stored on the case)
@@ -86,9 +84,26 @@ const editingStep = ref<{ id: string; field: StepField } | null>(null)
 const newStep = (n: number): TestStep => ({ id: `s-${Date.now()}-${n}`, stepNumber: n, action: '', testData: '', expectedResult: '' })
 
 const empty = (): Omit<TestCase, 'createdAt' | 'updatedAt'> => ({
-  id: '', numericId: 101, parentId: null, projectId: '', requirement: '', testScenario: '', name: '', description: '',
-  prerequisite: '', steps: [newStep(1)], expectedResults: '', expectedImages: [], actualResults: '', actualImages: [],
-  status: 'pending', priority: 'medium', expiryDate: addDays(todayISO(), 7), assignedTo: '', assignedDev: '', version: 'v1.0',
+  id: '',
+  numericId: 101,
+  parentId: null,
+  projectId: '',
+  requirement: '',
+  testScenario: '',
+  name: '',
+  description: '',
+  prerequisite: '',
+  steps: [newStep(1)],
+  expectedResults: '',
+  expectedImages: [],
+  actualResults: '',
+  actualImages: [],
+  status: 'pending',
+  priority: 'medium',
+  expiryDate: addDays(todayISO(), 7),
+  assignedTo: '',
+  assignedDev: '',
+  version: 'v1.0',
 })
 const form = reactive(empty())
 
@@ -100,27 +115,31 @@ const title = computed(() =>
   isEdit.value ? `${readonly.value ? '' : 'แก้ไข '}${form.id}` : form.parentId ? `สร้าง Sub-case ภายใต้ ${form.parentId}` : 'สร้าง Test Case ใหม่',
 )
 
-watch(open, (isOpen) => {
-  if (!isOpen) return
-  requirementStore.ensureLoaded().then(linkLegacyRequirement, () => {})
-  tab.value = 'spec'
-  changeSummary.value = ''
-  bumpMajor.value = false
-  editingStep.value = null
-  const tc = props.testCase
-  if (tc) {
-    Object.assign(form, empty(), JSON.parse(JSON.stringify(tc)), { assignedTo: tc.assignedTo || currentUser.value.name })
-  } else {
-    Object.assign(form, empty(), {
-      projectId: currentProject.value?.id ?? '',
-      parentId: props.parentId,
-      assignedTo: currentUser.value.name,
-      ...(props.preset ? JSON.parse(JSON.stringify(props.preset)) : {}),
-      ...testCaseStore.nextId(currentProject.value?.id ?? '', props.parentId),
-    })
-    renumber()
-  }
-}, { immediate: true })
+watch(
+  open,
+  (isOpen) => {
+    if (!isOpen) return
+    requirementStore.ensureLoaded().then(linkLegacyRequirement, () => {})
+    tab.value = 'spec'
+    changeSummary.value = ''
+    bumpMajor.value = false
+    editingStep.value = null
+    const tc = props.testCase
+    if (tc) {
+      Object.assign(form, empty(), JSON.parse(JSON.stringify(tc)), { assignedTo: tc.assignedTo || currentUser.value.name })
+    } else {
+      Object.assign(form, empty(), {
+        projectId: currentProject.value?.id ?? '',
+        parentId: props.parentId,
+        assignedTo: currentUser.value.name,
+        ...(props.preset ? JSON.parse(JSON.stringify(props.preset)) : {}),
+        ...testCaseStore.nextId(currentProject.value?.id ?? '', props.parentId),
+      })
+      renumber()
+    }
+  },
+  { immediate: true },
+)
 
 function onParentChange(parentId: string | null) {
   if (isEdit.value) return
@@ -140,9 +159,7 @@ const peopleOf = (discipline: 'dev' | 'qa', current?: string) => {
 const devOptions = computed(() => peopleOf('dev', form.assignedDev))
 const qaOptions = computed(() => peopleOf('qa', form.assignedTo))
 // a role that can't give verdicts still sees the current status in the list
-const statusOptions = computed(() =>
-  STATUSES.filter((s) => s.value === form.status || allowedStatuses.value.some((a) => a.value === s.value)),
-)
+const statusOptions = computed(() => STATUSES.filter((s) => s.value === form.status || allowedStatuses.value.some((a) => a.value === s.value)))
 
 // --- steps -------------------------------------------------------------------
 const stepFields: { key: StepField; label: string; placeholder: string }[] = [
@@ -265,9 +282,7 @@ const rules = { required }
             <v-window-item value="spec" eager>
               <v-alert v-if="testCase?.reviewNeeded" type="warning" variant="tonal" density="compact" icon="tabler:alert-circle" class="mb-4">
                 {{ testCase.reviewNeeded.reason }} หลังเขียนเคสนี้ ตรวจข้อกำหนดและขั้นตอนให้ตรงกับ Requirement
-                <template v-if="!readonly">
-                  บันทึกการแก้ไขแล้วสถานะนี้จะหายไป ถ้าไม่ต้องแก้ ให้เลือก "ทบทวนแล้ว" จากเมนูของเคส
-                </template>
+                <template v-if="!readonly"> บันทึกการแก้ไขแล้วสถานะนี้จะหายไป ถ้าไม่ต้องแก้ ให้เลือก "ทบทวนแล้ว" จากเมนูของเคส </template>
               </v-alert>
               <v-row dense class="fox-form-grid">
                 <v-col v-if="!isEdit || form.parentId" cols="12" sm="6">
@@ -326,13 +341,24 @@ const rules = { required }
                     v-model="form.requirement"
                     rows="3"
                     auto-grow
-                    :placeholder="hasLinkedRequirement ? 'ไม่บังคับ: เงื่อนไขเฉพาะของเคสนี้ที่ไม่มีใน Requirement' : 'REQ-ID หรือเกณฑ์ที่ระบบต้องตอบสนอง (ถ้ายังไม่มีใน Requirements)'"
+                    :placeholder="
+                      hasLinkedRequirement
+                        ? 'ไม่บังคับ: เงื่อนไขเฉพาะของเคสนี้ที่ไม่มีใน Requirement'
+                        : 'REQ-ID หรือเกณฑ์ที่ระบบต้องตอบสนอง (ถ้ายังไม่มีใน Requirements)'
+                    "
                     :rules="[requirementRule]"
                   />
                 </v-col>
                 <v-col cols="12" sm="6">
                   <label class="fox-label" for="tc-scenario">Test Scenario *</label>
-                  <v-textarea id="tc-scenario" v-model="form.testScenario" rows="3" auto-grow placeholder="สถานการณ์ที่ต้องการทดสอบ" :rules="[rules.required]" />
+                  <v-textarea
+                    id="tc-scenario"
+                    v-model="form.testScenario"
+                    rows="3"
+                    auto-grow
+                    placeholder="สถานการณ์ที่ต้องการทดสอบ"
+                    :rules="[rules.required]"
+                  />
                 </v-col>
                 <v-col cols="12" sm="6">
                   <label class="fox-label" for="tc-pre">Prerequisite</label>
@@ -345,15 +371,35 @@ const rules = { required }
 
                 <v-col cols="12" sm="4">
                   <label class="fox-label" for="tc-due">วันครบกำหนด *</label>
-                  <v-text-field id="tc-due" v-model="form.expiryDate" type="date" prepend-inner-icon="tabler:calendar-due" :rules="[rules.required]" />
+                  <v-text-field
+                    id="tc-due"
+                    v-model="form.expiryDate"
+                    type="date"
+                    prepend-inner-icon="tabler:calendar-due"
+                    :rules="[rules.required]"
+                  />
                 </v-col>
                 <v-col cols="12" sm="4">
                   <label class="fox-label" for="tc-dev">Developer ผู้รับผิดชอบ</label>
-                  <v-select id="tc-dev" v-model="form.assignedDev" :items="devOptions" placeholder="ยังไม่ระบุ" prepend-inner-icon="tabler:code" clearable />
+                  <v-select
+                    id="tc-dev"
+                    v-model="form.assignedDev"
+                    :items="devOptions"
+                    placeholder="ยังไม่ระบุ"
+                    prepend-inner-icon="tabler:code"
+                    clearable
+                  />
                 </v-col>
                 <v-col cols="12" sm="4">
                   <label class="fox-label" for="tc-qa">QA ผู้รับผิดชอบ</label>
-                  <v-select id="tc-qa" v-model="form.assignedTo" :items="qaOptions" placeholder="ยังไม่ระบุ" prepend-inner-icon="tabler:shield-check" clearable />
+                  <v-select
+                    id="tc-qa"
+                    v-model="form.assignedTo"
+                    :items="qaOptions"
+                    placeholder="ยังไม่ระบุ"
+                    prepend-inner-icon="tabler:shield-check"
+                    clearable
+                  />
                 </v-col>
 
                 <template v-if="isEdit && !readonly">
@@ -361,7 +407,11 @@ const rules = { required }
                     <v-divider class="mb-2" />
                     <span class="text-overline text-muted">การปรับเวอร์ชัน</span>
                     <p class="text-caption text-muted">
-                      {{ specChanged ? `บันทึกแล้วจะขึ้นเวอร์ชันใหม่ต่อจาก ${testCase?.version}` : 'ยังไม่ได้แก้ข้อกำหนดหรือขั้นตอน เวอร์ชันจะไม่เปลี่ยน (สถานะ กำหนดส่ง และผู้รับผิดชอบบันทึกใน Audit)' }}
+                      {{
+                        specChanged
+                          ? `บันทึกแล้วจะขึ้นเวอร์ชันใหม่ต่อจาก ${testCase?.version}`
+                          : 'ยังไม่ได้แก้ข้อกำหนดหรือขั้นตอน เวอร์ชันจะไม่เปลี่ยน (สถานะ กำหนดส่ง และผู้รับผิดชอบบันทึกใน Audit)'
+                      }}
                     </p>
                   </v-col>
                   <v-col cols="12" sm="8">
@@ -387,7 +437,9 @@ const rules = { required }
               <v-expand-transition>
                 <v-card v-if="pasteOpen" color="light-primary" variant="flat" class="pa-4 mb-4">
                   <label class="fox-label" for="tc-paste">คัดลอกแถวจาก Excel / Google Sheets แล้ววางที่นี่</label>
-                  <p class="text-caption text-muted mb-2">คอลัมน์ตามลำดับ: ขั้นตอน (Action) · Test Data · Expected Result — หนึ่งบรรทัดต่อหนึ่งขั้นตอน</p>
+                  <p class="text-caption text-muted mb-2">
+                    คอลัมน์ตามลำดับ: ขั้นตอน (Action) · Test Data · Expected Result — หนึ่งบรรทัดต่อหนึ่งขั้นตอน
+                  </p>
                   <v-textarea id="tc-paste" v-model="pasteText" rows="4" auto-grow bg-color="surface" placeholder="เปิดหน้า Login	/login	แสดงฟอร์ม" />
                   <div class="d-flex flex-wrap align-center ga-2 mt-3">
                     <span class="text-body-2 text-muted">พบ {{ pastedRows.length }} ขั้นตอน</span>
@@ -432,12 +484,36 @@ const rules = { required }
                           :aria-label="readonly ? undefined : `แก้ไข ${f.label} ขั้นที่ ${i + 1}`"
                           @focus="editStep(step, f.key)"
                           @click="editStep(step, f.key)"
-                        >{{ step[f.key] || (readonly ? '-' : f.placeholder) }}</div>
+                        >
+                          {{ step[f.key] || (readonly ? '-' : f.placeholder) }}
+                        </div>
                       </td>
                       <td v-if="!readonly" class="text-no-wrap">
-                        <v-btn icon="tabler:chevron-up" variant="text" size="x-small" :disabled="i === 0" aria-label="เลื่อนขึ้น" @click="moveStep(i, -1)" />
-                        <v-btn icon="tabler:chevron-down" variant="text" size="x-small" :disabled="i === form.steps.length - 1" aria-label="เลื่อนลง" @click="moveStep(i, 1)" />
-                        <v-btn icon="tabler:trash" variant="text" size="x-small" color="error" :disabled="form.steps.length === 1" aria-label="ลบขั้นตอน" @click="removeStep(i)" />
+                        <v-btn
+                          icon="tabler:chevron-up"
+                          variant="text"
+                          size="x-small"
+                          :disabled="i === 0"
+                          aria-label="เลื่อนขึ้น"
+                          @click="moveStep(i, -1)"
+                        />
+                        <v-btn
+                          icon="tabler:chevron-down"
+                          variant="text"
+                          size="x-small"
+                          :disabled="i === form.steps.length - 1"
+                          aria-label="เลื่อนลง"
+                          @click="moveStep(i, 1)"
+                        />
+                        <v-btn
+                          icon="tabler:trash"
+                          variant="text"
+                          size="x-small"
+                          color="error"
+                          :disabled="form.steps.length === 1"
+                          aria-label="ลบขั้นตอน"
+                          @click="removeStep(i)"
+                        />
                       </td>
                     </tr>
                   </tbody>
@@ -450,13 +526,7 @@ const rules = { required }
               <v-row dense class="fox-form-grid">
                 <v-col cols="12" sm="6">
                   <label class="fox-label" for="tc-status">สถานะผลการทดสอบ</label>
-                  <v-select
-                    id="tc-status"
-                    v-model="form.status"
-                    :items="statusOptions"
-                    item-title="label"
-                    item-value="value"
-                  >
+                  <v-select id="tc-status" v-model="form.status" :items="statusOptions" item-title="label" item-value="value">
                     <template #item="{ props: item, item: { raw } }">
                       <v-list-item v-bind="item" :prepend-icon="raw.icon" :base-color="raw.tone" :subtitle="raw.hint" />
                     </template>
@@ -478,7 +548,14 @@ const rules = { required }
                 <v-col cols="12" md="6">
                   <v-card variant="flat" color="light-primary" class="pa-4 h-100">
                     <label class="fox-label" for="tc-actual">ผลลัพธ์จริง</label>
-                    <v-textarea id="tc-actual" v-model="form.actualResults" rows="3" auto-grow bg-color="surface" placeholder="สิ่งที่เกิดขึ้นจริง ข้อผิดพลาด หรือ Response Time" />
+                    <v-textarea
+                      id="tc-actual"
+                      v-model="form.actualResults"
+                      rows="3"
+                      auto-grow
+                      bg-color="surface"
+                      placeholder="สิ่งที่เกิดขึ้นจริง ข้อผิดพลาด หรือ Response Time"
+                    />
                     <div class="fox-label mt-4">ภาพหลักฐานผลการทดสอบ (Actual)</div>
                     <FoxImageUpload v-model="form.actualImages" :readonly="readonly" />
                   </v-card>
@@ -504,7 +581,15 @@ const rules = { required }
       </v-card-text>
 
       <v-divider />
-      <v-alert v-if="invalidatesPass" type="warning" variant="tonal" density="compact" icon="tabler:refresh-alert" class="mx-4 mt-4 flex-shrink-0" rounded="lg">
+      <v-alert
+        v-if="invalidatesPass"
+        type="warning"
+        variant="tonal"
+        density="compact"
+        icon="tabler:refresh-alert"
+        class="mx-4 mt-4 flex-shrink-0"
+        rounded="lg"
+      >
         เคสนี้ผ่านการทดสอบแล้ว เมื่อบันทึกการแก้ไขข้อกำหนด ผลผ่านของ {{ testCase?.version }} จะถูกยกเลิก และสถานะกลับเป็น "พร้อมให้ทดสอบ"
       </v-alert>
       <div class="d-flex flex-wrap align-center ga-3 fox-card-body py-4 flex-shrink-0">
@@ -560,7 +645,9 @@ const rules = { required }
 
 .tc-step-text--editable {
   cursor: text;
-  transition: border-color 0.15s, background-color 0.15s;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
 }
 
 .tc-step-text--editable:hover {

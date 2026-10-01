@@ -1,6 +1,20 @@
 import type {
-  ActiveUserPresence, Actor, Option, PermissionKey, Requirement, TestCase, TestCaseImpact, TestCaseInput, TestCaseOrder, TestCaseSpec, TestCasePriority, TestCaseReorderResult,
-  TestCaseStatus, TestCaseUpdateResult, TestCaseVersionRecord, Tone,
+  ActiveUserPresence,
+  Actor,
+  Option,
+  PermissionKey,
+  Requirement,
+  TestCase,
+  TestCaseImpact,
+  TestCaseInput,
+  TestCaseOrder,
+  TestCaseSpec,
+  TestCasePriority,
+  TestCaseReorderResult,
+  TestCaseStatus,
+  TestCaseUpdateResult,
+  TestCaseVersionRecord,
+  Tone,
 } from '@/types'
 import { daysFromToday } from '@/utils/date'
 import { detachAuditCases, renameAuditCases } from './audit.service'
@@ -23,8 +37,7 @@ export const STATUSES: Option<TestCaseStatus>[] = [
   { value: 'blocked', label: 'Blocked', hint: 'ติดปัญหาภายนอก', tone: 'caution', icon: 'tabler:ban' },
 ]
 
-export const statusOf = (status: TestCaseStatus): Option<TestCaseStatus> =>
-  STATUSES.find((s) => s.value === status) ?? STATUSES[2]
+export const statusOf = (status: TestCaseStatus): Option<TestCaseStatus> => STATUSES.find((s) => s.value === status) ?? STATUSES[2]
 
 /** QA verdicts (need canExecuteTest) */
 export const EXECUTION_STATUSES: TestCaseStatus[] = ['in_progress', 'passed', 'failed', 'blocked', 'untested']
@@ -36,8 +49,7 @@ export const PRIORITIES: Option<TestCasePriority>[] = [
   { value: 'low', label: 'Low', hint: 'ต่ำ', tone: 'secondary', icon: 'tabler:chevron-down' },
 ]
 
-export const priorityOf = (priority: TestCasePriority): Option<TestCasePriority> =>
-  PRIORITIES.find((p) => p.value === priority) ?? PRIORITIES[2]
+export const priorityOf = (priority: TestCasePriority): Option<TestCasePriority> => PRIORITIES.find((p) => p.value === priority) ?? PRIORITIES[2]
 
 export const ROOT_CAUSES: string[] = [
   'Race Condition',
@@ -79,8 +91,7 @@ export function dwellOf(status: TestCaseStatus): { label: string; tone: Tone; ic
 
 // --- SLA helpers ---------------------------------------------------------------
 /** Passed cases never count as overdue */
-export const isOverdue = (tc: TestCase): boolean =>
-  !!tc.expiryDate && tc.status !== 'passed' && daysFromToday(tc.expiryDate) < 0
+export const isOverdue = (tc: TestCase): boolean => !!tc.expiryDate && tc.status !== 'passed' && daysFromToday(tc.expiryDate) < 0
 
 export const overdueDays = (tc: TestCase): number => (isOverdue(tc) ? -daysFromToday(tc.expiryDate) : 0)
 
@@ -94,15 +105,27 @@ export const isDueSoon = (tc: TestCase, days = 3): boolean => {
 export const isHighChurn = (tc: TestCase): boolean => (tc.churnCount ?? 0) > 1
 
 /** fields that define what is tested; changing any of them makes a new version */
-const SPEC_FIELDS = ['name', 'requirement', 'requirementIds', 'testScenario', 'description', 'prerequisite', 'steps', 'expectedResults', 'expectedImages'] as const satisfies readonly (keyof TestCase)[]
+const SPEC_FIELDS = [
+  'name',
+  'requirement',
+  'requirementIds',
+  'testScenario',
+  'description',
+  'prerequisite',
+  'steps',
+  'expectedResults',
+  'expectedImages',
+] as const satisfies readonly (keyof TestCase)[]
 
 /** comparable form of a spec field: steps by text and order, empty lists equal to missing */
 function specValue(tc: Partial<TestCase>, field: (typeof SPEC_FIELDS)[number]): string {
   const value =
     field === 'steps'
       ? tc.steps?.map((s) => [s.action.trim(), s.testData.trim(), s.expectedResult.trim()]).filter((s) => s.some(Boolean))
-      : typeof tc[field] === 'string' ? (tc[field] as string).trim() : tc[field]
-  return JSON.stringify(Array.isArray(value) && !value.length ? null : value ?? null)
+      : typeof tc[field] === 'string'
+        ? (tc[field] as string).trim()
+        : tc[field]
+  return JSON.stringify(Array.isArray(value) && !value.length ? null : (value ?? null))
 }
 
 /**
@@ -158,7 +181,10 @@ export function specDiff(a: TestCaseSpec, b: TestCaseSpec, projectId = '', requi
 
 /** v1.0 -> v1.1, or v2.0 when `major` */
 export function nextVersion(current = 'v1.0', major = false): string {
-  const [maj = 1, min = 0] = current.replace(/^v/i, '').split('.').map((n) => parseInt(n, 10) || 0)
+  const [maj = 1, min = 0] = current
+    .replace(/^v/i, '')
+    .split('.')
+    .map((n) => parseInt(n, 10) || 0)
   return major ? `v${maj + 1}.0` : `v${maj || 1}.${min + 1}`
 }
 
@@ -177,11 +203,13 @@ export function applyCasePatch(old: TestCase, patch: Partial<TestCaseInput>, act
   const { changeSummary, bumpMajor, ...updates } = patch
   const specChanged = hasSpecChanges(old, updates, requirementsOf(old.projectId))
   const passInvalidated = specChanged && old.status === 'passed' && (updates.status ?? old.status) === 'passed'
-  const status = passInvalidated ? 'ready_for_test' : updates.status ?? old.status
+  const status = passInvalidated ? 'ready_for_test' : (updates.status ?? old.status)
   const version =
-    updates.version && updates.version !== old.version ? updates.version
-    : specChanged || bumpMajor ? nextVersion(old.version, bumpMajor)
-    : old.version
+    updates.version && updates.version !== old.version
+      ? updates.version
+      : specChanged || bumpMajor
+        ? nextVersion(old.version, bumpMajor)
+        : old.version
   const newVersion = version !== old.version
   const record: TestCaseVersionRecord = {
     version,
@@ -225,7 +253,8 @@ const SEED_TEST_CASES: TestCase[] = [
     requirement: 'REQ-PAY-01: ผู้ใช้สามารถสร้าง Dynamic PromptPay QR Code สำหรับชำระเงินตามยอดเงินที่ระบุได้',
     testScenario: 'ทดสอบการสร้างและสแกน Dynamic PromptPay QR Code ด้วยยอดเงินถูกต้อง',
     name: 'สร้าง Dynamic PromptPay QR Code และยืนยันการชำระเงินสำเร็จ',
-    description: 'ตรวจสอบว่าเมื่อลูกค้ากดยืนยันชำระเงินด้วย PromptPay ระบบสามารถ Generate QR Code พร้อม Transaction Reference และเมื่อธนาคารส่ง Webhook กลับมา ระบบจะเปลี่ยนสถานะเป็น Paid ทันที',
+    description:
+      'ตรวจสอบว่าเมื่อลูกค้ากดยืนยันชำระเงินด้วย PromptPay ระบบสามารถ Generate QR Code พร้อม Transaction Reference และเมื่อธนาคารส่ง Webhook กลับมา ระบบจะเปลี่ยนสถานะเป็น Paid ทันที',
     prerequisite: '1. บัญชี Merchant เปิดใช้งาน PromptPay API แล้ว\n2. Mock Bank Gateway เชื่อมต่อและพร้อมตอบกลับ Webhook Callback',
     steps: [
       {
@@ -251,13 +280,9 @@ const SEED_TEST_CASES: TestCase[] = [
       },
     ],
     expectedResults: 'QR Code ถูกสร้างขึ้นอย่างถูกต้องตามมาตรฐาน EMVCo, เมื่อชำระเงินแล้วสถานะเปลี่ยนเป็น PAID ทันที และมี Receipt ส่งเข้าอีเมล',
-    expectedImages: [
-      'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=500&auto=format&fit=crop&q=80'
-    ],
+    expectedImages: ['https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=500&auto=format&fit=crop&q=80'],
     actualResults: 'ระบบทำงานได้สมบูรณ์ตามเกณฑ์ ทุกขั้นตอนผ่านฉลุย Response Time เฉลี่ย 230ms',
-    actualImages: [
-      'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=500&auto=format&fit=crop&q=80'
-    ],
+    actualImages: ['https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=500&auto=format&fit=crop&q=80'],
     status: 'passed',
     priority: 'critical',
     expiryDate: '2026-10-10',
@@ -271,28 +296,28 @@ const SEED_TEST_CASES: TestCase[] = [
         updatedBy: 'Somchai Prasert',
         timestamp: '2026-09-20T08:00:00Z',
         changeSummary: 'สร้าง Initial Test Specification',
-        status: 'untested'
+        status: 'untested',
       },
       {
         version: 'v1.1',
         updatedBy: 'Somchai Prasert',
         timestamp: '2026-09-25T11:00:00Z',
         changeSummary: 'เพิ่ม Test Data และ Step 3 Webhook Reconciliation',
-        status: 'in_progress'
+        status: 'in_progress',
       },
       {
         version: 'v1.2',
         updatedBy: 'Somchai Prasert',
         timestamp: '2026-09-30T10:15:00Z',
         changeSummary: 'รันการทดสอบจริงสำเร็จ แนบภาพหลักฐานผลการทดสอบ',
-        status: 'passed'
-      }
+        status: 'passed',
+      },
     ],
     activeUser: {
       id: 'user-1',
       name: 'Somchai Prasert',
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-      action: 'editing'
+      action: 'editing',
     },
     createdAt: '2026-09-20T08:00:00Z',
     updatedAt: '2026-09-30T10:15:00Z',
@@ -340,14 +365,14 @@ const SEED_TEST_CASES: TestCase[] = [
         updatedBy: 'Pitchaya Srisuk',
         timestamp: '2026-09-22T09:00:00Z',
         changeSummary: 'สร้าง Sub-test case ทดสอบ timeout',
-        status: 'passed'
-      }
+        status: 'passed',
+      },
     ],
     activeUser: {
       id: 'user-2',
       name: 'Pitchaya Srisuk',
       avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-      action: 'viewing'
+      action: 'viewing',
     },
     createdAt: '2026-09-22T09:00:00Z',
     updatedAt: '2026-09-29T14:20:00Z',
@@ -360,7 +385,8 @@ const SEED_TEST_CASES: TestCase[] = [
     requirement: 'REQ-PAY-03: ระบบต้องป้องกัน Double Spending และ Replay Attacks',
     testScenario: 'ทดสอบยิง Webhook ซ้ำพร้อมกัน 10 threads ด้วย Transaction Reference เดียวกัน',
     name: 'Concurrency & Idempotency Test สำหรับ Bank Callback',
-    description: 'ทดสอบการกดขี่ระบบด้วย Concurrency เพื่อดูว่าระบบมีการทำ Distributed Lock (Redis/DB lock) หรือไม่ เพื่อป้องกันการเพิ่ม Balance ซ้ำสองครั้ง',
+    description:
+      'ทดสอบการกดขี่ระบบด้วย Concurrency เพื่อดูว่าระบบมีการทำ Distributed Lock (Redis/DB lock) หรือไม่ เพื่อป้องกันการเพิ่ม Balance ซ้ำสองครั้ง',
     prerequisite: 'JMeter หรือ k6 script เตรียม payload 10 concurrent requests',
     steps: [
       {
@@ -391,35 +417,35 @@ const SEED_TEST_CASES: TestCase[] = [
         updatedBy: 'สมชาย ประเสริฐ (QA)',
         timestamp: '2026-09-22T11:00:00Z',
         changeSummary: 'สร้าง Concurrency Test Scenarios',
-        status: 'untested'
+        status: 'untested',
       },
       {
         version: 'v1.1',
         updatedBy: 'กิตติศักดิ์ พัฒนา (Dev)',
         timestamp: '2026-09-26T14:00:00Z',
         changeSummary: 'Dev ส่งมอบรอบที่ 1 พร้อม Redis lock',
-        status: 'ready_for_test'
+        status: 'ready_for_test',
       },
       {
         version: 'v1.2',
         updatedBy: 'สมชาย ประเสริฐ (QA)',
         timestamp: '2026-09-27T10:00:00Z',
         changeSummary: 'รัน k6 automated test รอบที่ 1 พบ Lock timeout ตีกลับให้ Dev',
-        status: 'failed'
+        status: 'failed',
       },
       {
         version: 'v1.3',
         updatedBy: 'สมชาย ประเสริฐ (QA)',
         timestamp: '2026-09-29T16:30:00Z',
         changeSummary: 'เทสรอบที่ 2 ยังพบ Race condition ใน High-load ตีกลับรอบที่ 3',
-        status: 'failed'
-      }
+        status: 'failed',
+      },
     ],
     activeUser: {
       id: 'user-3',
       name: 'กิตติศักดิ์ พัฒนา (Dev Lead)',
       avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-      action: 'editing'
+      action: 'editing',
     },
     createdAt: '2026-09-22T11:00:00Z',
     updatedAt: '2026-09-29T16:30:00Z',
@@ -441,7 +467,7 @@ const SEED_TEST_CASES: TestCase[] = [
         action: 'ส่งคำสั่ง Callback ไปยัง endpoint ที่จำลองสถานะ 503',
         testData: 'retry_count=1, delay=5s',
         expectedResult: 'ระบบยิงซ้ำตามจังหวะเวลาที่กำหนดอย่างแม่นยำ',
-      }
+      },
     ],
     expectedResults: 'ระบบ Retry ครบ 5 ครั้งแล้วย้าย Payload เข้า DLQ เพื่อรอ Manual Retry',
     expectedImages: [],
@@ -461,28 +487,28 @@ const SEED_TEST_CASES: TestCase[] = [
         updatedBy: 'พิชญา ศรีสุข',
         timestamp: '2026-09-20T08:00:00Z',
         changeSummary: 'Initial Spec Draft',
-        status: 'pending'
+        status: 'pending',
       },
       {
         version: 'v1.1',
         updatedBy: 'ธนากร สุขใจ (Dev)',
         timestamp: '2026-09-25T11:00:00Z',
         changeSummary: 'ส่งมอบรอบแรก',
-        status: 'ready_for_test'
+        status: 'ready_for_test',
       },
       {
         version: 'v1.2',
         updatedBy: 'พิชญา ศรีสุข (QA)',
         timestamp: '2026-09-28T10:00:00Z',
         changeSummary: 'Requirement ของ DLQ ไม่ตรงกับ PO ตีกลับให้ Dev แก้ไขตาม Spec ใหม่',
-        status: 'pending'
-      }
+        status: 'pending',
+      },
     ],
     activeUser: {
       id: 'user-dev-2',
       name: 'ธนากร สุขใจ (Backend API)',
       avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-      action: 'editing'
+      action: 'editing',
     },
     createdAt: '2026-09-20T08:00:00Z',
     updatedAt: '2026-09-28T10:00:00Z',
@@ -521,8 +547,8 @@ const SEED_TEST_CASES: TestCase[] = [
         updatedBy: 'Pitchaya Srisuk',
         timestamp: '2026-09-28T08:00:00Z',
         changeSummary: 'สร้าง Initial Flash Sale Test Spec',
-        status: 'in_progress'
-      }
+        status: 'in_progress',
+      },
     ],
     createdAt: '2026-09-28T08:00:00Z',
     updatedAt: '2026-09-30T05:30:00Z',
@@ -624,7 +650,16 @@ export const createTestCases = (projectId: string, inputs: TestCaseInput[], acto
         version,
         versionHistory: data.versionHistory?.length
           ? data.versionHistory
-          : [{ version, updatedBy: actor.name, timestamp: now, changeSummary: 'สร้าง Test Case ครั้งแรก', status: data.status, snapshot: specOf(data) }],
+          : [
+              {
+                version,
+                updatedBy: actor.name,
+                timestamp: now,
+                changeSummary: 'สร้าง Test Case ครั้งแรก',
+                status: data.status,
+                snapshot: specOf(data),
+              },
+            ],
         activeUser: presenceOf(actor),
         createdAt: now,
         updatedAt: now,
@@ -700,7 +735,10 @@ export const restoreVersion = (projectId: string, id: string, version: string, a
 export function flagCasesForReview(req: Requirement, reason: string): TestCase[] {
   const list = testCases()
   const since = new Date().toISOString()
-  const flagged = casesForRequirement(req, list.filter((x) => !x.archivedAt))
+  const flagged = casesForRequirement(
+    req,
+    list.filter((x) => !x.archivedAt),
+  )
   flagged.forEach((tc) => {
     const codes = new Set([...(tc.reviewNeeded?.requirementCodes ?? []), req.code])
     tc.reviewNeeded = { requirementCodes: [...codes], reason, since }
@@ -823,7 +861,10 @@ export const deleteTestCase = (projectId: string, id: string) =>
     detachDefectCases(projectId, ids)
     detachNotificationCases(projectId, ids)
     detachAuditCases(projectId, ids)
-    save(STORAGE_KEYS.testCases, list.filter((x) => !(x.projectId === projectId && ids.includes(x.id))))
+    save(
+      STORAGE_KEYS.testCases,
+      list.filter((x) => !(x.projectId === projectId && ids.includes(x.id))),
+    )
     return ids
   })
 
@@ -850,7 +891,15 @@ export const reorderTestCases = (projectId: string, order: TestCaseOrder[]) =>
     }
     const subsOf = (parentId: string) => mine.filter((x) => x.parentId === parentId)
     const full: TestCaseOrder[] = [
-      ...order.map((o) => ({ id: o.id, subIds: [...o.subIds, ...subsOf(o.id).filter((x) => x.archivedAt).map((x) => x.id)] })),
+      ...order.map((o) => ({
+        id: o.id,
+        subIds: [
+          ...o.subIds,
+          ...subsOf(o.id)
+            .filter((x) => x.archivedAt)
+            .map((x) => x.id),
+        ],
+      })),
       ...mine.filter((x) => !x.parentId && x.archivedAt).map((p) => ({ id: p.id, subIds: subsOf(p.id).map((x) => x.id) })),
     ]
     const cases = full.flatMap(({ id: oldId, subIds }, p) => {

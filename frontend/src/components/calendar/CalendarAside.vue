@@ -19,8 +19,15 @@ import type { TestCase } from '@/types'
 import { formatDateTH } from '@/utils/date'
 
 const calendar = useCalendarStore()
-const { selectedCase: tc, selectedMilestone: milestone, selectedDate, casesOnSelectedDate, casesBeforeMilestone, churnCases, overdueCases } =
-  storeToRefs(calendar)
+const {
+  selectedCase: tc,
+  selectedMilestone: milestone,
+  selectedDate,
+  casesOnSelectedDate,
+  casesBeforeMilestone,
+  churnCases,
+  overdueCases,
+} = storeToRefs(calendar)
 const store = useTestCaseStore()
 const layout = useLayoutStore()
 const requirementStore = useRequirementStore()
@@ -92,8 +99,17 @@ const handOff = (c: TestCase) => run(() => store.update(c.id, { status: 'ready_f
         </dl>
 
         <div class="d-flex ga-2 mt-4">
-          <v-btn variant="tonal" color="primary" prepend-icon="tabler:calendar-time" class="flex-grow-1" @click="calendar.openExtend(tc.id)">ขยายเวลา</v-btn>
-          <v-btn v-if="tc.status === 'pending' && canHandOff" color="info" prepend-icon="tabler:send" class="flex-grow-1" :loading="busy" @click="handOff(tc)">
+          <v-btn variant="tonal" color="primary" prepend-icon="tabler:calendar-time" class="flex-grow-1" @click="calendar.openExtend(tc.id)"
+            >ขยายเวลา</v-btn
+          >
+          <v-btn
+            v-if="tc.status === 'pending' && canHandOff"
+            color="info"
+            prepend-icon="tabler:send"
+            class="flex-grow-1"
+            :loading="busy"
+            @click="handOff(tc)"
+          >
             ส่งมอบพร้อมเทส
           </v-btn>
         </div>
@@ -137,7 +153,9 @@ const handOff = (c: TestCase) => run(() => store.update(c.id, { status: 'ready_f
             <v-btn icon="tabler:x" variant="text" size="x-small" aria-label="ยกเลิกการเลือก" @click="calendar.selectDate(milestone.date)" />
           </div>
           <h3 class="text-h6 text-high-emphasis">{{ milestone.title }}</h3>
-          <div class="text-body-2 text-high-emphasis">{{ formatDateTH(milestone.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) }}</div>
+          <div class="text-body-2 text-high-emphasis">
+            {{ formatDateTH(milestone.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) }}
+          </div>
         </v-card>
         <p v-if="milestone.description" class="text-body-2 text-muted mt-3 mb-0">{{ milestone.description }}</p>
       </section>
@@ -146,7 +164,9 @@ const handOff = (c: TestCase) => run(() => store.update(c.id, { status: 'ready_f
         <div class="text-overline text-muted mb-2">ครบกำหนดก่อน Milestone นี้ ({{ casesBeforeMilestone.length }})</div>
         <v-list v-if="casesBeforeMilestone.length" class="pa-0">
           <v-list-item v-for="c in casesBeforeMilestone" :key="c.id" class="px-2" @click="calendar.selectCase(c.id)">
-            <v-list-item-title class="text-subtitle-2"><span class="fox-num text-primary">{{ c.id }}</span> {{ c.name }}</v-list-item-title>
+            <v-list-item-title class="text-subtitle-2"
+              ><span class="fox-num text-primary">{{ c.id }}</span> {{ c.name }}</v-list-item-title
+            >
             <v-list-item-subtitle class="text-caption">{{ formatDateTH(c.expiryDate) }}</v-list-item-subtitle>
             <template #append><TestCaseStatusChip :status="c.status" size="x-small" class="ml-2" /></template>
           </v-list-item>
@@ -162,7 +182,9 @@ const handOff = (c: TestCase) => run(() => store.update(c.id, { status: 'ready_f
         <div class="text-subtitle-2 mb-3">{{ dateLabel }}</div>
         <v-list v-if="casesOnSelectedDate.length" class="pa-0">
           <v-list-item v-for="c in casesOnSelectedDate" :key="c.id" class="px-2" @click="calendar.selectCase(c.id)">
-            <v-list-item-title class="text-subtitle-2"><span class="fox-num text-primary">{{ c.id }}</span> {{ c.name }}</v-list-item-title>
+            <v-list-item-title class="text-subtitle-2"
+              ><span class="fox-num text-primary">{{ c.id }}</span> {{ c.name }}</v-list-item-title
+            >
             <v-list-item-subtitle class="text-caption">Dev: {{ c.assignedDev || '-' }}</v-list-item-subtitle>
             <template #append><TestCaseStatusChip :status="c.status" size="x-small" class="ml-2" /></template>
           </v-list-item>
@@ -176,7 +198,9 @@ const handOff = (c: TestCase) => run(() => store.update(c.id, { status: 'ready_f
         <div class="text-overline text-caution mb-2">เคสแก้ซ้ำที่ต้องจับตา</div>
         <div v-if="churnCases.length" class="d-flex flex-column ga-2">
           <button v-for="c in churnCases.slice(0, 5)" :key="c.id" type="button" class="calendar-aside__row" @click="calendar.selectCase(c.id)">
-            <v-avatar color="caution" rounded="lg" size="40"><span class="text-subtitle-2 fox-num">{{ c.churnCount }}×</span></v-avatar>
+            <v-avatar color="caution" rounded="lg" size="40"
+              ><span class="text-subtitle-2 fox-num">{{ c.churnCount }}×</span></v-avatar
+            >
             <span class="overflow-hidden text-start">
               <span class="d-block text-subtitle-2 text-truncate">{{ c.id }} {{ c.name }}</span>
               <span class="d-block text-caption text-muted text-truncate">{{ c.rootCauseTag || 'ยังไม่ระบุ Root Cause' }}</span>
@@ -192,7 +216,9 @@ const handOff = (c: TestCase) => run(() => store.update(c.id, { status: 'ready_f
         <div class="text-overline text-error mb-2">เลยกำหนดส่งมอบ</div>
         <div v-if="overdueCases.length" class="d-flex flex-column ga-2">
           <button v-for="c in overdueCases.slice(0, 5)" :key="c.id" type="button" class="calendar-aside__row" @click="calendar.selectCase(c.id)">
-            <v-avatar color="error" rounded="lg" size="40"><span class="text-subtitle-2 fox-num">{{ overdueDays(c) }}d</span></v-avatar>
+            <v-avatar color="error" rounded="lg" size="40"
+              ><span class="text-subtitle-2 fox-num">{{ overdueDays(c) }}d</span></v-avatar
+            >
             <span class="overflow-hidden text-start">
               <span class="d-block text-subtitle-2 text-truncate">{{ c.id }} {{ c.name }}</span>
               <span class="d-block text-caption text-muted text-truncate">Dev: {{ c.assignedDev || '-' }}</span>

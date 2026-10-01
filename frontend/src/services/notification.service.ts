@@ -64,8 +64,7 @@ const SEED_NOTIFICATIONS: NotificationItem[] = [
 ]
 
 // --- API ------------------------------------------------------------------------
-const write = (fn: (items: NotificationItem[]) => NotificationItem[] | void) =>
-  update(STORAGE_KEYS.notifications, SEED_NOTIFICATIONS, fn)
+const write = (fn: (items: NotificationItem[]) => NotificationItem[] | void) => update(STORAGE_KEYS.notifications, SEED_NOTIFICATIONS, fn)
 
 /** server-side: follow renumbered case ids (old id -> new id) in the project's notifications */
 export function renameNotificationCases(projectId: string, renames: Record<string, string>) {
@@ -93,8 +92,7 @@ export const fetchNotifications = () =>
 export const createNotification = (item: NotificationItem) => respond(() => void write((items) => [item, ...items]), 50)
 
 /** PATCH /notifications/:id/read */
-export const markNotificationRead = (id: string) =>
-  respond(() => void write((items) => items.forEach((n) => n.id === id && (n.read = true))), 100)
+export const markNotificationRead = (id: string) => respond(() => void write((items) => items.forEach((n) => n.id === id && (n.read = true))), 100)
 
 /** POST /notifications/read-all */
 export const markAllNotificationsRead = () => respond(() => void write((items) => items.forEach((n) => (n.read = true))))

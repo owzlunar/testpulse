@@ -2,10 +2,12 @@
 import type { Tone } from '@/types'
 
 const open = defineModel<boolean>({ default: false })
-withDefaults(
-  defineProps<{ title?: string; text?: string; confirmText?: string; tone?: Tone }>(),
-  { title: 'ยืนยันการทำรายการ', text: '', confirmText: 'ยืนยัน', tone: 'error' },
-)
+withDefaults(defineProps<{ title?: string; text?: string; confirmText?: string; tone?: Tone }>(), {
+  title: 'ยืนยันการทำรายการ',
+  text: '',
+  confirmText: 'ยืนยัน',
+  tone: 'error',
+})
 const emit = defineEmits<{ confirm: [] }>()
 
 function confirm() {

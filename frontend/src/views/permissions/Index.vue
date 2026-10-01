@@ -42,7 +42,7 @@ const listed = computed(() => {
 const selectedId = ref<string | null>(typeof route.query.role === 'string' ? route.query.role : null)
 const selected = computed(() => roles.value.find((r) => r.id === selectedId.value) ?? (mdAndUp.value ? roles.value[0] : null) ?? null)
 /** phones show the list or the detail, not both */
-const showDetail = computed(() => mdAndUp.value || !!selected.value && !!selectedId.value)
+const showDetail = computed(() => mdAndUp.value || (!!selected.value && !!selectedId.value))
 
 const draft = ref<PermissionKey[]>([])
 const sorted = (keys: PermissionKey[]) => [...keys].sort().join()
@@ -55,7 +55,11 @@ const changes = computed(() => {
 })
 
 // a new role selected (or the saved role changed): start the draft from what is saved
-watch(() => [selected.value?.id, selected.value?.updatedAt], () => (draft.value = [...(selected.value?.permissions ?? [])]), { immediate: true })
+watch(
+  () => [selected.value?.id, selected.value?.updatedAt],
+  () => (draft.value = [...(selected.value?.permissions ?? [])]),
+  { immediate: true },
+)
 
 const pendingSelect = ref<string | null>(null)
 const discardOpen = computed({ get: () => pendingSelect.value !== null, set: (v) => !v && (pendingSelect.value = null) })
@@ -79,7 +83,10 @@ function discardAndSelect() {
 function savePermissions() {
   const role = selected.value
   if (!role) return
-  run(() => auth.saveRole({ ...role, permissions: draft.value }), () => notify(`บันทึกสิทธิ์ของ ${role.name} แล้ว`))
+  run(
+    () => auth.saveRole({ ...role, permissions: draft.value }),
+    () => notify(`บันทึกสิทธิ์ของ ${role.name} แล้ว`),
+  )
 }
 
 function openFromCompare(id: string) {
@@ -125,13 +132,16 @@ function askDelete(role: Role) {
 function onDelete() {
   const role = deleting.value
   if (!role) return
-  run(() => auth.deleteRole(role.id, moveTo.value), () => {
-    deleting.value = null
-    draft.value = []
-    selectedId.value = null
-    router.replace({ query: { ...route.query, role: undefined } })
-    notify(`ลบ Role ${role.name} แล้ว`)
-  })
+  run(
+    () => auth.deleteRole(role.id, moveTo.value),
+    () => {
+      deleting.value = null
+      draft.value = []
+      selectedId.value = null
+      router.replace({ query: { ...route.query, role: undefined } })
+      notify(`ลบ Role ${role.name} แล้ว`)
+    },
+  )
 }
 </script>
 
@@ -143,97 +153,112 @@ function onDelete() {
   </FoxPageHeader>
 
   <v-tabs v-model="tab" class="mb-4">
-    <v-tab value="roles" prepend-icon="tabler:shield-lock">Role <span class="text-caption text-muted fox-num ml-1">{{ roles.length }}</span></v-tab>
+    <v-tab value="roles" prepend-icon="tabler:shield-lock"
+      >Role <span class="text-caption text-muted fox-num ml-1">{{ roles.length }}</span></v-tab
+    >
     <v-tab value="compare" prepend-icon="tabler:columns">เปรียบเทียบสิทธิ์</v-tab>
   </v-tabs>
 
   <!-- plain v-if, not v-window: v-window clips overflow, which would stop the sticky list and save bar -->
   <!-- ROLES: list + detail -->
   <template v-if="tab === 'roles'">
-      <v-row class="fox-grid">
-        <v-col v-if="mdAndUp || !showDetail" cols="12" md="4" lg="3">
-          <v-card class="role-list">
-            <div class="pa-3">
-              <v-text-field v-model="search" density="compact" placeholder="ค้นหา Role" prepend-inner-icon="tabler:search" aria-label="ค้นหา Role" hide-details clearable />
-            </div>
-            <v-divider />
-            <v-list density="compact" nav class="role-list__items">
-              <v-list-item
-                v-for="r in listed"
-                :key="r.id"
-                :active="r.id === selected?.id"
-                color="primary"
-                class="py-2"
-                @click="select(r.id)"
-              >
-                <template #prepend>
-                  <v-avatar :color="r.tone" size="32" class="mr-3"><v-icon :icon="r.icon" size="16" /></v-avatar>
-                </template>
-                <v-list-item-title class="text-subtitle-2">{{ r.name }}</v-list-item-title>
-                <v-list-item-subtitle class="text-caption">{{ disciplineOf(r).label }} · {{ usersOf(r).length }} ผู้ใช้</v-list-item-subtitle>
-                <template #append>
-                  <v-icon v-if="r.builtIn" icon="tabler:lock" size="14" class="text-muted" title="Role ของระบบ" />
-                </template>
-              </v-list-item>
-              <v-list-item v-if="!listed.length" class="text-body-2 text-muted">ไม่พบ Role</v-list-item>
-            </v-list>
-          </v-card>
-        </v-col>
+    <v-row class="fox-grid">
+      <v-col v-if="mdAndUp || !showDetail" cols="12" md="4" lg="3">
+        <v-card class="role-list">
+          <div class="pa-3">
+            <v-text-field
+              v-model="search"
+              density="compact"
+              placeholder="ค้นหา Role"
+              prepend-inner-icon="tabler:search"
+              aria-label="ค้นหา Role"
+              hide-details
+              clearable
+            />
+          </div>
+          <v-divider />
+          <v-list density="compact" nav class="role-list__items">
+            <v-list-item v-for="r in listed" :key="r.id" :active="r.id === selected?.id" color="primary" class="py-2" @click="select(r.id)">
+              <template #prepend>
+                <v-avatar :color="r.tone" size="32" class="mr-3"><v-icon :icon="r.icon" size="16" /></v-avatar>
+              </template>
+              <v-list-item-title class="text-subtitle-2">{{ r.name }}</v-list-item-title>
+              <v-list-item-subtitle class="text-caption">{{ disciplineOf(r).label }} · {{ usersOf(r).length }} ผู้ใช้</v-list-item-subtitle>
+              <template #append>
+                <v-icon v-if="r.builtIn" icon="tabler:lock" size="14" class="text-muted" title="Role ของระบบ" />
+              </template>
+            </v-list-item>
+            <v-list-item v-if="!listed.length" class="text-body-2 text-muted">ไม่พบ Role</v-list-item>
+          </v-list>
+        </v-card>
+      </v-col>
 
-        <v-col v-if="showDetail && selected" cols="12" md="8" lg="9">
-          <v-card class="overflow-visible">
-            <div class="fox-card-body">
-              <v-btn v-if="!mdAndUp" variant="text" size="small" prepend-icon="tabler:arrow-left" class="mb-2 px-1" @click="select(null)">รายการ Role</v-btn>
-              <div class="d-flex flex-wrap align-start ga-4">
-                <v-avatar :color="selected.tone" size="56"><v-icon :icon="selected.icon" size="28" /></v-avatar>
-                <div class="flex-grow-1 overflow-hidden">
-                  <div class="d-flex flex-wrap align-center ga-2">
-                    <h2 class="text-h5">{{ selected.name }}</h2>
-                    <v-chip v-if="selected.builtIn" size="x-small" color="primary" variant="tonal" prepend-icon="tabler:lock">ระบบ</v-chip>
-                  </div>
-                  <div class="text-body-2 text-muted">
-                    <v-icon :icon="disciplineOf(selected).icon" size="14" /> {{ disciplineOf(selected).label }} ·
-                    <span class="fox-num">{{ selected.permissions.length }} / {{ ALL_PERMISSIONS.length }}</span> สิทธิ์
-                  </div>
-                  <p class="text-body-2 mt-1 mb-0">{{ selected.description || '-' }}</p>
+      <v-col v-if="showDetail && selected" cols="12" md="8" lg="9">
+        <v-card class="overflow-visible">
+          <div class="fox-card-body">
+            <v-btn v-if="!mdAndUp" variant="text" size="small" prepend-icon="tabler:arrow-left" class="mb-2 px-1" @click="select(null)"
+              >รายการ Role</v-btn
+            >
+            <div class="d-flex flex-wrap align-start ga-4">
+              <v-avatar :color="selected.tone" size="56"><v-icon :icon="selected.icon" size="28" /></v-avatar>
+              <div class="flex-grow-1 overflow-hidden">
+                <div class="d-flex flex-wrap align-center ga-2">
+                  <h2 class="text-h5">{{ selected.name }}</h2>
+                  <v-chip v-if="selected.builtIn" size="x-small" color="primary" variant="tonal" prepend-icon="tabler:lock">ระบบ</v-chip>
                 </div>
-                <div class="d-flex flex-wrap ga-1">
-                  <v-btn variant="tonal" color="primary" size="small" prepend-icon="tabler:pencil" @click="openRole(selected)">แก้ไขข้อมูล</v-btn>
-                  <v-btn variant="text" size="small" prepend-icon="tabler:copy" @click="openRole(null, selected)">ทำสำเนา</v-btn>
-                  <v-btn v-if="!selected.builtIn" icon="tabler:trash" variant="text" size="small" color="error" :aria-label="`ลบ Role ${selected.name}`" @click="askDelete(selected)" />
+                <div class="text-body-2 text-muted">
+                  <v-icon :icon="disciplineOf(selected).icon" size="14" /> {{ disciplineOf(selected).label }} ·
+                  <span class="fox-num">{{ selected.permissions.length }} / {{ ALL_PERMISSIONS.length }}</span> สิทธิ์
                 </div>
+                <p class="text-body-2 mt-1 mb-0">{{ selected.description || '-' }}</p>
               </div>
-
-              <div class="text-overline text-muted mt-4">ผู้ใช้ใน Role นี้ ({{ usersOf(selected).length }})</div>
-              <div v-if="usersOf(selected).length" class="d-flex flex-wrap ga-2">
-                <v-chip v-for="u in usersOf(selected)" :key="u.id" size="small" variant="tonal">
-                  <template #prepend><UserAvatar :user="u" size="18" class="mr-1" /></template>
-                  {{ u.name }}
-                </v-chip>
+              <div class="d-flex flex-wrap ga-1">
+                <v-btn variant="tonal" color="primary" size="small" prepend-icon="tabler:pencil" @click="openRole(selected)">แก้ไขข้อมูล</v-btn>
+                <v-btn variant="text" size="small" prepend-icon="tabler:copy" @click="openRole(null, selected)">ทำสำเนา</v-btn>
+                <v-btn
+                  v-if="!selected.builtIn"
+                  icon="tabler:trash"
+                  variant="text"
+                  size="small"
+                  color="error"
+                  :aria-label="`ลบ Role ${selected.name}`"
+                  @click="askDelete(selected)"
+                />
               </div>
-              <p v-else class="text-body-2 text-muted mb-0">ยังไม่มีผู้ใช้ (กำหนด Role ได้ที่หน้าผู้ใช้งาน)</p>
-
-              <div class="d-flex align-center justify-space-between mt-6 mb-3">
-                <span class="text-overline text-muted">สิทธิ์</span>
-                <span class="text-caption text-muted">การจัดการผู้ใช้ Role ทีม และโปรเจกต์ เป็นของ Admin เท่านั้น</span>
-              </div>
-              <v-alert v-if="selected.builtIn" type="info" variant="tonal" density="compact" class="mb-3">Admin มีทุกสิทธิ์เสมอ</v-alert>
-              <RolePermissionEditor v-model="draft" :disabled="!!selected.builtIn || busy" />
             </div>
 
-            <!-- explicit save: permissions are not written on every click -->
-            <div v-if="!selected.builtIn" class="role-savebar d-flex flex-wrap align-center ga-3 fox-card-body py-3">
-              <span v-if="dirty" class="text-body-2 text-warning d-inline-flex align-center ga-1">
-                <v-icon icon="tabler:point-filled" size="14" />ยังไม่ได้บันทึก {{ changes }} การเปลี่ยนแปลง
-              </span>
-              <span v-else class="text-body-2 text-muted">บันทึกแล้ว · มีผลกับผู้ใช้ใน Role นี้ทันทีที่บันทึก</span>
-              <v-spacer />
-              <v-btn variant="outlined" :disabled="!dirty || busy" @click="draft = [...selected.permissions]">ยกเลิก</v-btn>
-              <v-btn color="primary" prepend-icon="tabler:device-floppy" :disabled="!dirty" :loading="busy" @click="savePermissions">บันทึกสิทธิ์</v-btn>
+            <div class="text-overline text-muted mt-4">ผู้ใช้ใน Role นี้ ({{ usersOf(selected).length }})</div>
+            <div v-if="usersOf(selected).length" class="d-flex flex-wrap ga-2">
+              <v-chip v-for="u in usersOf(selected)" :key="u.id" size="small" variant="tonal">
+                <template #prepend><UserAvatar :user="u" size="18" class="mr-1" /></template>
+                {{ u.name }}
+              </v-chip>
             </div>
-          </v-card>
-        </v-col>
-      </v-row>
+            <p v-else class="text-body-2 text-muted mb-0">ยังไม่มีผู้ใช้ (กำหนด Role ได้ที่หน้าผู้ใช้งาน)</p>
+
+            <div class="d-flex align-center justify-space-between mt-6 mb-3">
+              <span class="text-overline text-muted">สิทธิ์</span>
+              <span class="text-caption text-muted">การจัดการผู้ใช้ Role ทีม และโปรเจกต์ เป็นของ Admin เท่านั้น</span>
+            </div>
+            <v-alert v-if="selected.builtIn" type="info" variant="tonal" density="compact" class="mb-3">Admin มีทุกสิทธิ์เสมอ</v-alert>
+            <RolePermissionEditor v-model="draft" :disabled="!!selected.builtIn || busy" />
+          </div>
+
+          <!-- explicit save: permissions are not written on every click -->
+          <div v-if="!selected.builtIn" class="role-savebar d-flex flex-wrap align-center ga-3 fox-card-body py-3">
+            <span v-if="dirty" class="text-body-2 text-warning d-inline-flex align-center ga-1">
+              <v-icon icon="tabler:point-filled" size="14" />ยังไม่ได้บันทึก {{ changes }} การเปลี่ยนแปลง
+            </span>
+            <span v-else class="text-body-2 text-muted">บันทึกแล้ว · มีผลกับผู้ใช้ใน Role นี้ทันทีที่บันทึก</span>
+            <v-spacer />
+            <v-btn variant="outlined" :disabled="!dirty || busy" @click="draft = [...selected.permissions]">ยกเลิก</v-btn>
+            <v-btn color="primary" prepend-icon="tabler:device-floppy" :disabled="!dirty" :loading="busy" @click="savePermissions"
+              >บันทึกสิทธิ์</v-btn
+            >
+          </div>
+        </v-card>
+      </v-col>
+    </v-row>
   </template>
 
   <!-- COMPARE -->
@@ -255,7 +280,11 @@ function onDelete() {
       <h2 class="text-h5 mb-2">ลบ Role {{ deleting.name }}?</h2>
       <p class="text-body-2 text-muted mb-4">
         <template v-if="usersOf(deleting).length">
-          ผู้ใช้ {{ usersOf(deleting).length }} คนใน Role นี้ ({{ usersOf(deleting).map((u) => u.name).join(', ') }}) จะถูกย้ายไป Role ที่เลือก
+          ผู้ใช้ {{ usersOf(deleting).length }} คนใน Role นี้ ({{
+            usersOf(deleting)
+              .map((u) => u.name)
+              .join(', ')
+          }}) จะถูกย้ายไป Role ที่เลือก
         </template>
         <template v-else>ไม่มีผู้ใช้ใน Role นี้</template>
       </p>

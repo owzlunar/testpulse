@@ -147,7 +147,9 @@ function remove(index: number) {
   border-radius: var(--fox-radius-control);
   color: rgb(var(--v-theme-muted));
   cursor: text;
-  transition: background-color 0.15s, border-color 0.15s;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s;
 }
 
 .fox-upload__zone:focus-visible,

@@ -32,7 +32,12 @@ const stats = computed(() => {
   const open = current.value.filter(isOpenDefect)
   return [
     { label: 'Defect ที่ยังเปิดอยู่', value: open.length, icon: 'tabler:bug', tone: 'error' as Tone },
-    { label: 'Critical / Major ที่เปิดอยู่', value: open.filter((d) => d.severity === 'critical' || d.severity === 'major').length, icon: 'tabler:alert-octagon', tone: 'caution' as Tone },
+    {
+      label: 'Critical / Major ที่เปิดอยู่',
+      value: open.filter((d) => d.severity === 'critical' || d.severity === 'major').length,
+      icon: 'tabler:alert-octagon',
+      tone: 'caution' as Tone,
+    },
     { label: 'รอ QA ทดสอบซ้ำ', value: current.value.filter((d) => d.status === 'retest').length, icon: 'tabler:refresh', tone: 'warning' as Tone },
     { label: 'ปิดแล้ว', value: current.value.filter((d) => d.status === 'closed').length, icon: 'tabler:circle-check', tone: 'success' as Tone },
   ]
@@ -84,38 +89,51 @@ function openEdit(d: Defect) {
 }
 
 function onSave(input: DefectInput) {
-  run(() => store.save(input), (saved) => {
-    dialog.value = false
-    if (detail.value?.id === saved.id) detail.value = saved
-    notify(input.id ? `บันทึก ${saved.id} แล้ว` : `รายงาน ${saved.id} แล้ว`)
-  })
+  run(
+    () => store.save(input),
+    (saved) => {
+      dialog.value = false
+      if (detail.value?.id === saved.id) detail.value = saved
+      notify(input.id ? `บันทึก ${saved.id} แล้ว` : `รายงาน ${saved.id} แล้ว`)
+    },
+  )
 }
 
 // closing / rejecting is a verdict (defect.resolve); the other steps are progress updates (defect.report)
 const canSetDefectStatus = (s: DefectStatus) => auth.can(s === 'closed' || s === 'rejected' ? 'defect.resolve' : 'defect.report')
 
 function setStatus(d: Defect, s: DefectStatus) {
-  run(() => store.setStatus(d, s), () => {
-    detail.value = store.defects.find((x) => x.id === d.id) ?? null
-    notify(`${d.id} → ${defectStatusOf(s).label}`)
-  })
+  run(
+    () => store.setStatus(d, s),
+    () => {
+      detail.value = store.defects.find((x) => x.id === d.id) ?? null
+      notify(`${d.id} → ${defectStatusOf(s).label}`)
+    },
+  )
 }
 
 function addComment() {
   const d = detail.value
   if (!d || !comment.value.trim()) return
-  run(() => store.comment(d.id, comment.value.trim()), () => {
-    comment.value = ''
-    detail.value = store.defects.find((x) => x.id === d.id) ?? null
-  })
+  run(
+    () => store.comment(d.id, comment.value.trim()),
+    () => {
+      comment.value = ''
+      detail.value = store.defects.find((x) => x.id === d.id) ?? null
+    },
+  )
 }
 
 // deep link: /defects?id=BUG-001
-watch([() => route.query.id, loaded], ([id, isLoaded]) => {
-  if (!isLoaded || typeof id !== 'string') return
-  detail.value = store.defects.find((d) => d.id === id) ?? null
-  router.replace({ query: {} })
-}, { immediate: true })
+watch(
+  [() => route.query.id, loaded],
+  ([id, isLoaded]) => {
+    if (!isLoaded || typeof id !== 'string') return
+    detail.value = store.defects.find((d) => d.id === id) ?? null
+    router.replace({ query: {} })
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -137,33 +155,75 @@ watch([() => route.query.id, loaded], ([id, isLoaded]) => {
       <div class="fox-card-body">
         <v-row dense class="row-gap-3 align-center">
           <v-col cols="12" md="5">
-            <v-text-field v-model="search" density="compact" placeholder="ค้นหารหัส หัวข้อ Test Case หรือ Jira key" prepend-inner-icon="tabler:search" aria-label="ค้นหา Defect" clearable />
+            <v-text-field
+              v-model="search"
+              density="compact"
+              placeholder="ค้นหารหัส หัวข้อ Test Case หรือ Jira key"
+              prepend-inner-icon="tabler:search"
+              aria-label="ค้นหา Defect"
+              clearable
+            />
           </v-col>
           <v-col cols="6" md="3">
-            <v-select v-model="status" :items="statusFilters" item-title="label" item-value="value" density="compact" placeholder="ทุกสถานะ" aria-label="สถานะ" clearable />
+            <v-select
+              v-model="status"
+              :items="statusFilters"
+              item-title="label"
+              item-value="value"
+              density="compact"
+              placeholder="ทุกสถานะ"
+              aria-label="สถานะ"
+              clearable
+            />
           </v-col>
           <v-col cols="6" md="3">
-            <v-select v-model="severity" :items="SEVERITIES" item-title="label" item-value="value" density="compact" placeholder="ทุก Severity" aria-label="Severity" clearable />
+            <v-select
+              v-model="severity"
+              :items="SEVERITIES"
+              item-title="label"
+              item-value="value"
+              density="compact"
+              placeholder="ทุก Severity"
+              aria-label="Severity"
+              clearable
+            />
           </v-col>
         </v-row>
       </div>
       <v-divider />
 
-      <v-data-table v-model:page="page" v-model:items-per-page="itemsPerPage" :headers="headers" :items="filtered" item-value="id" @click:row="openRow">
+      <v-data-table
+        v-model:page="page"
+        v-model:items-per-page="itemsPerPage"
+        :headers="headers"
+        :items="filtered"
+        item-value="id"
+        @click:row="openRow"
+      >
         <template #[`item.title`]="{ item }">
           <div class="py-3 defect-row">
-            <div class="text-subtitle-2"><span class="text-error fox-num mr-1">{{ item.id }}</span>{{ item.title }}</div>
+            <div class="text-subtitle-2">
+              <span class="text-error fox-num mr-1">{{ item.id }}</span
+              >{{ item.title }}
+            </div>
             <div class="d-flex flex-wrap ga-2 text-caption text-muted">
-              <span v-if="item.caseId">{{ item.caseId }}<template v-if="item.caseDeleted"> (ลบแล้ว)</template><template v-if="item.stepNumber"> · ขั้นตอน {{ item.stepNumber }}</template></span>
+              <span v-if="item.caseId"
+                >{{ item.caseId }}<template v-if="item.caseDeleted"> (ลบแล้ว)</template
+                ><template v-if="item.stepNumber"> · ขั้นตอน {{ item.stepNumber }}</template></span
+              >
               <span v-if="item.externalKey"><v-icon icon="tabler:external-link" size="12" /> {{ item.externalKey }}</span>
             </div>
           </div>
         </template>
         <template #[`item.severity`]="{ item }">
-          <v-chip :color="severityOf(item.severity).tone" :prepend-icon="severityOf(item.severity).icon" size="small" variant="tonal">{{ severityOf(item.severity).label }}</v-chip>
+          <v-chip :color="severityOf(item.severity).tone" :prepend-icon="severityOf(item.severity).icon" size="small" variant="tonal">{{
+            severityOf(item.severity).label
+          }}</v-chip>
         </template>
         <template #[`item.status`]="{ item }">
-          <v-chip :color="defectStatusOf(item.status).tone" :prepend-icon="defectStatusOf(item.status).icon" size="small" variant="flat">{{ defectStatusOf(item.status).label }}</v-chip>
+          <v-chip :color="defectStatusOf(item.status).tone" :prepend-icon="defectStatusOf(item.status).icon" size="small" variant="flat">{{
+            defectStatusOf(item.status).label
+          }}</v-chip>
         </template>
         <template #[`item.assignee`]="{ item }">
           <span class="text-no-wrap">{{ item.assignee ? firstName(item.assignee) : '-' }}</span>
@@ -183,7 +243,14 @@ watch([() => route.query.id, loaded], ([id, isLoaded]) => {
   </div>
 
   <!-- detail -->
-  <v-navigation-drawer :model-value="!!detail" location="end" width="460" temporary class="fox-aside" @update:model-value="(v) => !v && (detail = null)">
+  <v-navigation-drawer
+    :model-value="!!detail"
+    location="end"
+    width="460"
+    temporary
+    class="fox-aside"
+    @update:model-value="(v) => !v && (detail = null)"
+  >
     <template v-if="detail">
       <div class="defect-head">
         <span class="text-h5 text-error fox-num">{{ detail.id }}</span>
@@ -195,10 +262,19 @@ watch([() => route.query.id, loaded], ([id, isLoaded]) => {
       <section class="defect-section">
         <h3 class="text-h6 mb-2">{{ detail.title }}</h3>
         <div class="d-flex flex-wrap ga-2 mb-4">
-          <v-chip :color="severityOf(detail.severity).tone" :prepend-icon="severityOf(detail.severity).icon" size="small" variant="tonal">{{ severityOf(detail.severity).label }}</v-chip>
+          <v-chip :color="severityOf(detail.severity).tone" :prepend-icon="severityOf(detail.severity).icon" size="small" variant="tonal">{{
+            severityOf(detail.severity).label
+          }}</v-chip>
           <v-menu>
             <template #activator="{ props }">
-              <v-chip v-bind="props" :color="defectStatusOf(detail.status).tone" :prepend-icon="defectStatusOf(detail.status).icon" append-icon="tabler:chevron-down" size="small" variant="flat">
+              <v-chip
+                v-bind="props"
+                :color="defectStatusOf(detail.status).tone"
+                :prepend-icon="defectStatusOf(detail.status).icon"
+                append-icon="tabler:chevron-down"
+                size="small"
+                variant="flat"
+              >
                 {{ defectStatusOf(detail.status).label }}
               </v-chip>
             </template>
@@ -222,14 +298,23 @@ watch([() => route.query.id, loaded], ([id, isLoaded]) => {
           <dt>Test Case</dt>
           <dd>
             <template v-if="detail.caseId && detail.caseDeleted">{{ detail.caseId }} (ลบแล้ว)</template>
-            <router-link v-else-if="detail.caseId" :to="{ path: '/test-cases', query: { caseId: detail.caseId } }" class="text-primary text-decoration-none">{{ detail.caseId }}</router-link>
+            <router-link
+              v-else-if="detail.caseId"
+              :to="{ path: '/test-cases', query: { caseId: detail.caseId } }"
+              class="text-primary text-decoration-none"
+              >{{ detail.caseId }}</router-link
+            >
             <template v-else>-</template>
             <template v-if="detail.stepNumber"> · ขั้นตอน {{ detail.stepNumber }}</template>
           </dd>
-          <dt>ผู้รับผิดชอบ</dt><dd>{{ detail.assignee || '-' }}</dd>
-          <dt>ผู้รายงาน</dt><dd>{{ detail.reportedBy }}</dd>
-          <dt>Environment</dt><dd>{{ detail.environment || '-' }}</dd>
-          <dt>รายงานเมื่อ</dt><dd>{{ formatDateTime(detail.createdAt) }}</dd>
+          <dt>ผู้รับผิดชอบ</dt>
+          <dd>{{ detail.assignee || '-' }}</dd>
+          <dt>ผู้รายงาน</dt>
+          <dd>{{ detail.reportedBy }}</dd>
+          <dt>Environment</dt>
+          <dd>{{ detail.environment || '-' }}</dd>
+          <dt>รายงานเมื่อ</dt>
+          <dd>{{ formatDateTime(detail.createdAt) }}</dd>
         </dl>
       </section>
       <v-divider />
@@ -250,7 +335,9 @@ watch([() => route.query.id, loaded], ([id, isLoaded]) => {
         <div class="text-overline text-muted mb-2">ความคิดเห็น ({{ detail.comments.length }})</div>
         <div class="d-flex flex-column ga-3 mb-4">
           <div v-for="(c, i) in detail.comments" :key="i">
-            <div class="text-subtitle-2">{{ firstName(c.by) }} <span class="text-caption text-muted">· {{ formatRelative(c.at) }}</span></div>
+            <div class="text-subtitle-2">
+              {{ firstName(c.by) }} <span class="text-caption text-muted">· {{ formatRelative(c.at) }}</span>
+            </div>
             <div class="text-body-2">{{ c.text }}</div>
           </div>
         </div>

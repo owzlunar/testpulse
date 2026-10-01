@@ -17,18 +17,23 @@ export const useRequirementStore = defineStore('requirement', () => {
 
   let loading: Promise<void> | null = null
   function ensureLoaded(): Promise<void> {
-    loading ??= api.fetchRequirements().then((list) => {
-      requirements.value = list
-      loaded.value = true
-    }).catch((e) => {
-      loading = null
-      throw e
-    })
+    loading ??= api
+      .fetchRequirements()
+      .then((list) => {
+        requirements.value = list
+        loaded.value = true
+      })
+      .catch((e) => {
+        loading = null
+        throw e
+      })
     return loading
   }
 
   const current = computed(() =>
-    requirements.value.filter((r) => r.projectId === projectStore.currentProject?.id).sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true })),
+    requirements.value
+      .filter((r) => r.projectId === projectStore.currentProject?.id)
+      .sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true })),
   )
 
   /** next "REQ-<KEY>-NN" code for the current project */
@@ -73,7 +78,14 @@ export const useRequirementStore = defineStore('requirement', () => {
     const { flaggedCases } = await api.deleteRequirement(id)
     requirements.value = requirements.value.filter((r) => r.id !== id)
     if (target) applyFlags(target.code, target.projectId, flaggedCases, 'ถูกลบ')
-    if (target) audit.record({ action: 'DELETE', targetType: 'PROJECT', targetId: target.code, targetTitle: target.title, details: `ลบ Requirement ${target.code}` })
+    if (target)
+      audit.record({
+        action: 'DELETE',
+        targetType: 'PROJECT',
+        targetId: target.code,
+        targetTitle: target.title,
+        details: `ลบ Requirement ${target.code}`,
+      })
   }
 
   /** a case's requirement as text (falls back to the case's own text until requirements are loaded) */

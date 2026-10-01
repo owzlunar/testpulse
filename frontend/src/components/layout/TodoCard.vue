@@ -24,7 +24,13 @@ const documentStore = useDocumentStore()
 onMounted(() => Promise.all([runStore.ensureLoaded(), defectStore.ensureLoaded(), documentStore.ensureLoaded()]).catch(() => {}))
 const ready = computed(() => runStore.loaded && defectStore.loaded && documentStore.loaded)
 
-interface Todo { icon: string; tone: Tone; title: string; text: string; to: string | { path: string; query?: Record<string, string> } }
+interface Todo {
+  icon: string
+  tone: Tone
+  title: string
+  text: string
+  to: string | { path: string; query?: Record<string, string> }
+}
 
 const todos = computed<Todo[]>(() => {
   const me = currentUser.value.name
@@ -36,24 +42,75 @@ const todos = computed<Todo[]>(() => {
 
   if (isQa) {
     const ready = currentCases.value.filter((c) => c.status === 'ready_for_test')
-    if (ready.length) list.push({ icon: 'tabler:send', tone: 'info', title: `${ready.length} เคสพร้อมให้ทดสอบ`, text: ready.map((c) => c.id).join(', '), to: '/test-cases' })
-    runStore.current.filter((r) => r.status !== 'completed').forEach((r) => {
-      const left = runCounts(r).untested
-      if (left) list.push({ icon: 'tabler:player-play', tone: 'warning', title: `${r.name} #${r.round} เหลือ ${left} เคส`, text: `${r.environment} · ทดสอบแล้ว ${runCounts(r).executed}/${runCounts(r).total}`, to: `/test-runs/${r.id}` })
-    })
+    if (ready.length)
+      list.push({
+        icon: 'tabler:send',
+        tone: 'info',
+        title: `${ready.length} เคสพร้อมให้ทดสอบ`,
+        text: ready.map((c) => c.id).join(', '),
+        to: '/test-cases',
+      })
+    runStore.current
+      .filter((r) => r.status !== 'completed')
+      .forEach((r) => {
+        const left = runCounts(r).untested
+        if (left)
+          list.push({
+            icon: 'tabler:player-play',
+            tone: 'warning',
+            title: `${r.name} #${r.round} เหลือ ${left} เคส`,
+            text: `${r.environment} · ทดสอบแล้ว ${runCounts(r).executed}/${runCounts(r).total}`,
+            to: `/test-runs/${r.id}`,
+          })
+      })
     const retest = defectStore.current.filter((d) => d.status === 'retest')
-    if (retest.length) list.push({ icon: 'tabler:refresh', tone: 'warning', title: `${retest.length} Defect รอทดสอบซ้ำ`, text: retest.map((d) => d.id).join(', '), to: '/defects' })
+    if (retest.length)
+      list.push({
+        icon: 'tabler:refresh',
+        tone: 'warning',
+        title: `${retest.length} Defect รอทดสอบซ้ำ`,
+        text: retest.map((d) => d.id).join(', '),
+        to: '/defects',
+      })
   }
   if (isDev) {
     const mine = currentCases.value.filter((c) => (c.status === 'pending' || c.status === 'failed') && (everyone || c.assignedDev === me))
-    if (mine.length) list.push({ icon: 'tabler:code', tone: 'primary', title: `${mine.length} เคสรอ Dev`, text: mine.map((c) => c.id).join(', '), to: '/test-cases' })
+    if (mine.length)
+      list.push({
+        icon: 'tabler:code',
+        tone: 'primary',
+        title: `${mine.length} เคสรอ Dev`,
+        text: mine.map((c) => c.id).join(', '),
+        to: '/test-cases',
+      })
     const bugs = defectStore.current.filter((d) => isOpenDefect(d) && d.status !== 'retest' && (everyone || d.assignee === me))
-    if (bugs.length) list.push({ icon: 'tabler:bug', tone: 'error', title: `${bugs.length} Defect ที่ต้องแก้`, text: bugs.map((d) => d.id).join(', '), to: '/defects' })
+    if (bugs.length)
+      list.push({
+        icon: 'tabler:bug',
+        tone: 'error',
+        title: `${bugs.length} Defect ที่ต้องแก้`,
+        text: bugs.map((d) => d.id).join(', '),
+        to: '/defects',
+      })
   }
   const overdue = currentCases.value.filter(isOverdue)
-  if (overdue.length) list.push({ icon: 'tabler:clock-exclamation', tone: 'error', title: `${overdue.length} เคสเลยกำหนด`, text: 'ขอขยายเวลาหรือเร่งดำเนินการ', to: '/calendar' })
+  if (overdue.length)
+    list.push({
+      icon: 'tabler:clock-exclamation',
+      tone: 'error',
+      title: `${overdue.length} เคสเลยกำหนด`,
+      text: 'ขอขยายเวลาหรือเร่งดำเนินการ',
+      to: '/calendar',
+    })
   const waiting = documentStore.current.filter((d) => d.status === 'pending_signoff')
-  if (waiting.length) list.push({ icon: 'tabler:signature', tone: 'success', title: `${waiting.length} เอกสารรอลงนาม`, text: waiting.map((d) => d.docNumber).join(', '), to: `/documents/${waiting[0].id}` })
+  if (waiting.length)
+    list.push({
+      icon: 'tabler:signature',
+      tone: 'success',
+      title: `${waiting.length} เอกสารรอลงนาม`,
+      text: waiting.map((d) => d.docNumber).join(', '),
+      to: `/documents/${waiting[0].id}`,
+    })
   return list
 })
 </script>

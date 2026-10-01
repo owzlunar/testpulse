@@ -1,7 +1,19 @@
 // Loaded by vite-plugin-vuetify (styles.configFile) BEFORE Vuetify's own SCSS.
 // Only variables that Vuetify declares with !default can be set here.
 @use 'vuetify/settings' with (
-  $body-font-family: ('Noto Sans Thai', system-ui, -apple-system, 'Segoe UI', sans-serif),
-  $heading-font-family: ('Noto Sans Thai', system-ui, -apple-system, 'Segoe UI', sans-serif),
+  $body-font-family: (
+    'Noto Sans Thai',
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif,
+  ),
+  $heading-font-family: (
+    'Noto Sans Thai',
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif,
+  ),
   $border-radius-root: 8px
 );

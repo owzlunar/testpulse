@@ -93,7 +93,9 @@ const stepText = (s: TestStep, i: number) =>
           </span>
           <v-spacer />
           <v-btn variant="outlined" @click="open = false">ปิด</v-btn>
-          <v-btn color="primary" prepend-icon="tabler:restore" :loading="loading" @click="emit('restore', record.version)">กู้คืน {{ record.version }}</v-btn>
+          <v-btn color="primary" prepend-icon="tabler:restore" :loading="loading" @click="emit('restore', record.version)"
+            >กู้คืน {{ record.version }}</v-btn
+          >
         </div>
       </template>
     </v-card>

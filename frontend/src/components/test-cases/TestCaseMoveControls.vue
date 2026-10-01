@@ -84,14 +84,22 @@ function move(list: string, index: number) {
       </template>
       <v-card min-width="320" max-width="420">
         <div class="pa-3 pb-1">
-          <v-text-field v-model="search" density="compact" placeholder="ค้นหารหัสหรือชื่อ" prepend-inner-icon="tabler:search" hide-details autofocus />
+          <v-text-field
+            v-model="search"
+            density="compact"
+            placeholder="ค้นหารหัสหรือชื่อ"
+            prepend-inner-icon="tabler:search"
+            hide-details
+            autofocus
+          />
         </div>
         <v-list density="compact" class="move-list">
           <template v-for="(t, i) in shown" :key="t.list + t.id">
             <v-list-subheader v-if="t.group && t.group !== shown[i - 1]?.group">{{ t.group }}</v-list-subheader>
             <v-list-item>
               <v-list-item-title class="text-body-2">
-                <span class="fox-num text-primary mr-1">{{ t.id }}</span>{{ t.name }}
+                <span class="fox-num text-primary mr-1">{{ t.id }}</span
+                >{{ t.name }}
               </v-list-item-title>
               <template #append>
                 <div class="d-flex ga-1 ml-2">

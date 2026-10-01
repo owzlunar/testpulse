@@ -17,10 +17,14 @@ const formRef = ref<VForm>()
 const form = reactive({ name: '', category: TEMPLATE_CATEGORIES[0], description: '' })
 const { busy, run } = useAsyncAction()
 
-watch(open, (isOpen) => {
-  if (!isOpen || !props.testCase) return
-  Object.assign(form, { name: props.testCase.name, category: TEMPLATE_CATEGORIES[0], description: props.testCase.testScenario })
-}, { immediate: true })
+watch(
+  open,
+  (isOpen) => {
+    if (!isOpen || !props.testCase) return
+    Object.assign(form, { name: props.testCase.name, category: TEMPLATE_CATEGORIES[0], description: props.testCase.testScenario })
+  },
+  { immediate: true },
+)
 
 async function submit() {
   const result = await formRef.value?.validate()
@@ -34,8 +38,12 @@ async function submit() {
         description: form.description,
         createdBy: auth.currentUser.name,
         draft: {
-          name: tc.name, testScenario: tc.testScenario, prerequisite: tc.prerequisite, description: tc.description,
-          priority: tc.priority, expectedResults: tc.expectedResults,
+          name: tc.name,
+          testScenario: tc.testScenario,
+          prerequisite: tc.prerequisite,
+          description: tc.description,
+          priority: tc.priority,
+          expectedResults: tc.expectedResults,
           steps: tc.steps.map(({ action, testData, expectedResult }) => ({ action, testData, expectedResult })),
         },
       }),

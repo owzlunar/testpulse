@@ -29,11 +29,18 @@ const avgChurn = computed(() => {
 })
 
 const stats = computed(() => [
-  { label: `Test Cases · ผ่าน ${formatPercent(currentStats.value.passRate, 0)}`, value: currentCases.value.length, icon: 'tabler:calendar-check', tone: 'primary' as Tone },
+  {
+    label: `Test Cases · ผ่าน ${formatPercent(currentStats.value.passRate, 0)}`,
+    value: currentCases.value.length,
+    icon: 'tabler:calendar-check',
+    tone: 'primary' as Tone,
+  },
   { label: `แก้ซ้ำ > 1 รอบ · เฉลี่ย ${avgChurn.value} รอบ`, value: calendar.churnCases.length, icon: 'tabler:flame', tone: 'caution' as Tone },
   { label: 'เลยกำหนด SLA', value: calendar.overdueCases.length, icon: 'tabler:clock-exclamation', tone: 'error' as Tone },
   {
-    label: calendar.nextMilestone ? `${calendar.nextMilestone.title} · ${formatDateTH(calendar.nextMilestone.date)}` : 'ไม่มี Milestone ที่กำลังจะมาถึง',
+    label: calendar.nextMilestone
+      ? `${calendar.nextMilestone.title} · ${formatDateTH(calendar.nextMilestone.date)}`
+      : 'ไม่มี Milestone ที่กำลังจะมาถึง',
     value: calendar.nextMilestone ? milestoneTypeOf(calendar.nextMilestone.type).label : '-',
     icon: 'tabler:flag',
     tone: 'info' as Tone,
@@ -104,8 +111,22 @@ function caseOf(item: CalendarItem | undefined) {
           </v-chip>
         </v-chip-group>
         <div class="d-flex flex-wrap ga-2 calendar-filters">
-          <v-select v-model="devFilter" :items="calendar.devOptions" density="compact" placeholder="Developer ทั้งหมด" aria-label="กรองตาม Developer" clearable />
-          <v-select v-model="rootCauseFilter" :items="calendar.rootCauseOptions" density="compact" placeholder="ทุก Root Cause" aria-label="กรองตาม Root Cause" clearable />
+          <v-select
+            v-model="devFilter"
+            :items="calendar.devOptions"
+            density="compact"
+            placeholder="Developer ทั้งหมด"
+            aria-label="กรองตาม Developer"
+            clearable
+          />
+          <v-select
+            v-model="rootCauseFilter"
+            :items="calendar.rootCauseOptions"
+            density="compact"
+            placeholder="ทุก Root Cause"
+            aria-label="กรองตาม Root Cause"
+            clearable
+          />
         </div>
       </div>
       <div v-if="calendar.milestones.length" class="d-flex flex-wrap align-center ga-2 mt-4">

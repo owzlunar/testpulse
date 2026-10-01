@@ -39,18 +39,26 @@ const stats = computed(() => {
   return [
     { label: 'รอบที่กำลังทดสอบ', value: active.length, icon: 'tabler:player-play', tone: 'warning' as Tone },
     { label: 'เคสที่รอทดสอบในรอบที่เปิดอยู่', value: pending, icon: 'tabler:hourglass', tone: 'info' as Tone },
-    { label: last ? `Pass rate รอบล่าสุด (${last.name} #${last.round})` : 'ยังไม่มีรอบที่ปิดแล้ว', value: last ? `${runCounts(last).passRate.toFixed(0)}%` : '-', icon: 'tabler:chart-pie', tone: 'success' as Tone },
+    {
+      label: last ? `Pass rate รอบล่าสุด (${last.name} #${last.round})` : 'ยังไม่มีรอบที่ปิดแล้ว',
+      value: last ? `${runCounts(last).passRate.toFixed(0)}%` : '-',
+      icon: 'tabler:chart-pie',
+      tone: 'success' as Tone,
+    },
     { label: 'รอบทั้งหมด', value: current.value.length, icon: 'tabler:list-check', tone: 'primary' as Tone },
   ]
 })
 
 const dialog = ref(false)
 function onSave(input: TestRunInput) {
-  run(() => store.create(input), (created) => {
-    dialog.value = false
-    notify(`สร้าง ${created.name} รอบที่ ${created.round} แล้ว`)
-    router.push(`/test-runs/${created.id}`)
-  })
+  run(
+    () => store.create(input),
+    (created) => {
+      dialog.value = false
+      notify(`สร้าง ${created.name} รอบที่ ${created.round} แล้ว`)
+      router.push(`/test-runs/${created.id}`)
+    },
+  )
 }
 
 const confirmOpen = ref(false)
@@ -61,7 +69,11 @@ function askDelete(r: TestRun) {
 }
 function onDelete() {
   const r = deleting.value
-  if (r) run(() => store.remove(r.id), () => notify(`ลบ ${r.name} รอบที่ ${r.round} แล้ว`))
+  if (r)
+    run(
+      () => store.remove(r.id),
+      () => notify(`ลบ ${r.name} รอบที่ ${r.round} แล้ว`),
+    )
 }
 </script>
 
@@ -92,13 +104,23 @@ function onDelete() {
       <div class="d-flex flex-wrap align-start justify-space-between ga-3 mb-4">
         <div class="overflow-hidden">
           <div class="d-flex flex-wrap align-center ga-2 mb-1">
-            <v-chip :color="runTypeOf(r.type).tone" :prepend-icon="runTypeOf(r.type).icon" size="small" variant="tonal">{{ runTypeOf(r.type).label }}</v-chip>
-            <v-chip :color="runStatusOf(r.status).tone" :prepend-icon="runStatusOf(r.status).icon" size="small" variant="flat">{{ runStatusOf(r.status).label }}</v-chip>
+            <v-chip :color="runTypeOf(r.type).tone" :prepend-icon="runTypeOf(r.type).icon" size="small" variant="tonal">{{
+              runTypeOf(r.type).label
+            }}</v-chip>
+            <v-chip :color="runStatusOf(r.status).tone" :prepend-icon="runStatusOf(r.status).icon" size="small" variant="flat">{{
+              runStatusOf(r.status).label
+            }}</v-chip>
           </div>
-          <h3 class="text-h5">{{ r.name }} <span class="text-muted">· รอบที่ {{ r.round }}</span></h3>
+          <h3 class="text-h5">
+            {{ r.name }} <span class="text-muted">· รอบที่ {{ r.round }}</span>
+          </h3>
           <div class="d-flex flex-wrap ga-4 text-body-2 text-muted mt-1">
-            <span class="d-inline-flex align-center ga-1"><v-icon icon="tabler:server" size="16" />{{ r.environment }}<template v-if="r.build"> · {{ r.build }}</template></span>
-            <span class="d-inline-flex align-center ga-1"><v-icon icon="tabler:calendar" size="16" />{{ formatDateTH(r.plannedStart) }} – {{ formatDateTH(r.plannedEnd) }}</span>
+            <span class="d-inline-flex align-center ga-1"
+              ><v-icon icon="tabler:server" size="16" />{{ r.environment }}<template v-if="r.build"> · {{ r.build }}</template></span
+            >
+            <span class="d-inline-flex align-center ga-1"
+              ><v-icon icon="tabler:calendar" size="16" />{{ formatDateTH(r.plannedStart) }} – {{ formatDateTH(r.plannedEnd) }}</span
+            >
             <span class="d-inline-flex align-center ga-1"><v-icon icon="tabler:user" size="16" />{{ r.createdBy }}</span>
           </div>
         </div>
@@ -112,8 +134,17 @@ function onDelete() {
               <v-btn v-bind="props" icon="tabler:dots-vertical" variant="text" :aria-label="`ตัวเลือก ${r.name}`" />
             </template>
             <v-list>
-              <v-list-item prepend-icon="tabler:file-description" title="สร้างรายงานผลรอบนี้" :to="{ path: '/documents', query: { create: 'test_summary', runId: r.id } }" />
-              <v-list-item v-if="r.type === 'uat'" prepend-icon="tabler:certificate" title="สร้างเอกสาร UAT Sign-off" :to="{ path: '/documents', query: { create: 'uat', runId: r.id } }" />
+              <v-list-item
+                prepend-icon="tabler:file-description"
+                title="สร้างรายงานผลรอบนี้"
+                :to="{ path: '/documents', query: { create: 'test_summary', runId: r.id } }"
+              />
+              <v-list-item
+                v-if="r.type === 'uat'"
+                prepend-icon="tabler:certificate"
+                title="สร้างเอกสาร UAT Sign-off"
+                :to="{ path: '/documents', query: { create: 'uat', runId: r.id } }"
+              />
               <v-divider class="my-1" />
               <v-list-item prepend-icon="tabler:trash" title="ลบรอบนี้" base-color="error" @click="askDelete(r)" />
             </v-list>

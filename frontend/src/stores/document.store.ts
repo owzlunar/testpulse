@@ -18,14 +18,16 @@ export const useDocumentStore = defineStore('document', () => {
 
   let loading: Promise<void> | null = null
   function ensureLoaded(): Promise<void> {
-    loading ??= Promise.all([api.fetchDocuments(), api.fetchDocumentTemplate()]).then(([docs, tpl]) => {
-      documents.value = docs
-      template.value = tpl
-      loaded.value = true
-    }).catch((e) => {
-      loading = null
-      throw e
-    })
+    loading ??= Promise.all([api.fetchDocuments(), api.fetchDocumentTemplate()])
+      .then(([docs, tpl]) => {
+        documents.value = docs
+        template.value = tpl
+        loaded.value = true
+      })
+      .catch((e) => {
+        loading = null
+        throw e
+      })
     return loading
   }
 
@@ -41,7 +43,8 @@ export const useDocumentStore = defineStore('document', () => {
   }
 
   /** next running number for today's documents of a type */
-  const nextSeq = (type: DocumentRecord['type']) => current.value.filter((d) => d.type === type && d.createdAt.slice(0, 10) === new Date().toISOString().slice(0, 10)).length + 1
+  const nextSeq = (type: DocumentRecord['type']) =>
+    current.value.filter((d) => d.type === type && d.createdAt.slice(0, 10) === new Date().toISOString().slice(0, 10)).length + 1
 
   const log = (doc: DocumentRecord, details: string) =>
     audit.record({ action: 'EXPORT', targetType: 'PROJECT', targetId: doc.docNumber, targetTitle: doc.title, details })
@@ -61,7 +64,13 @@ export const useDocumentStore = defineStore('document', () => {
   async function requestSignoff(id: string) {
     const doc = replace(await api.updateDocument(id, { status: 'pending_signoff' }))
     log(doc, `ส่ง ${doc.docNumber} ขอลงนาม ${doc.signatories.length} คน`)
-    notify.add({ type: 'SYSTEM', title: 'ส่งเอกสารขอลงนามแล้ว', message: `${doc.docNumber} · ${doc.signatories.map((s) => s.name || s.role).join(', ')}`, projectId: doc.projectId, severity: 'info' })
+    notify.add({
+      type: 'SYSTEM',
+      title: 'ส่งเอกสารขอลงนามแล้ว',
+      message: `${doc.docNumber} · ${doc.signatories.map((s) => s.name || s.role).join(', ')}`,
+      projectId: doc.projectId,
+      severity: 'info',
+    })
     return doc
   }
 
@@ -70,7 +79,13 @@ export const useDocumentStore = defineStore('document', () => {
     const who = doc.signatories[index]
     log(doc, `${who.name || who.role} ${decision === 'signed' ? 'ลงนาม' : 'ปฏิเสธ'} ${doc.docNumber}${comment ? ` (${comment})` : ''}`)
     if (doc.status === 'signed') {
-      notify.add({ type: 'SYSTEM', title: 'เอกสารลงนามครบแล้ว', message: `${doc.docNumber} ${doc.title}`, projectId: doc.projectId, severity: 'success' })
+      notify.add({
+        type: 'SYSTEM',
+        title: 'เอกสารลงนามครบแล้ว',
+        message: `${doc.docNumber} ${doc.title}`,
+        projectId: doc.projectId,
+        severity: 'success',
+      })
     }
     return doc
   }
@@ -88,5 +103,20 @@ export const useDocumentStore = defineStore('document', () => {
     template.value = await api.saveDocumentTemplate(tpl)
   }
 
-  return { documents, template, loaded, current, ensureLoaded, getById, nextSeq, generate, regenerate, requestSignoff, sign, update, remove, saveTemplate }
+  return {
+    documents,
+    template,
+    loaded,
+    current,
+    ensureLoaded,
+    getById,
+    nextSeq,
+    generate,
+    regenerate,
+    requestSignoff,
+    sign,
+    update,
+    remove,
+    saveTemplate,
+  }
 })

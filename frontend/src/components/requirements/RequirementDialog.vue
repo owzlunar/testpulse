@@ -7,31 +7,48 @@ import type { Requirement, RequirementInput } from '@/types'
 import { required } from '@/utils/validators'
 
 const open = defineModel<boolean>({ default: false })
-const props = withDefaults(
-  defineProps<{ requirement?: Requirement | null; projectId: string; nextCode: string; loading?: boolean }>(),
-  { requirement: null, loading: false },
-)
+const props = withDefaults(defineProps<{ requirement?: Requirement | null; projectId: string; nextCode: string; loading?: boolean }>(), {
+  requirement: null,
+  loading: false,
+})
 const emit = defineEmits<{ save: [input: RequirementInput] }>()
 
 const formRef = ref<VForm>()
 const empty = (): RequirementInput => ({
-  projectId: props.projectId, code: props.nextCode, title: '', description: '', type: 'functional',
-  priority: 'medium', status: 'draft', source: '', acceptanceCriteria: [],
+  projectId: props.projectId,
+  code: props.nextCode,
+  title: '',
+  description: '',
+  type: 'functional',
+  priority: 'medium',
+  status: 'draft',
+  source: '',
+  acceptanceCriteria: [],
 })
 const form = reactive<RequirementInput>(empty())
 const criteriaText = ref('')
 const isEdit = computed(() => !!form.id)
 
-watch(open, (isOpen) => {
-  if (!isOpen) return
-  Object.assign(form, empty(), props.requirement ? JSON.parse(JSON.stringify(props.requirement)) : { id: undefined })
-  criteriaText.value = form.acceptanceCriteria.join('\n')
-}, { immediate: true })
+watch(
+  open,
+  (isOpen) => {
+    if (!isOpen) return
+    Object.assign(form, empty(), props.requirement ? JSON.parse(JSON.stringify(props.requirement)) : { id: undefined })
+    criteriaText.value = form.acceptanceCriteria.join('\n')
+  },
+  { immediate: true },
+)
 
 async function submit() {
   const result = await formRef.value?.validate()
   if (!result?.valid) return
-  emit('save', { ...form, acceptanceCriteria: criteriaText.value.split('\n').map((l) => l.replace(/^[-•*\d.\s]+/, '').trim()).filter(Boolean) })
+  emit('save', {
+    ...form,
+    acceptanceCriteria: criteriaText.value
+      .split('\n')
+      .map((l) => l.replace(/^[-•*\d.\s]+/, '').trim())
+      .filter(Boolean),
+  })
 }
 </script>
 

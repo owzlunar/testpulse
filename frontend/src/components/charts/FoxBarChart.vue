@@ -23,9 +23,7 @@ const max = computed(() => {
   return step * props.ticks
 })
 
-const yTicks = computed(() =>
-  Array.from({ length: props.ticks + 1 }, (_, i) => (max.value / props.ticks) * (props.ticks - i)),
-)
+const yTicks = computed(() => Array.from({ length: props.ticks + 1 }, (_, i) => (max.value / props.ticks) * (props.ticks - i)))
 
 const pct = (v: number) => `${(v / max.value) * 100}%`
 </script>
@@ -107,7 +105,9 @@ const pct = (v: number) => `${(v / max.value) * 100}%`
   width: clamp(5px, 1.2vw, 10px);
   min-height: 2px;
   border-radius: 999px 999px 2px 2px;
-  transition: height 0.4s ease, opacity 0.15s;
+  transition:
+    height 0.4s ease,
+    opacity 0.15s;
 }
 
 .fox-bar__bar:hover {

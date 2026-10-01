@@ -48,7 +48,13 @@ function toggleGroup(g: (typeof PERMISSION_GROUPS)[number], on: boolean | null) 
       <v-expansion-panel-text>
         <v-row dense>
           <v-col v-for="item in g.items" :key="item.key" cols="12" md="6">
-            <v-checkbox :model-value="has(item.key)" :disabled="disabled" density="compact" hide-details @update:model-value="toggle(item.key, $event)">
+            <v-checkbox
+              :model-value="has(item.key)"
+              :disabled="disabled"
+              density="compact"
+              hide-details
+              @update:model-value="toggle(item.key, $event)"
+            >
               <template #label>
                 <div class="py-1">
                   <div class="text-body-2">{{ item.label }}</div>

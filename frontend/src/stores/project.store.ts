@@ -37,12 +37,10 @@ export const useProjectStore = defineStore('project', () => {
   async function load() {
     projects.value = await api.fetchProjects()
     const remembered = api.loadSelectedProjectId()
-    selectedProjectId.value = projects.value.some((p) => p.id === remembered) ? remembered! : projects.value[0]?.id ?? ''
+    selectedProjectId.value = projects.value.some((p) => p.id === remembered) ? remembered! : (projects.value[0]?.id ?? '')
   }
 
-  const currentProject = computed(
-    () => projects.value.find((p) => p.id === selectedProjectId.value) ?? projects.value[0] ?? null,
-  )
+  const currentProject = computed(() => projects.value.find((p) => p.id === selectedProjectId.value) ?? projects.value[0] ?? null)
 
   /** test cases of the selected project (flat and as a parent/sub-case tree) */
   const currentCases = computed(() => (currentProject.value ? testCaseStore.casesOf(currentProject.value.id) : []))
@@ -71,15 +69,33 @@ export const useProjectStore = defineStore('project', () => {
     if (input.id) {
       const updated = await api.updateProject(input.id, input)
       projects.value = projects.value.map((p) => (p.id === updated.id ? updated : p))
-      audit.record({ action: 'UPDATE', targetType: 'PROJECT', targetId: updated.id, targetTitle: updated.name, details: `อัปเดตข้อมูลโปรเจกต์ ${updated.name}` })
+      audit.record({
+        action: 'UPDATE',
+        targetType: 'PROJECT',
+        targetId: updated.id,
+        targetTitle: updated.name,
+        details: `อัปเดตข้อมูลโปรเจกต์ ${updated.name}`,
+      })
       return updated
     }
 
     const project = await api.createProject(input)
     projects.value.unshift(project)
     select(project.id)
-    audit.record({ action: 'CREATE', targetType: 'PROJECT', targetId: project.id, targetTitle: project.name, details: `สร้างโปรเจกต์ใหม่ [${project.key}] ${project.name}` })
-    notify.add({ type: 'MODIFIED', title: 'สร้างโปรเจกต์ใหม่', message: `โปรเจกต์ "${project.name}" ถูกสร้างแล้ว`, projectId: project.id, severity: 'info' })
+    audit.record({
+      action: 'CREATE',
+      targetType: 'PROJECT',
+      targetId: project.id,
+      targetTitle: project.name,
+      details: `สร้างโปรเจกต์ใหม่ [${project.key}] ${project.name}`,
+    })
+    notify.add({
+      type: 'MODIFIED',
+      title: 'สร้างโปรเจกต์ใหม่',
+      message: `โปรเจกต์ "${project.name}" ถูกสร้างแล้ว`,
+      projectId: project.id,
+      severity: 'info',
+    })
     return project
   }
 
@@ -99,7 +115,13 @@ export const useProjectStore = defineStore('project', () => {
     projects.value = projects.value.filter((p) => p.id !== id)
     testCaseStore.removeProjectCases(id)
 
-    audit.record({ action: 'DELETE', targetType: 'PROJECT', targetId: id, targetTitle: target.name, details: `ลบโปรเจกต์ ${target.name} พร้อม Test Case ทั้งหมด` })
+    audit.record({
+      action: 'DELETE',
+      targetType: 'PROJECT',
+      targetId: id,
+      targetTitle: target.name,
+      details: `ลบโปรเจกต์ ${target.name} พร้อม Test Case ทั้งหมด`,
+    })
     if (selectedProjectId.value === id) select(projects.value[0]?.id ?? '')
   }
 
@@ -111,14 +133,31 @@ export const useProjectStore = defineStore('project', () => {
     const filename = `${project.key}_TestCases_${todayISO()}.md`
     downloadMarkdownFile(filename, generateProjectMarkdown(project, cases, statsOf(cases), useRequirementStore().textFor))
 
-    audit.record({ action: 'EXPORT', targetType: 'PROJECT', targetId: project.id, targetTitle: project.name, details: `ส่งออก Test Case ของ ${project.name} เป็น Obsidian Markdown (.md)` })
+    audit.record({
+      action: 'EXPORT',
+      targetType: 'PROJECT',
+      targetId: project.id,
+      targetTitle: project.name,
+      details: `ส่งออก Test Case ของ ${project.name} เป็น Obsidian Markdown (.md)`,
+    })
     notify.add({ type: 'SYSTEM', title: 'ส่งออกเอกสารสำเร็จ', message: `ดาวน์โหลด ${filename} แล้ว`, projectId: project.id, severity: 'success' })
     return filename
   }
 
   return {
     replaceMany,
-    projects, selectedProjectId, currentProject, currentCases, currentTree, currentStats, overallStats,
-    load, select, statsFor, save, remove, exportMarkdown,
+    projects,
+    selectedProjectId,
+    currentProject,
+    currentCases,
+    currentTree,
+    currentStats,
+    overallStats,
+    load,
+    select,
+    statsFor,
+    save,
+    remove,
+    exportMarkdown,
   }
 })

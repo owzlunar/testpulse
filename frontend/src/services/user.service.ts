@@ -58,7 +58,7 @@ function users(): User[] {
   migrateOnce('user-roles-v1', () => {
     const list = load<(User & { role?: string })[]>(STORAGE_KEYS.users, MOCK_USERS)
     list.forEach((u) => {
-      if (u.roleId === undefined) u.roleId = u.id === 'user-qa-1' ? 'role-qa-lead' : LEGACY_ROLES[u.role ?? ''] ?? null
+      if (u.roleId === undefined) u.roleId = u.id === 'user-qa-1' ? 'role-qa-lead' : (LEGACY_ROLES[u.role ?? ''] ?? null)
       delete u.role
     })
     save(STORAGE_KEYS.users, list)
@@ -99,7 +99,7 @@ export const updateUser = (id: string, patch: Partial<User>) =>
 /** server-side: the signed-in user (the real backend reads it from the session token) */
 export const sessionUser = (): User | null => {
   const session = load<User>(STORAGE_KEYS.currentUser, MOCK_USERS[0])
-  return session ? users().find((u) => u.id === session.id) ?? null : null
+  return session ? (users().find((u) => u.id === session.id) ?? null) : null
 }
 
 /** GET /auth/me */

@@ -51,24 +51,11 @@ onMounted(async () => {
 
 <template>
   <!-- left drawer is registered first so it runs full height next to the app bar -->
-  <AppSidebar
-    v-model="navOpen"
-    :rail="isRail"
-    :expand-on-hover="isRail"
-    :permanent="lgAndUp"
-    :temporary="!lgAndUp"
-  />
+  <AppSidebar v-model="navOpen" :rail="isRail" :expand-on-hover="isRail" :permanent="lgAndUp" :temporary="!lgAndUp" />
 
   <AppHeader @toggle-nav="toggleNav" />
 
-  <v-navigation-drawer
-    v-if="hasAside"
-    v-model="asideOpen"
-    class="fox-aside"
-    location="end"
-    width="360"
-    :temporary="!lgAndUp"
-  >
+  <v-navigation-drawer v-if="hasAside" v-model="asideOpen" class="fox-aside" location="end" width="360" :temporary="!lgAndUp">
     <router-view name="aside" />
   </v-navigation-drawer>
 

@@ -14,7 +14,7 @@ const emit = defineEmits<{ restored: [label: string] }>()
 const store = useTestCaseStore()
 const { canRestoreVersion } = useTestCasePermissions()
 // follow the stored case, so a restore shows up here at once
-const live = computed(() => (props.testCase ? store.getById(props.testCase.id, props.testCase.projectId) ?? props.testCase : null))
+const live = computed(() => (props.testCase ? (store.getById(props.testCase.id, props.testCase.projectId) ?? props.testCase) : null))
 </script>
 
 <template>

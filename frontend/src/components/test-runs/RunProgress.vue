@@ -21,10 +21,13 @@ const segments = computed(() =>
       <div class="d-flex flex-wrap ga-3">
         <span v-for="s in segments" :key="s.value" class="d-inline-flex align-center ga-1 text-caption">
           <span class="run-progress__dot" :class="s.value === 'untested' ? 'run-progress__dot--empty' : `bg-${s.tone}`" />
-          <span class="fox-num">{{ s.count }}</span><span class="text-muted">{{ s.label }}</span>
+          <span class="fox-num">{{ s.count }}</span
+          ><span class="text-muted">{{ s.label }}</span>
         </span>
       </div>
-      <span class="text-caption text-muted fox-num">ทดสอบแล้ว {{ counts.executed }}/{{ counts.total }} · ผ่าน {{ formatPercent(counts.passRate, 0) }}</span>
+      <span class="text-caption text-muted fox-num"
+        >ทดสอบแล้ว {{ counts.executed }}/{{ counts.total }} · ผ่าน {{ formatPercent(counts.passRate, 0) }}</span
+      >
     </div>
     <div class="run-progress__track" :style="{ height: `${height}px` }">
       <div

@@ -45,14 +45,22 @@ const listFilter = ref<ListFilter>('all')
 const results = computed(() => run.value?.results ?? [])
 const visible = computed(() =>
   results.value.filter((r) =>
-    listFilter.value === 'untested' ? r.status === 'untested' : listFilter.value === 'problem' ? r.status === 'failed' || r.status === 'blocked' : true,
+    listFilter.value === 'untested'
+      ? r.status === 'untested'
+      : listFilter.value === 'problem'
+        ? r.status === 'failed' || r.status === 'blocked'
+        : true,
   ),
 )
 
 const selectedId = ref<string | null>(null)
-watch(results, (list) => {
-  if (!selectedId.value && list.length) selectedId.value = (list.find((r) => r.status === 'untested') ?? list[0]).caseId
-}, { immediate: true })
+watch(
+  results,
+  (list) => {
+    if (!selectedId.value && list.length) selectedId.value = (list.find((r) => r.status === 'untested') ?? list[0]).caseId
+  },
+  { immediate: true },
+)
 
 // --- editing draft of the selected result ------------------------------------------------
 const draft = ref<RunResult | null>(null)
@@ -136,7 +144,10 @@ function reportDefect(stepIndex: number) {
     severity: SEVERITY_BY_PRIORITY[d.priority],
     assignee: caseNow.value?.assignedDev ?? '',
     environment: [r.environment, r.build].filter(Boolean).join(' · '),
-    stepsToReproduce: d.steps.slice(0, stepIndex + 1).map((s, i) => `${i + 1}. ${s.action}${s.testData && s.testData !== '-' ? ` (${s.testData})` : ''}`).join('\n'),
+    stepsToReproduce: d.steps
+      .slice(0, stepIndex + 1)
+      .map((s, i) => `${i + 1}. ${s.action}${s.testData && s.testData !== '-' ? ` (${s.testData})` : ''}`)
+      .join('\n'),
     expected: step.expectedResult,
     actual: sr.actual,
     evidence: [...sr.evidence],
@@ -145,14 +156,17 @@ function reportDefect(stepIndex: number) {
 }
 
 function onDefectSave(input: DefectInput) {
-  saver.run(() => defectStore.save(input), async (created) => {
-    defectOpen.value = false
-    if (draft.value && !draft.value.defectIds.includes(created.id)) {
-      draft.value.defectIds.push(created.id)
-      await save(false)
-    }
-    notify(`รายงาน ${created.id} แล้ว`, 'error')
-  })
+  saver.run(
+    () => defectStore.save(input),
+    async (created) => {
+      defectOpen.value = false
+      if (draft.value && !draft.value.defectIds.includes(created.id)) {
+        draft.value.defectIds.push(created.id)
+        await save(false)
+      }
+      notify(`รายงาน ${created.id} แล้ว`, 'error')
+    },
+  )
 }
 
 const linkedDefects = computed(() => defectStore.defects.filter((x) => draft.value?.defectIds.includes(x.id)))
@@ -161,7 +175,11 @@ const linkedDefects = computed(() => defectStore.defects.filter((x) => draft.val
 const confirmComplete = ref(false)
 function complete() {
   const r = run.value
-  if (r) saver.run(() => runStore.complete(r.id), () => notify(`ปิด ${r.name} รอบที่ ${r.round} แล้ว`))
+  if (r)
+    saver.run(
+      () => runStore.complete(r.id),
+      () => notify(`ปิด ${r.name} รอบที่ ${r.round} แล้ว`),
+    )
 }
 </script>
 
@@ -174,23 +192,40 @@ function complete() {
   </v-card>
 
   <template v-else>
-    <FoxPageHeader :title="`${run.name} · รอบที่ ${run.round}`" :breadcrumbs="[{ title: 'Test Runs', to: '/test-runs' }, { title: `${run.name} #${run.round}` }]">
+    <FoxPageHeader
+      :title="`${run.name} · รอบที่ ${run.round}`"
+      :breadcrumbs="[{ title: 'Test Runs', to: '/test-runs' }, { title: `${run.name} #${run.round}` }]"
+    >
       <template #actions>
-        <v-btn variant="outlined" prepend-icon="tabler:file-description" :to="{ path: '/documents', query: { create: run.type === 'uat' ? 'uat' : 'test_summary', runId: run.id } }">
+        <v-btn
+          variant="outlined"
+          prepend-icon="tabler:file-description"
+          :to="{ path: '/documents', query: { create: run.type === 'uat' ? 'uat' : 'test_summary', runId: run.id } }"
+        >
           สร้างเอกสาร
         </v-btn>
-        <v-btn v-if="run.status !== 'completed' && canCloseRun" color="success" prepend-icon="tabler:flag-check" @click="confirmComplete = true">ปิดรอบ</v-btn>
+        <v-btn v-if="run.status !== 'completed' && canCloseRun" color="success" prepend-icon="tabler:flag-check" @click="confirmComplete = true"
+          >ปิดรอบ</v-btn
+        >
       </template>
     </FoxPageHeader>
 
     <div class="fox-stack">
       <v-card class="fox-card-body">
         <div class="d-flex flex-wrap align-center ga-2 mb-4">
-          <v-chip :color="runTypeOf(run.type).tone" :prepend-icon="runTypeOf(run.type).icon" size="small" variant="tonal">{{ runTypeOf(run.type).label }}</v-chip>
-          <v-chip :color="runStatusOf(run.status).tone" :prepend-icon="runStatusOf(run.status).icon" size="small" variant="flat">{{ runStatusOf(run.status).label }}</v-chip>
-          <span class="text-body-2 text-muted">{{ run.environment }}<template v-if="run.build"> · {{ run.build }}</template></span>
+          <v-chip :color="runTypeOf(run.type).tone" :prepend-icon="runTypeOf(run.type).icon" size="small" variant="tonal">{{
+            runTypeOf(run.type).label
+          }}</v-chip>
+          <v-chip :color="runStatusOf(run.status).tone" :prepend-icon="runStatusOf(run.status).icon" size="small" variant="flat">{{
+            runStatusOf(run.status).label
+          }}</v-chip>
+          <span class="text-body-2 text-muted"
+            >{{ run.environment }}<template v-if="run.build"> · {{ run.build }}</template></span
+          >
           <v-spacer />
-          <v-chip v-if="readonly && run.status === 'completed'" size="small" variant="tonal" prepend-icon="tabler:lock">ปิดรอบแล้ว · ดูอย่างเดียว</v-chip>
+          <v-chip v-if="readonly && run.status === 'completed'" size="small" variant="tonal" prepend-icon="tabler:lock"
+            >ปิดรอบแล้ว · ดูอย่างเดียว</v-chip
+          >
         </div>
         <RunProgress :run="run" :height="10" />
       </v-card>
@@ -219,7 +254,8 @@ function complete() {
                   <v-icon :icon="resultOf(r.status).icon" :color="resultOf(r.status).tone" class="mr-3" />
                 </template>
                 <v-list-item-title class="text-subtitle-2">
-                  <span class="fox-num">{{ r.caseId }}</span><span v-if="r.caseDeleted" class="text-caption text-muted"> (ลบแล้ว)</span>
+                  <span class="fox-num">{{ r.caseId }}</span
+                  ><span v-if="r.caseDeleted" class="text-caption text-muted"> (ลบแล้ว)</span>
                 </v-list-item-title>
                 <v-list-item-subtitle class="text-caption">{{ r.caseName }}</v-list-item-subtitle>
                 <template v-if="r.defectIds.length" #append>
@@ -242,7 +278,9 @@ function complete() {
                   <TestCasePriorityChip :priority="draft.priority" />
                 </div>
                 <h2 class="text-h5">{{ draft.caseName }}</h2>
-                <div v-if="draft.executedAt" class="text-caption text-muted">ทดสอบล่าสุดโดย {{ draft.executedBy }} · {{ formatDateTime(draft.executedAt) }}</div>
+                <div v-if="draft.executedAt" class="text-caption text-muted">
+                  ทดสอบล่าสุดโดย {{ draft.executedBy }} · {{ formatDateTime(draft.executedAt) }}
+                </div>
               </div>
               <div class="text-end">
                 <div class="text-caption text-muted">ผลของเคส (คำนวณจากขั้นตอน)</div>
@@ -278,7 +316,11 @@ function complete() {
                 :class="`exec-step--${draft.stepResults[i]?.status ?? 'untested'}`"
               >
                 <div class="d-flex flex-wrap align-start ga-3">
-                  <v-avatar :color="resultOf(draft.stepResults[i].status).tone" size="32" :variant="draft.stepResults[i].status === 'untested' ? 'tonal' : 'flat'">
+                  <v-avatar
+                    :color="resultOf(draft.stepResults[i].status).tone"
+                    size="32"
+                    :variant="draft.stepResults[i].status === 'untested' ? 'tonal' : 'flat'"
+                  >
                     <span class="text-subtitle-2 fox-num">{{ i + 1 }}</span>
                   </v-avatar>
                   <div class="flex-grow-1 exec-step__text">
@@ -305,10 +347,24 @@ function complete() {
                 <v-expand-transition>
                   <div v-if="draft.stepResults[i].status === 'failed' || draft.stepResults[i].status === 'blocked'" class="exec-step__detail">
                     <label class="fox-label" :for="`act-${i}`">ผลที่เกิดขึ้นจริง</label>
-                    <v-textarea :id="`act-${i}`" v-model="draft.stepResults[i].actual" rows="2" auto-grow :readonly="readonly" placeholder="อธิบายสิ่งที่เกิดขึ้น ข้อความ Error หรือ Response" />
+                    <v-textarea
+                      :id="`act-${i}`"
+                      v-model="draft.stepResults[i].actual"
+                      rows="2"
+                      auto-grow
+                      :readonly="readonly"
+                      placeholder="อธิบายสิ่งที่เกิดขึ้น ข้อความ Error หรือ Response"
+                    />
                     <div class="fox-label mt-3">หลักฐาน</div>
                     <FoxImageUpload v-model="draft.stepResults[i].evidence" :readonly="readonly" />
-                    <v-btn v-if="!readonly && draft.stepResults[i].status === 'failed' && auth.can('defect.report')" class="mt-3" color="error" variant="tonal" prepend-icon="tabler:bug" @click="reportDefect(i)">
+                    <v-btn
+                      v-if="!readonly && draft.stepResults[i].status === 'failed' && auth.can('defect.report')"
+                      class="mt-3"
+                      color="error"
+                      variant="tonal"
+                      prepend-icon="tabler:bug"
+                      @click="reportDefect(i)"
+                    >
                       รายงาน Defect จากขั้นตอนนี้
                     </v-btn>
                   </div>
@@ -321,7 +377,14 @@ function complete() {
             <v-row dense class="fox-form-grid">
               <v-col cols="12" md="6">
                 <label class="fox-label" for="exec-actual">สรุปผลการทดสอบ</label>
-                <v-textarea id="exec-actual" v-model="draft.actualResults" rows="3" auto-grow :readonly="readonly" placeholder="เช่น ทำงานถูกต้อง Response time เฉลี่ย 230ms" />
+                <v-textarea
+                  id="exec-actual"
+                  v-model="draft.actualResults"
+                  rows="3"
+                  auto-grow
+                  :readonly="readonly"
+                  placeholder="เช่น ทำงานถูกต้อง Response time เฉลี่ย 230ms"
+                />
               </v-col>
               <v-col cols="12" md="6">
                 <label class="fox-label" for="exec-notes">หมายเหตุ</label>
@@ -349,7 +412,9 @@ function complete() {
             </v-row>
 
             <div v-if="!readonly" class="d-flex flex-wrap align-center ga-3 mt-6">
-              <span v-if="dirty" class="text-body-2 text-warning d-inline-flex align-center ga-1"><v-icon icon="tabler:point" size="14" />ยังไม่ได้บันทึก</span>
+              <span v-if="dirty" class="text-body-2 text-warning d-inline-flex align-center ga-1"
+                ><v-icon icon="tabler:point" size="14" />ยังไม่ได้บันทึก</span
+              >
               <v-spacer />
               <v-btn variant="outlined" :loading="saver.busy.value" @click="save(false)">บันทึก</v-btn>
               <v-btn color="primary" append-icon="tabler:chevron-right" :loading="saver.busy.value" @click="save(true)">บันทึกและไปเคสถัดไป</v-btn>
@@ -403,7 +468,9 @@ function complete() {
   border-radius: var(--fox-radius-control);
   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
   border-left-width: 4px;
-  transition: border-color 0.15s, background-color 0.15s;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
 }
 
 .exec-step--passed {

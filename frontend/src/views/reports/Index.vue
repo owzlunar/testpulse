@@ -43,8 +43,18 @@ const rootCauses = computed(() => {
 const kpis = computed(() => [
   { label: 'เคสหลัก', value: cases.value.filter((c) => !c.parentId).length, icon: 'tabler:flask', tone: 'primary' as Tone },
   { label: 'Sub-cases', value: cases.value.filter((c) => !!c.parentId).length, icon: 'tabler:subtask', tone: 'info' as Tone },
-  { label: 'ขั้นตอนทดสอบทั้งหมด', value: cases.value.reduce((sum, c) => sum + c.steps.length, 0), icon: 'tabler:list-numbers', tone: 'success' as Tone },
-  { label: 'เลยกำหนด / แก้ซ้ำ', value: `${cases.value.filter(isOverdue).length} / ${cases.value.filter(isHighChurn).length}`, icon: 'tabler:alert-triangle', tone: 'error' as Tone },
+  {
+    label: 'ขั้นตอนทดสอบทั้งหมด',
+    value: cases.value.reduce((sum, c) => sum + c.steps.length, 0),
+    icon: 'tabler:list-numbers',
+    tone: 'success' as Tone,
+  },
+  {
+    label: 'เลยกำหนด / แก้ซ้ำ',
+    value: `${cases.value.filter(isOverdue).length} / ${cases.value.filter(isHighChurn).length}`,
+    icon: 'tabler:alert-triangle',
+    tone: 'error' as Tone,
+  },
 ])
 
 function exportReport() {
@@ -57,7 +67,9 @@ function exportReport() {
   <FoxPageHeader title="รายงานสรุปผลการทดสอบ" :breadcrumbs="[{ title: 'รายงาน' }]">
     <template #actions>
       <v-btn variant="outlined" prepend-icon="tabler:markdown" @click="exportReport">ส่งออก .md</v-btn>
-      <v-btn color="primary" prepend-icon="tabler:report-analytics" :to="{ path: '/documents', query: { create: 'test_summary' } }">สร้าง Test Summary Report</v-btn>
+      <v-btn color="primary" prepend-icon="tabler:report-analytics" :to="{ path: '/documents', query: { create: 'test_summary' } }"
+        >สร้าง Test Summary Report</v-btn
+      >
     </template>
   </FoxPageHeader>
 

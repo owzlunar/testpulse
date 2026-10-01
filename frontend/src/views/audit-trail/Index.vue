@@ -71,10 +71,26 @@ const roleOptions = computed(() => [...new Set([...auth.roles.map((r) => r.name)
     <div class="fox-card-body">
       <v-row dense class="row-gap-3 align-center">
         <v-col cols="12" md="4">
-          <v-text-field v-model="search" density="compact" placeholder="ค้นหาข้อความ ผู้ดำเนินการ หรือรหัสเคส" prepend-inner-icon="tabler:search" aria-label="ค้นหา" clearable />
+          <v-text-field
+            v-model="search"
+            density="compact"
+            placeholder="ค้นหาข้อความ ผู้ดำเนินการ หรือรหัสเคส"
+            prepend-inner-icon="tabler:search"
+            aria-label="ค้นหา"
+            clearable
+          />
         </v-col>
         <v-col cols="6" md="2">
-          <v-select v-model="action" :items="AUDIT_ACTIONS" item-title="label" item-value="value" density="compact" placeholder="ทุกการกระทำ" aria-label="ประเภทการกระทำ" clearable>
+          <v-select
+            v-model="action"
+            :items="AUDIT_ACTIONS"
+            item-title="label"
+            item-value="value"
+            density="compact"
+            placeholder="ทุกการกระทำ"
+            aria-label="ประเภทการกระทำ"
+            clearable
+          >
             <template #item="{ props: item, item: { raw } }">
               <v-list-item v-bind="item" :prepend-icon="raw.icon" :base-color="raw.tone" />
             </template>
@@ -105,7 +121,10 @@ const roleOptions = computed(() => [...new Set([...auth.roles.map((r) => r.name)
       </template>
       <template #[`item.target`]="{ item }">
         <div class="py-3">
-          <div class="text-subtitle-2"><span class="text-primary fox-num mr-1">{{ item.targetId }}</span>{{ item.targetTitle }}</div>
+          <div class="text-subtitle-2">
+            <span class="text-primary fox-num mr-1">{{ item.targetId }}</span
+            >{{ item.targetTitle }}
+          </div>
           <div class="text-body-2 text-muted">{{ item.details }}</div>
           <div v-for="(c, i) in item.changes ?? []" :key="i" class="d-flex flex-wrap align-center ga-2 text-caption mt-1">
             <span class="text-muted">{{ c.field }}:</span>

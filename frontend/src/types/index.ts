@@ -20,12 +20,27 @@ export interface Option<T extends string = string> {
  * Managing users, roles, teams and projects is not a permission: only the built-in Admin role can.
  */
 export type PermissionKey =
-  | 'requirement.view' | 'requirement.edit' | 'requirement.delete'
-  | 'case.view' | 'case.edit' | 'case.archive' | 'case.delete' | 'case.reorder' | 'case.restoreVersion' | 'case.handoff'
-  | 'run.view' | 'run.create' | 'run.execute' | 'run.close'
-  | 'defect.view' | 'defect.report' | 'defect.resolve'
+  | 'requirement.view'
+  | 'requirement.edit'
+  | 'requirement.delete'
+  | 'case.view'
+  | 'case.edit'
+  | 'case.archive'
+  | 'case.delete'
+  | 'case.reorder'
+  | 'case.restoreVersion'
+  | 'case.handoff'
+  | 'run.view'
+  | 'run.create'
+  | 'run.execute'
+  | 'run.close'
+  | 'defect.view'
+  | 'defect.report'
+  | 'defect.resolve'
   | 'calendar.view'
-  | 'document.view' | 'document.create' | 'document.sign'
+  | 'document.view'
+  | 'document.create'
+  | 'document.sign'
   | 'report.view'
   | 'notification.receive'
   | 'audit.view'
@@ -309,7 +324,8 @@ export type TestCaseInput = Omit<TestCase, 'createdAt' | 'updatedAt'> & {
   bumpMajor?: boolean
 }
 
-export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'ARCHIVE' | 'RESTORE' | 'STATUS_CHANGE' | 'EXPORT' | 'ADD_SUBCASE' | 'EXTEND_DUE_DATE' | 'SLA_BREACHED'
+export type AuditAction =
+  'CREATE' | 'UPDATE' | 'DELETE' | 'ARCHIVE' | 'RESTORE' | 'STATUS_CHANGE' | 'EXPORT' | 'ADD_SUBCASE' | 'EXTEND_DUE_DATE' | 'SLA_BREACHED'
 
 export interface AuditChange {
   field: string
@@ -360,7 +376,6 @@ export interface ProjectStats {
   /** count for every status, including pending / ready_for_test */
   byStatus: Record<TestCaseStatus, number>
 }
-
 
 // =============================================================================
 // Authoring helpers (templates, import, AI drafts)

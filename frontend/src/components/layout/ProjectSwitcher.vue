@@ -58,14 +58,7 @@ function createProject() {
         />
       </div>
       <v-list class="px-2 project-switcher__list">
-        <v-list-item
-          v-for="p in filtered"
-          :key="p.id"
-          :active="p.id === selectedProjectId"
-          color="primary"
-          class="py-2"
-          @click="pick(p.id)"
-        >
+        <v-list-item v-for="p in filtered" :key="p.id" :active="p.id === selectedProjectId" color="primary" class="py-2" @click="pick(p.id)">
           <template #prepend>
             <ProjectAvatar :project="p" size="36" class="mr-3" />
           </template>

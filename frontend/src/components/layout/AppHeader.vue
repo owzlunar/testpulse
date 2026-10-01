@@ -37,16 +37,17 @@ const auth = useAuthStore()
 
       <v-spacer />
 
-      <v-btn
-        icon
-        variant="text"
-        :aria-label="$vuetify.theme.current.dark ? 'โหมดสว่าง' : 'โหมดมืด'"
-        @click="toggleTheme"
-      >
+      <v-btn icon variant="text" :aria-label="$vuetify.theme.current.dark ? 'โหมดสว่าง' : 'โหมดมืด'" @click="toggleTheme">
         <v-icon :icon="$vuetify.theme.current.dark ? 'tabler:sun' : 'tabler:moon'" />
       </v-btn>
 
-      <v-btn v-if="auth.can('notification.receive')" icon variant="text" aria-label="การแจ้งเตือน" @click="layout.notificationsOpen = !layout.notificationsOpen">
+      <v-btn
+        v-if="auth.can('notification.receive')"
+        icon
+        variant="text"
+        aria-label="การแจ้งเตือน"
+        @click="layout.notificationsOpen = !layout.notificationsOpen"
+      >
         <v-badge :model-value="unreadCount > 0" :content="unreadCount" color="error">
           <v-icon icon="tabler:bell" />
         </v-badge>

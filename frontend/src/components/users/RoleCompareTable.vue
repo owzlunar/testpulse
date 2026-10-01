@@ -13,7 +13,11 @@ const userCount = (r: Role) => props.users.filter((u) => u.roleId === r.id).leng
 
 // default: the 5 most used roles besides Admin (who has everything anyway)
 const picked = ref<string[]>(
-  [...props.roles].filter((r) => !r.builtIn).sort((a, b) => userCount(b) - userCount(a)).slice(0, 5).map((r) => r.id),
+  [...props.roles]
+    .filter((r) => !r.builtIn)
+    .sort((a, b) => userCount(b) - userCount(a))
+    .slice(0, 5)
+    .map((r) => r.id),
 )
 const columns = computed(() => props.roles.filter((r) => picked.value.includes(r.id)))
 const diffOnly = ref(false)
@@ -64,7 +68,12 @@ function toggleGroup(module: string) {
     </div>
     <v-divider />
 
-    <FoxEmptyState v-if="!columns.length" icon="tabler:columns" title="เลือก Role อย่างน้อย 1 รายการ" text="เลือกได้หลาย Role เพื่อดูสิทธิ์เทียบกัน" />
+    <FoxEmptyState
+      v-if="!columns.length"
+      icon="tabler:columns"
+      title="เลือก Role อย่างน้อย 1 รายการ"
+      text="เลือกได้หลาย Role เพื่อดูสิทธิ์เทียบกัน"
+    />
     <FoxEmptyState v-else-if="!groups.length" icon="tabler:equal" title="สิทธิ์เหมือนกันทุกข้อ" text="Role ที่เลือกมีสิทธิ์ตรงกันทั้งหมด" />
     <v-table v-else fixed-header height="calc(100vh - 320px)" class="role-compare">
       <thead>

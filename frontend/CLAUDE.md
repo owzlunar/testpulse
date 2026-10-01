@@ -6,12 +6,14 @@ Stack: Vue 3, Vite, Vuetify 3.5.9 (pinned exactly, no `^`: same version as `../.
 Design reference: Fox admin dashboard (`../../fox`, light + dark, blue primary). Font: Noto Sans Thai.
 
 ## Theme source of truth
+
 - Colors, component defaults, icon sets: `src/plugins/vuetify.ts` (adds `caution` = orange for Blocked / High / churn)
 - Vuetify SASS variables: `src/styles/settings.scss`
 - Global overrides: `src/styles/main.scss`
 - Calendar: `src/styles/fullcalendar.scss`
 
 ## Rules
+
 1. Never hardcode colors (no hex, rgb, or named colors) in components or styles. Use theme colors: `color="primary"`, `bg-surface`, `text-muted`, or `rgb(var(--v-theme-primary))` in CSS. If a new color is needed, add it to the theme first.
 2. Change how a Vuetify component looks by editing `defaults` in `vuetify.ts` before adding per-page props or CSS.
 3. Do not override Vuetify internals with `!important` or `:deep()` inside a page. Put shared overrides in `main.scss`.
@@ -26,21 +28,23 @@ Design reference: Fox admin dashboard (`../../fox`, light + dark, blue primary).
 12. Gate actions by permission, never by role name: `auth.can('module.action')` (`useTestCasePermissions()` for test-case actions), `permission` / `adminOnly` on items in `router/navigation.ts`. Permission keys and their labels live in `PERMISSION_GROUPS` (`role.service.ts`); managing users, roles, teams and projects is `auth.isAdmin`. People pickers use the role's discipline (`auth.usersIn('qa' | 'dev')`).
 
 ## Structures
+
 src
 |--- assets  
 |--- components
 |--- composables
 |--- layouts
 |--- plugins <-- vuetify
-|--- router  <-- vue-router
-|--- services 
+|--- router <-- vue-router
+|--- services
 |--- stores <-- pinia
 |--- styles
 |--- types
 |--- utils  
-|--- views  
+|--- views
 
 ## Conventions
+
 - TypeScript everywhere. Components use `<script setup lang="ts">` with type-based `defineProps` / `defineEmits`. Shared types go in `src/types`.
 - Services: `xxx.service.ts` (e.g. `test-case.service.ts`). Stores: `xxx.store.ts` (Pinia setup stores, e.g. `calendar.store.ts`). Multi-word names are kebab-case.
 - Components use stores directly (`useProjectStore()` + `storeToRefs`); no thin wrapper composables.
@@ -50,6 +54,7 @@ src
 - `npm run build` runs `vue-tsc` first; it must pass.
 
 ## Mock API (no backend yet)
+
 - `services/*.service.ts` **is the API contract**. Every async function there goes through `respond()` in `services/http.ts` (latency + deep copy) and has a JSDoc line naming its endpoint, e.g. `/** PUT /projects/:projectId/test-cases/:id */`. To connect the backend, replace the function body with a `fetch`; stores and pages don't change.
 - `services/storage.service.ts` is the mock database (LocalStorage). Only services touch it. Server-side logic (snapshot building, ID generation, gatekeeper validation) lives in the service too, as the backend will do it. Sync helpers named "server-side" (e.g. `renameRunCases`) are part of that logic, not endpoints.
 - One-off fixes to stored demo data go through `migrateOnce()`; never re-apply them on every load.
@@ -66,10 +71,12 @@ src
 - Images: always pass uploads through `utils/image.ts` `compressImage()` (paste / drop / file).
 
 ## Exceptions to the colour rule
+
 - Exported files (`export.service.ts`: Obsidian Markdown, Word `.doc`) carry their own fixed styles. App UI never does.
 - `DocumentPaper.vue` renders inside `class="v-theme--light"` so a document always looks like paper, even in dark mode.
 
 ## Workflow
+
 - Before changing a page, list the hardcoded colors, inline styles and duplicated components in it and propose the fix.
 - Run `npm run build` after each group, then commit it.
 - When unsure whether a style belongs to the theme or the page, ask.

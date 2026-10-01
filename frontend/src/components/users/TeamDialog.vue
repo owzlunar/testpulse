@@ -20,10 +20,14 @@ const empty = (): TeamInput => ({ name: '', description: '', tone: 'primary', me
 const form = reactive<TeamInput>(empty())
 const formRef = ref<VForm>()
 
-watch(open, (isOpen) => {
-  if (!isOpen) return
-  Object.assign(form, empty(), props.team ? JSON.parse(JSON.stringify(props.team)) : { id: undefined })
-}, { immediate: true })
+watch(
+  open,
+  (isOpen) => {
+    if (!isOpen) return
+    Object.assign(form, empty(), props.team ? JSON.parse(JSON.stringify(props.team)) : { id: undefined })
+  },
+  { immediate: true },
+)
 
 async function submit() {
   const result = await formRef.value?.validate()

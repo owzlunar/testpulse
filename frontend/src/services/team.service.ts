@@ -65,7 +65,10 @@ export const deleteTeam = (id: string) =>
     assertCan('admin')
     const list = teams()
     if (!list.some((t) => t.id === id)) throw new ApiError('ไม่พบทีม', 404)
-    save(STORAGE_KEYS.teams, list.filter((t) => t.id !== id))
+    save(
+      STORAGE_KEYS.teams,
+      list.filter((t) => t.id !== id),
+    )
     const projects = load<Project[]>(STORAGE_KEYS.projects, [])
     const changed = projects.filter((p) => p.teamIds?.includes(id))
     changed.forEach((p) => (p.teamIds = p.teamIds!.filter((t) => t !== id)))

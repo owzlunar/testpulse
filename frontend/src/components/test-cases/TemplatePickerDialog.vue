@@ -18,13 +18,17 @@ const category = ref<string | null>(null)
 const selected = ref<TestCaseTemplate | null>(null)
 const { run } = useAsyncAction()
 
-watch(open, async (isOpen) => {
-  if (!isOpen) return
-  selected.value = null
-  loading.value = true
-  await run(async () => (templates.value = await fetchTemplates()))
-  loading.value = false
-}, { immediate: true })
+watch(
+  open,
+  async (isOpen) => {
+    if (!isOpen) return
+    selected.value = null
+    loading.value = true
+    await run(async () => (templates.value = await fetchTemplates()))
+    loading.value = false
+  },
+  { immediate: true },
+)
 
 const categories = computed(() => [...new Set([...TEMPLATE_CATEGORIES, ...templates.value.map((t) => t.category)])])
 const filtered = computed(() => {
@@ -49,10 +53,13 @@ function askDelete(t: TestCaseTemplate) {
 function onDelete() {
   const t = deleting.value
   if (!t) return
-  run(() => deleteTemplate(t.id), () => {
-    templates.value = templates.value.filter((x) => x.id !== t.id)
-    if (selected.value?.id === t.id) selected.value = null
-  })
+  run(
+    () => deleteTemplate(t.id),
+    () => {
+      templates.value = templates.value.filter((x) => x.id !== t.id)
+      if (selected.value?.id === t.id) selected.value = null
+    },
+  )
 }
 </script>
 
@@ -70,7 +77,14 @@ function onDelete() {
       <div class="fox-card-body pb-0">
         <v-row dense class="row-gap-3 align-center">
           <v-col cols="12" md="5">
-            <v-text-field v-model="search" density="compact" placeholder="ค้นหา Template" prepend-inner-icon="tabler:search" aria-label="ค้นหา Template" clearable />
+            <v-text-field
+              v-model="search"
+              density="compact"
+              placeholder="ค้นหา Template"
+              prepend-inner-icon="tabler:search"
+              aria-label="ค้นหา Template"
+              clearable
+            />
           </v-col>
           <v-col cols="12" md="7">
             <v-chip-group v-model="category" aria-label="หมวดหมู่">
@@ -154,7 +168,13 @@ function onDelete() {
     </v-card>
   </v-dialog>
 
-  <FoxConfirmDialog v-model="confirmDelete" title="ลบ Template?" :text="deleting ? `“${deleting.name}” จะถูกลบสำหรับทุกคนในทีม` : ''" confirm-text="ลบ" @confirm="onDelete" />
+  <FoxConfirmDialog
+    v-model="confirmDelete"
+    title="ลบ Template?"
+    :text="deleting ? `“${deleting.name}” จะถูกลบสำหรับทุกคนในทีม` : ''"
+    confirm-text="ลบ"
+    @confirm="onDelete"
+  />
 </template>
 
 <style scoped>

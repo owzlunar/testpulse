@@ -44,14 +44,11 @@ export const useTestCaseStore = defineStore('testCase', () => {
   /** parent cases with their sub-cases */
   function treeOf(projectId: string): TestCaseNode[] {
     const cases = casesOf(projectId)
-    return cases
-      .filter((tc) => !tc.parentId)
-      .map((parent) => ({ ...parent, subCases: cases.filter((sub) => sub.parentId === parent.id) }))
+    return cases.filter((tc) => !tc.parentId).map((parent) => ({ ...parent, subCases: cases.filter((sub) => sub.parentId === parent.id) }))
   }
 
   /** ids restart at TC-101 in every project, so pass the project when you have it */
-  const getById = (id: string, projectId?: string) =>
-    testCases.value.find((tc) => tc.id === id && (!projectId || tc.projectId === projectId))
+  const getById = (id: string, projectId?: string) => testCases.value.find((tc) => tc.id === id && (!projectId || tc.projectId === projectId))
 
   /** next "TC-1xx" id, or "<parent>-n" for a sub-case (archived cases keep their ids, so they count) */
   function nextId(projectId: string, parentId?: string | null): { id: string; numericId: number } {
@@ -141,7 +138,10 @@ export const useTestCaseStore = defineStore('testCase', () => {
   /** draft (template / import / AI) -> new-case input with sensible defaults */
   function fromDraft(draft: TestCaseDraft, projectId: string, id: string, numericId: number, parentId: string | null = null): TestCaseInput {
     return {
-      id, numericId, parentId, projectId,
+      id,
+      numericId,
+      parentId,
+      projectId,
       name: draft.name,
       requirement: draft.requirement,
       requirementIds: draft.requirementIds ?? [],
@@ -151,7 +151,9 @@ export const useTestCaseStore = defineStore('testCase', () => {
       priority: draft.priority,
       steps: draft.steps.map((st, i) => ({ ...st, id: `s-${Date.now()}-${numericId}-${i}`, stepNumber: i + 1 })),
       expectedResults: draft.expectedResults,
-      expectedImages: [], actualResults: '', actualImages: [],
+      expectedImages: [],
+      actualResults: '',
+      actualImages: [],
       status: 'pending',
       expiryDate: addDays(todayISO(), 7),
       assignedTo: auth.currentUser.name,
@@ -162,7 +164,11 @@ export const useTestCaseStore = defineStore('testCase', () => {
 
   /** Create several top-level cases at once (import, AI drafts); the server numbers them after the last TC */
   async function createMany(projectId: string, drafts: TestCaseDraft[], source: string): Promise<TestCase[]> {
-    const saved = await api.createTestCases(projectId, drafts.map((d, i) => fromDraft(d, projectId, '', i)), actor())
+    const saved = await api.createTestCases(
+      projectId,
+      drafts.map((d, i) => fromDraft(d, projectId, '', i)),
+      actor(),
+    )
     testCases.value = [...testCases.value, ...saved]
     audit.record({
       action: 'CREATE',
@@ -210,10 +216,14 @@ export const useTestCaseStore = defineStore('testCase', () => {
       targetTitle: tc.name,
       details: [
         newVersion && `${old.version} → ${tc.version}`,
-        passInvalidated ? 'แก้ไขข้อกำหนดหลังผ่านการทดสอบ สถานะกลับเป็นพร้อมให้ทดสอบ'
-        : statusChanged ? `เปลี่ยนสถานะเป็น ${statusOf(tc.status).label}`
-        : 'อัปเดตรายละเอียดของ Test Case',
-      ].filter(Boolean).join(' · '),
+        passInvalidated
+          ? 'แก้ไขข้อกำหนดหลังผ่านการทดสอบ สถานะกลับเป็นพร้อมให้ทดสอบ'
+          : statusChanged
+            ? `เปลี่ยนสถานะเป็น ${statusOf(tc.status).label}`
+            : 'อัปเดตรายละเอียดของ Test Case',
+      ]
+        .filter(Boolean)
+        .join(' · '),
       changes,
     })
 
@@ -291,9 +301,21 @@ export const useTestCaseStore = defineStore('testCase', () => {
       targetId: id,
       projectId,
       targetTitle: target?.name ?? id,
-      details: archived.length > 1 ? `เก็บ ${id} เข้าคลัง รวมถึง Sub-case ${archived.slice(1).map((c) => c.id).join(', ')}` : `เก็บ ${id} เข้าคลัง`,
+      details:
+        archived.length > 1
+          ? `เก็บ ${id} เข้าคลัง รวมถึง Sub-case ${archived
+              .slice(1)
+              .map((c) => c.id)
+              .join(', ')}`
+          : `เก็บ ${id} เข้าคลัง`,
     })
-    notify.add({ type: 'MODIFIED', title: 'เก็บ Test Case เข้าคลัง', message: `${id}: "${target?.name}" ถูกเก็บเข้าคลัง กู้คืนได้`, projectId, severity: 'warning' })
+    notify.add({
+      type: 'MODIFIED',
+      title: 'เก็บ Test Case เข้าคลัง',
+      message: `${id}: "${target?.name}" ถูกเก็บเข้าคลัง กู้คืนได้`,
+      projectId,
+      severity: 'warning',
+    })
     return archived
   }
 
@@ -306,7 +328,13 @@ export const useTestCaseStore = defineStore('testCase', () => {
       targetId: id,
       projectId,
       targetTitle: restored[0]?.name ?? id,
-      details: restored.length > 1 ? `กู้คืน ${id} พร้อม Sub-case ${restored.slice(1).map((c) => c.id).join(', ')}` : `กู้คืน ${id}`,
+      details:
+        restored.length > 1
+          ? `กู้คืน ${id} พร้อม Sub-case ${restored
+              .slice(1)
+              .map((c) => c.id)
+              .join(', ')}`
+          : `กู้คืน ${id}`,
     })
     return restored
   }
@@ -404,7 +432,10 @@ export const useTestCaseStore = defineStore('testCase', () => {
     testCases.value = [...flat, ...previous.filter((tc) => tc.projectId !== projectId)]
     let result: TestCaseReorderResult
     try {
-      result = await api.reorderTestCases(projectId, ordered.map((p) => ({ id: p.id, subIds: p.subCases.map((s) => s.id) })))
+      result = await api.reorderTestCases(
+        projectId,
+        ordered.map((p) => ({ id: p.id, subIds: p.subCases.map((s) => s.id) })),
+      )
     } catch (e) {
       testCases.value = previous
       throw e
@@ -429,8 +460,30 @@ export const useTestCaseStore = defineStore('testCase', () => {
   }
 
   return {
-    testCases, activeCases,
-    load, fromDraft, createMany, applyUpdate, replaceLocal, casesOf, treeOf, getById, nextId,
-    create, update, markReviewed, replaceMany, restoreVersion, archive, restore, remove, impactOf, archivedOf, removeProjectCases, extendDueDate, reorder, scanAllExpiries,
+    testCases,
+    activeCases,
+    load,
+    fromDraft,
+    createMany,
+    applyUpdate,
+    replaceLocal,
+    casesOf,
+    treeOf,
+    getById,
+    nextId,
+    create,
+    update,
+    markReviewed,
+    replaceMany,
+    restoreVersion,
+    archive,
+    restore,
+    remove,
+    impactOf,
+    archivedOf,
+    removeProjectCases,
+    extendDueDate,
+    reorder,
+    scanAllExpiries,
   }
 })
