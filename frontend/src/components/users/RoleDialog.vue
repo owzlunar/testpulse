@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import type { VForm } from 'vuetify/components'
-import { DISCIPLINES, PERMISSION_GROUPS, ROLE_ICONS, ROLE_TONES } from '@/services/role.service'
-import type { PermissionKey, Role, RoleInput } from '@/types'
+import RolePermissionEditor from './RolePermissionEditor.vue'
+import { DISCIPLINES, ROLE_ICONS, ROLE_TONES } from '@/services/role.service'
+import type { Role, RoleInput } from '@/types'
 import { required } from '@/utils/validators'
 
 // Create / edit / duplicate a role group: name, discipline, look and permissions by module
@@ -13,9 +14,11 @@ const props = withDefaults(
     role?: Role | null
     /** starting point for a new role (duplicate) */
     preset?: Role | null
+    /** false: name, discipline and look only (the role page edits permissions in place) */
+    withPermissions?: boolean
     loading?: boolean
   }>(),
-  { role: null, preset: null, loading: false },
+  { role: null, preset: null, withPermissions: true, loading: false },
 )
 const emit = defineEmits<{ save: [input: RoleInput] }>()
 
@@ -36,17 +39,6 @@ watch(open, (isOpen) => {
   }
 }, { immediate: true })
 
-const has = (key: PermissionKey) => form.permissions.includes(key)
-function toggle(key: PermissionKey, on: boolean | null) {
-  form.permissions = on ? [...new Set([...form.permissions, key])] : form.permissions.filter((k) => k !== key)
-}
-const groupState = (keys: PermissionKey[]) => {
-  const n = keys.filter(has).length
-  return { all: n === keys.length, some: n > 0 && n < keys.length }
-}
-function toggleGroup(keys: PermissionKey[], on: boolean | null) {
-  form.permissions = on ? [...new Set([...form.permissions, ...keys])] : form.permissions.filter((k) => !keys.includes(k))
-}
 
 async function submit() {
   const result = await formRef.value?.validate()
@@ -55,7 +47,7 @@ async function submit() {
 </script>
 
 <template>
-  <v-dialog v-model="open" max-width="860" scrollable>
+  <v-dialog v-model="open" :max-width="withPermissions ? 860 : 600" scrollable>
     <v-card>
       <div class="d-flex align-center justify-space-between fox-card-body pb-2">
         <div class="d-flex align-center ga-3 overflow-hidden">
@@ -104,50 +96,16 @@ async function submit() {
             </v-col>
           </v-row>
 
-          <div class="d-flex align-center justify-space-between mt-6 mb-3">
-            <span class="text-overline text-muted">สิทธิ์</span>
-            <span class="text-caption text-muted">การจัดการผู้ใช้ Role ทีม และโปรเจกต์ เป็นของ Admin เท่านั้น</span>
-          </div>
-          <v-alert v-if="isAdminRole" type="info" variant="tonal" density="compact" class="mb-3">
-            Admin มีทุกสิทธิ์เสมอ แก้ได้เฉพาะชื่อ คำอธิบาย สี และไอคอน
-          </v-alert>
-          <v-row dense>
-            <v-col v-for="g in PERMISSION_GROUPS" :key="g.module" cols="12" md="6">
-              <v-card variant="flat" border class="h-100">
-                <div class="d-flex align-center ga-2 px-4 pt-3">
-                  <v-icon :icon="g.icon" size="18" color="primary" />
-                  <span class="text-subtitle-2 flex-grow-1">{{ g.module }}</span>
-                  <v-checkbox-btn
-                    v-if="g.items.length > 1"
-                    :model-value="groupState(g.items.map((i) => i.key)).all"
-                    :indeterminate="groupState(g.items.map((i) => i.key)).some"
-                    :disabled="isAdminRole"
-                    density="compact"
-                    :aria-label="`เลือกทุกสิทธิ์ใน ${g.module}`"
-                    @update:model-value="toggleGroup(g.items.map((i) => i.key), $event)"
-                  />
-                </div>
-                <div class="px-2 pb-2">
-                  <v-checkbox
-                    v-for="item in g.items"
-                    :key="item.key"
-                    :model-value="has(item.key)"
-                    :disabled="isAdminRole"
-                    density="compact"
-                    hide-details
-                    @update:model-value="toggle(item.key, $event)"
-                  >
-                    <template #label>
-                      <div class="py-1">
-                        <div class="text-body-2">{{ item.label }}</div>
-                        <div class="text-caption text-muted">{{ item.description }}</div>
-                      </div>
-                    </template>
-                  </v-checkbox>
-                </div>
-              </v-card>
-            </v-col>
-          </v-row>
+          <template v-if="withPermissions">
+            <div class="d-flex align-center justify-space-between mt-6 mb-3">
+              <span class="text-overline text-muted">สิทธิ์</span>
+              <span class="text-caption text-muted">การจัดการผู้ใช้ Role ทีม และโปรเจกต์ เป็นของ Admin เท่านั้น</span>
+            </div>
+            <v-alert v-if="isAdminRole" type="info" variant="tonal" density="compact" class="mb-3">
+              Admin มีทุกสิทธิ์เสมอ แก้ได้เฉพาะชื่อ คำอธิบาย สี และไอคอน
+            </v-alert>
+            <RolePermissionEditor v-model="form.permissions" :disabled="isAdminRole" />
+          </template>
         </v-form>
       </v-card-text>
 
