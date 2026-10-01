@@ -63,6 +63,10 @@ const caseNow = computed(() =>
   draft.value && run.value && !draft.value.caseDeleted ? testCaseStore.getById(draft.value.caseId, run.value.projectId) : undefined,
 )
 const changedSinceSnapshot = computed(() => !!caseNow.value && caseNow.value.version !== draft.value?.caseVersion)
+// the result is still saved, but won't become the case's status (deleted / closed runs have their own notice)
+const syncBlock = computed(() =>
+  run.value && draft.value && !draft.value.caseDeleted && run.value.status !== 'completed' ? runStore.caseSyncBlock(run.value, draft.value) : null,
+)
 
 function setStep(i: number, status: ResultStatus) {
   if (!draft.value || readonly.value) return
@@ -248,6 +252,10 @@ function complete() {
             </v-alert>
             <v-alert v-if="changedSinceSnapshot" type="info" variant="tonal" density="compact" icon="tabler:git-branch" class="my-3">
               Test Case ถูกแก้ไขเป็น {{ caseNow?.version }} หลังสร้างรอบนี้ ผลด้านล่างอ้างอิงขั้นตอนของ {{ draft.caseVersion }}
+              และจะไม่เปลี่ยนสถานะปัจจุบันของเคส
+            </v-alert>
+            <v-alert v-else-if="syncBlock" type="info" variant="tonal" density="compact" icon="tabler:info-circle" class="my-3">
+              บันทึกผลในรอบนี้ได้ แต่จะไม่เปลี่ยนสถานะปัจจุบันของ {{ draft.caseId }}: {{ syncBlock }}
             </v-alert>
             <v-alert v-if="caseNow?.prerequisite" variant="tonal" color="primary" density="compact" icon="tabler:list-check" class="my-3 exec-pre">
               <strong>Prerequisite:</strong> {{ caseNow.prerequisite }}

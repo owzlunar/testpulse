@@ -55,13 +55,31 @@ export const useRunStore = defineStore('run', () => {
     if (run) audit.record({ action: 'STATUS_CHANGE', targetType: 'PROJECT', targetId: run.id, targetTitle: run.name, details: `ปิดรอบทดสอบ ${run.name} รอบที่ ${run.round}` })
   }
 
-  /** save one case's execution; the verdict also updates the test case itself */
+  /**
+   * Why a verdict in this run must not change the case's current status, or null when it may.
+   * The case status is "the latest result for the current spec": a closed run, a deleted case,
+   * a result for an older version or a run that a newer one has superseded only keep their history.
+   */
+  function caseSyncBlock(run: TestRun, result: RunResult): string | null {
+    if (result.caseDeleted) return 'Test Case นี้ถูกลบแล้ว'
+    if (run.status === 'completed') return 'รอบนี้ปิดแล้ว'
+    const tc = testCaseStore.getById(result.caseId, run.projectId)
+    if (!tc) return 'ไม่พบ Test Case'
+    if (tc.version !== result.caseVersion) return `ผลนี้ทดสอบกับ ${result.caseVersion} แต่เคสเป็น ${tc.version} แล้ว`
+    const newer = runs.value.find(
+      (r) => r.projectId === run.projectId && r.id !== run.id && r.createdAt > run.createdAt &&
+        r.results.some((x) => x.caseId === result.caseId && !x.caseDeleted && x.status !== 'untested'),
+    )
+    return newer ? `มีผลที่ใหม่กว่าใน ${newer.name} รอบที่ ${newer.round}` : null
+  }
+
+  /** save one case's execution; the verdict also updates the test case itself (see caseSyncBlock) */
   async function saveResult(runId: string, result: RunResult) {
     const stamped: RunResult = { ...result, executedBy: auth.currentUser.name, executedAt: new Date().toISOString() }
     const run = await api.saveResult(runId, stamped)
     replace(run)
     const caseStatus = CASE_STATUS[result.status]
-    const tc = testCaseStore.getById(result.caseId, run.projectId)
+    const tc = caseSyncBlock(run, stamped) ? undefined : testCaseStore.getById(result.caseId, run.projectId)
     if (caseStatus && tc && tc.status !== caseStatus) {
       await testCaseStore.update(tc.id, {
         status: caseStatus,
@@ -96,5 +114,5 @@ export const useRunStore = defineStore('run', () => {
   /** next round number for a run name in this project */
   const nextRound = (name: string) => Math.max(0, ...current.value.filter((r) => r.name === name).map((r) => r.round)) + 1
 
-  return { runs, loaded, current, ensureLoaded, getById, create, update, complete, saveResult, remove, nextRound, renameCases, detachCases }
+  return { runs, loaded, current, ensureLoaded, getById, create, update, complete, saveResult, remove, nextRound, renameCases, detachCases, caseSyncBlock }
 })
