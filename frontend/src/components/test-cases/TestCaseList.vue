@@ -1,21 +1,17 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import FoxEmptyState from '@/components/ui/FoxEmptyState.vue'
-import UserAvatar from '@/components/users/UserAvatar.vue'
-import TestCaseBadges from './TestCaseBadges.vue'
+import TestCaseArchiveList from './TestCaseArchiveList.vue'
+import TestCaseCard from './TestCaseCard.vue'
 import TestCaseMoveControls from './TestCaseMoveControls.vue'
-import TestCasePriorityChip from './TestCasePriorityChip.vue'
-import TestCaseStatusChip from './TestCaseStatusChip.vue'
-import TestCaseStatusMenu from './TestCaseStatusMenu.vue'
+import TestCaseSubRow from './TestCaseSubRow.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useDragAutoScroll } from '@/composables/useDragAutoScroll'
 import { useTestCasePermissions } from '@/composables/useTestCasePermissions'
-import { PRIORITIES, STATUSES, isDueSoon, isHighChurn, isOverdue } from '@/services/test-case.service'
+import { PRIORITIES, STATUSES, isHighChurn, isOverdue } from '@/services/test-case.service'
 import { useRequirementStore } from '@/stores/requirement.store'
 import { useTestCaseStore } from '@/stores/test-case.store'
 import type { MoveTarget, TestCase, TestCaseNode, TestCasePriority, TestCaseStatus } from '@/types'
-import { formatDateTH, formatDateTime } from '@/utils/date'
-import { firstName } from '@/utils/format'
 
 const props = defineProps<{
   projectId: string
@@ -41,7 +37,7 @@ const emit = defineEmits<{
 const store = useTestCaseStore()
 const requirementStore = useRequirementStore()
 const { busy, run } = useAsyncAction()
-const { canCreate, canEdit, canArchive, canPurge, canReorder: mayReorder, canHandOff } = useTestCasePermissions()
+const { canCreate, canReorder: mayReorder } = useTestCasePermissions()
 
 // --- active cases / archive ----------------------------------------------------
 const view = ref<'active' | 'archive'>('active')
@@ -88,9 +84,6 @@ function toggle(id: string) {
   else next.add(id)
   collapsed.value = next
 }
-
-// --- status -------------------------------------------------------------------
-const setStatus = (tc: TestCase, s: TestCaseStatus) => run(() => store.update(tc.id, { status: s }, tc.projectId))
 
 // --- drag & drop reordering (ids are renumbered after a drop) ----------------
 type DragSource = { kind: 'parent'; index: number } | { kind: 'sub'; parentId: string; index: number }
@@ -322,42 +315,13 @@ function insertClass(list: string, index: number, length: number) {
     </v-card>
 
     <!-- archive -->
-    <v-card v-if="view === 'archive'">
-      <FoxEmptyState v-if="!archived.length" icon="tabler:archive" title="คลังเก็บว่าง" text="เคสที่เก็บเข้าคลังจะแสดงที่นี่" />
-      <div v-else class="d-flex flex-column">
-        <template v-for="(tc, i) in archived" :key="tc.id">
-          <v-divider v-if="i" />
-          <div class="d-flex flex-wrap align-center ga-3 fox-card-body py-4">
-            <v-icon icon="tabler:archive" class="text-muted" />
-            <div class="flex-grow-1 overflow-hidden">
-              <div class="text-subtitle-2 text-truncate">
-                <span class="text-primary fox-num mr-2">{{ tc.id }}</span
-                >{{ tc.name }}
-              </div>
-              <div class="text-caption text-muted">
-                <template v-if="tc.parentId">Sub-case ของ {{ tc.parentId }} · </template>
-                {{ tc.version }} · เก็บเมื่อ {{ formatDateTime(tc.archivedAt!) }}<template v-if="tc.archivedBy"> โดย {{ tc.archivedBy }}</template>
-              </div>
-            </div>
-            <div class="d-flex align-center ga-1 flex-shrink-0">
-              <v-btn icon="tabler:eye" variant="text" size="small" :aria-label="`ดู ${tc.id}`" @click="emit('edit', tc)" />
-              <v-btn v-if="canArchive" variant="tonal" color="primary" size="small" prepend-icon="tabler:archive-off" @click="emit('restore', tc)"
-                >กู้คืน</v-btn
-              >
-              <v-btn
-                v-if="canPurge"
-                icon="tabler:trash"
-                variant="text"
-                size="small"
-                color="error"
-                :aria-label="`ลบถาวร ${tc.id}`"
-                @click="emit('purge', tc)"
-              />
-            </div>
-          </div>
-        </template>
-      </div>
-    </v-card>
+    <TestCaseArchiveList
+      v-if="view === 'archive'"
+      :archived="archived"
+      @edit="emit('edit', $event)"
+      @restore="emit('restore', $event)"
+      @purge="emit('purge', $event)"
+    />
 
     <!-- parent cases -->
     <div
@@ -370,10 +334,20 @@ function insertClass(list: string, index: number, length: number) {
     >
       <div v-for="(parent, pIdx) in visible" :key="parent.id" class="tc-slot" :class="insertClass('parents', pIdx, visible.length)">
         <v-card class="tc-card" :class="{ 'tc-card--dragging': dragging?.kind === 'parent' && dragging.index === pIdx }">
-          <div class="fox-card-body">
-            <div class="d-flex align-start ga-3">
+          <TestCaseCard
+            :test-case="parent"
+            :reorder-mode="reorderMode"
+            @edit="emit('edit', $event)"
+            @history="emit('history', $event)"
+            @extend="emit('extend', $event)"
+            @clone="emit('clone', $event)"
+            @save-template="emit('save-template', $event)"
+            @archive="emit('archive', $event)"
+            @reviewed="emit('reviewed', $event)"
+            @add-subcase="emit('add-subcase', $event)"
+          >
+            <template v-if="canReorder" #grip>
               <span
-                v-if="canReorder"
                 class="tc-grip text-muted mt-1"
                 draggable="true"
                 title="ลากเพื่อจัดลำดับ"
@@ -383,103 +357,17 @@ function insertClass(list: string, index: number, length: number) {
               >
                 <v-icon icon="tabler:grip-vertical" />
               </span>
-              <div class="flex-grow-1 overflow-hidden">
-                <div class="d-flex flex-wrap align-center ga-2 mb-2">
-                  <v-chip color="primary" size="small" variant="flat" class="fox-num">{{ parent.id }}</v-chip>
-                  <span class="text-caption text-muted fox-num">{{ parent.version }}</span>
-                  <TestCaseStatusChip :status="parent.status" />
-                  <TestCasePriorityChip :priority="parent.priority" />
-                  <TestCaseBadges :test-case="parent" />
-                  <template v-if="canReorder">
-                    <v-spacer />
-                    <TestCaseMoveControls
-                      list="parents"
-                      :index="pIdx"
-                      :count="visible.length"
-                      :targets="parentTargets.filter((t) => t.index !== pIdx)"
-                      @move="moveParent(pIdx, $event)"
-                    />
-                  </template>
-                </div>
-                <h3 class="text-h6 mb-1">{{ parent.name }}</h3>
-                <dl class="tc-spec text-body-2">
-                  <dt class="text-muted">Requirement</dt>
-                  <dd class="fox-clamp-2 tc-pre">{{ requirementStore.textFor(parent) || '-' }}</dd>
-                  <dt class="text-muted">Scenario</dt>
-                  <dd class="fox-clamp-2">{{ parent.testScenario }}</dd>
-                </dl>
-              </div>
-            </div>
-
-            <div class="d-flex flex-wrap align-center justify-space-between ga-3 mt-4">
-              <div class="d-flex flex-wrap align-center ga-4 text-body-2 text-muted">
-                <span class="d-inline-flex align-center ga-1"><v-icon icon="tabler:list-check" size="16" />{{ parent.steps.length }} ขั้นตอน</span>
-                <span v-if="parent.expectedImages.length + parent.actualImages.length" class="d-inline-flex align-center ga-1">
-                  <v-icon icon="tabler:photo" size="16" />{{ parent.expectedImages.length + parent.actualImages.length }} ภาพ
-                </span>
-                <span class="d-inline-flex align-center ga-1" :class="{ 'text-error': isOverdue(parent), 'text-warning': isDueSoon(parent) }">
-                  <v-icon icon="tabler:calendar-due" size="16" />{{ formatDateTH(parent.expiryDate) }}
-                </span>
-                <span v-if="parent.assignedDev" class="d-inline-flex align-center ga-1">
-                  <v-icon icon="tabler:code" size="16" />{{ firstName(parent.assignedDev) }}
-                </span>
-                <span v-if="parent.activeUser" class="d-inline-flex align-center ga-2">
-                  <span class="tc-presence" />
-                  <UserAvatar :user="parent.activeUser" size="20" />
-                  {{ firstName(parent.activeUser.name) }} {{ parent.activeUser.action === 'editing' ? 'แก้ไขล่าสุด' : 'กำลังดู' }}
-                </span>
-              </div>
-
-              <!-- card actions are hidden while reordering -->
-              <div v-if="!reorderMode" class="d-flex flex-wrap align-center ga-2">
-                <v-btn
-                  v-if="parent.status === 'pending' && canHandOff"
-                  color="info"
-                  size="small"
-                  prepend-icon="tabler:send"
-                  @click="setStatus(parent, 'ready_for_test')"
-                >
-                  ส่งมอบพร้อมเทส
-                </v-btn>
-                <TestCaseStatusMenu :status="parent.status" @change="setStatus(parent, $event)" />
-                <v-btn v-if="canCreate" variant="tonal" size="small" prepend-icon="tabler:subtask" @click="emit('add-subcase', parent.id)"
-                  >Sub-case</v-btn
-                >
-                <v-btn
-                  icon="tabler:pencil"
-                  variant="text"
-                  size="small"
-                  color="primary"
-                  :aria-label="`เปิด ${parent.id}`"
-                  @click="emit('edit', parent)"
-                />
-                <v-menu location="bottom end">
-                  <template #activator="{ props: menu }">
-                    <v-btn v-bind="menu" icon="tabler:dots-vertical" variant="text" size="small" :aria-label="`ตัวเลือก ${parent.id}`" />
-                  </template>
-                  <v-list>
-                    <v-list-item
-                      v-if="parent.reviewNeeded && canEdit"
-                      prepend-icon="tabler:circle-check"
-                      title="ทบทวนแล้ว ไม่ต้องแก้ไข"
-                      base-color="warning"
-                      @click="emit('reviewed', parent)"
-                    />
-                    <v-list-item prepend-icon="tabler:history" title="ประวัติและ Audit" @click="emit('history', parent)" />
-                    <v-list-item prepend-icon="tabler:calendar-time" title="ขอขยายเวลา" @click="emit('extend', parent)" />
-                    <template v-if="canCreate">
-                      <v-list-item prepend-icon="tabler:copy" title="ทำสำเนา (Clone)" @click="emit('clone', parent)" />
-                      <v-list-item prepend-icon="tabler:template" title="บันทึกเป็น Template" @click="emit('save-template', parent)" />
-                    </template>
-                    <template v-if="canArchive">
-                      <v-divider class="my-1" />
-                      <v-list-item prepend-icon="tabler:archive" title="เก็บเข้าคลัง" @click="emit('archive', parent)" />
-                    </template>
-                  </v-list>
-                </v-menu>
-              </div>
-            </div>
-          </div>
+            </template>
+            <template v-if="canReorder" #move>
+              <TestCaseMoveControls
+                list="parents"
+                :index="pIdx"
+                :count="visible.length"
+                :targets="parentTargets.filter((t) => t.index !== pIdx)"
+                @move="moveParent(pIdx, $event)"
+              />
+            </template>
+          </TestCaseCard>
 
           <!-- sub-cases -->
           <template v-if="parent.subCases.length">
@@ -492,75 +380,43 @@ function insertClass(list: string, index: number, length: number) {
               <v-expand-transition>
                 <div v-show="!collapsed.has(parent.id)">
                   <div class="d-flex flex-column ga-2 mt-2" @dragover="onSubsDragOver($event, parent.id)" @drop="onSubsDrop">
-                    <div
+                    <TestCaseSubRow
                       v-for="(sub, sIdx) in parent.subCases"
                       :key="sub.id"
-                      class="tc-sub"
+                      :test-case="sub"
+                      :reorder-mode="reorderMode"
                       :class="[
                         insertClass(parent.id, sIdx, parent.subCases.length),
                         { 'tc-card--dragging': dragging?.kind === 'sub' && dragging.parentId === parent.id && dragging.index === sIdx },
                       ]"
+                      @edit="emit('edit', $event)"
+                      @history="emit('history', $event)"
+                      @archive="emit('archive', $event)"
+                      @reviewed="emit('reviewed', $event)"
                     >
-                      <span
-                        v-if="canReorder"
-                        class="tc-grip text-muted"
-                        draggable="true"
-                        title="ลากเพื่อจัดลำดับ"
-                        aria-label="ลากเพื่อจัดลำดับ"
-                        @dragstart.stop="onDragStart($event, { kind: 'sub', parentId: parent.id, index: sIdx })"
-                        @dragend.stop="onDragEnd"
-                      >
-                        <v-icon icon="tabler:grip-vertical" size="18" />
-                      </span>
-                      <div class="flex-grow-1 overflow-hidden">
-                        <div class="d-flex flex-wrap align-center ga-2">
-                          <span class="text-subtitle-2 text-primary fox-num">{{ sub.id }}</span>
-                          <TestCaseStatusChip :status="sub.status" size="x-small" />
-                          <TestCasePriorityChip :priority="sub.priority" />
-                          <TestCaseBadges :test-case="sub" />
-                        </div>
-                        <div class="text-body-2 text-truncate">{{ sub.name }}</div>
-                      </div>
-                      <TestCaseMoveControls
-                        v-if="canReorder"
-                        compact
-                        :list="parent.id"
-                        :index="sIdx"
-                        :count="parent.subCases.length"
-                        :targets="subTargets.filter((t) => !(t.list === parent.id && t.index === sIdx))"
-                        @move="moveSub(parent.id, sIdx, $event)"
-                      />
-                      <div v-else-if="!reorderMode" class="d-flex align-center ga-1 flex-shrink-0">
-                        <TestCaseStatusMenu :status="sub.status" size="x-small" @change="setStatus(sub, $event)" />
-                        <v-btn
-                          v-if="sub.reviewNeeded && canEdit"
-                          icon="tabler:circle-check"
-                          variant="text"
-                          size="x-small"
-                          color="warning"
-                          :title="`ทบทวน ${sub.id} แล้ว ไม่ต้องแก้ไข`"
-                          :aria-label="`ทบทวน ${sub.id} แล้ว ไม่ต้องแก้ไข`"
-                          @click="emit('reviewed', sub)"
+                      <template v-if="canReorder" #grip>
+                        <span
+                          class="tc-grip text-muted"
+                          draggable="true"
+                          title="ลากเพื่อจัดลำดับ"
+                          aria-label="ลากเพื่อจัดลำดับ"
+                          @dragstart.stop="onDragStart($event, { kind: 'sub', parentId: parent.id, index: sIdx })"
+                          @dragend.stop="onDragEnd"
+                        >
+                          <v-icon icon="tabler:grip-vertical" size="18" />
+                        </span>
+                      </template>
+                      <template v-if="canReorder" #move>
+                        <TestCaseMoveControls
+                          compact
+                          :list="parent.id"
+                          :index="sIdx"
+                          :count="parent.subCases.length"
+                          :targets="subTargets.filter((t) => !(t.list === parent.id && t.index === sIdx))"
+                          @move="moveSub(parent.id, sIdx, $event)"
                         />
-                        <v-btn icon="tabler:history" variant="text" size="x-small" :aria-label="`ประวัติ ${sub.id}`" @click="emit('history', sub)" />
-                        <v-btn
-                          icon="tabler:pencil"
-                          variant="text"
-                          size="x-small"
-                          color="primary"
-                          :aria-label="`เปิด ${sub.id}`"
-                          @click="emit('edit', sub)"
-                        />
-                        <v-btn
-                          v-if="canArchive"
-                          icon="tabler:archive"
-                          variant="text"
-                          size="x-small"
-                          :aria-label="`เก็บ ${sub.id} เข้าคลัง`"
-                          @click="emit('archive', sub)"
-                        />
-                      </div>
-                    </div>
+                      </template>
+                    </TestCaseSubRow>
                   </div>
                 </div>
               </v-expand-transition>
@@ -669,29 +525,6 @@ function insertClass(list: string, index: number, length: number) {
   cursor: grabbing;
 }
 
-.tc-spec {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 2px 12px;
-  margin: 0;
-}
-
-.tc-spec dd {
-  margin: 0;
-}
-
-.tc-pre {
-  white-space: pre-line;
-}
-
-.tc-presence {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgb(var(--v-theme-success));
-  box-shadow: 0 0 0 3px rgba(var(--v-theme-success), 0.2);
-}
-
 .tc-subs {
   background: rgba(var(--v-theme-on-surface), 0.02);
 }
@@ -702,25 +535,5 @@ function insertClass(list: string, index: number, length: number) {
   gap: 4px;
   font-weight: 500;
   color: rgb(var(--v-theme-muted));
-}
-
-.tc-sub {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: var(--fox-radius-control);
-  background: rgb(var(--v-theme-surface));
-  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-}
-
-@media (max-width: 599.98px) {
-  .tc-spec {
-    grid-template-columns: 1fr;
-  }
-
-  .tc-sub {
-    flex-wrap: wrap;
-  }
 }
 </style>

@@ -3,52 +3,12 @@ import { ApiError, newId, respond } from './http'
 import { ADMIN_ROLE_ID } from './role.service'
 import { assertCan } from './project.service'
 import { STORAGE_KEYS, load, migrateOnce, save } from './storage.service'
+import { MOCK_USERS } from './seeds/users.seed'
+
+export { MOCK_USERS }
 
 /** Default avatar for users added from the UI */
 export const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
-
-export const MOCK_USERS: User[] = [
-  {
-    id: 'user-admin',
-    name: 'ศุภชัย วัฒนา (Admin)',
-    email: 'admin@testpulse.dev',
-    roleId: 'role-admin', // ADMIN_ROLE_ID: a literal here, since services import each other (load order)
-    title: 'System Administrator',
-    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'user-qa-1',
-    name: 'สมชาย ประเสริฐ (QA Lead)',
-    email: 'somchai.qa@testpulse.dev',
-    roleId: 'role-qa-lead',
-    title: 'Lead QA Engineer',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'user-dev-1',
-    name: 'กิตติศักดิ์ พัฒนา (Dev Lead)',
-    email: 'kittisak.dev@testpulse.dev',
-    roleId: 'role-dev',
-    title: 'Fullstack Lead Developer',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'user-dev-2',
-    name: 'ธนากร สุขใจ (Backend API)',
-    email: 'thanakorn.dev@testpulse.dev',
-    roleId: 'role-dev',
-    title: 'Backend Engineer',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-  },
-  {
-    id: 'user-qa-2',
-    name: 'พิชญา ศรีสุข (Senior Tester)',
-    email: 'pitchaya.qa@testpulse.dev',
-    roleId: 'role-qa-tester',
-    title: 'Senior QA Tester',
-    avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80',
-  },
-]
 
 // --- API ------------------------------------------------------------------------
 /** users saved before roles were editable had a fixed `role`: map it to the matching built-in role once */

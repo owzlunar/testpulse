@@ -2,6 +2,7 @@ import type { AuditAction, AuditTrailEntry, Option } from '@/types'
 import { respond } from './http'
 import { accessibleProjectIds, sessionCan } from './project.service'
 import { STORAGE_KEYS, load, update } from './storage.service'
+import { SEED_AUDIT_LOGS } from './seeds/audit-logs.seed'
 
 export const AUDIT_ACTIONS: Option<AuditAction>[] = [
   { value: 'CREATE', label: 'สร้างข้อมูล', tone: 'primary', icon: 'tabler:plus' },
@@ -17,62 +18,6 @@ export const AUDIT_ACTIONS: Option<AuditAction>[] = [
 ]
 
 export const auditActionOf = (action: AuditAction): Option<AuditAction> => AUDIT_ACTIONS.find((a) => a.value === action) ?? AUDIT_ACTIONS[1]
-
-const SEED_AUDIT_LOGS: AuditTrailEntry[] = [
-  {
-    id: 'aud-1',
-    timestamp: '2026-09-30T10:15:00Z',
-    userId: 'user-1',
-    userName: 'Somchai Prasert',
-    userRole: 'QA Lead',
-    action: 'STATUS_CHANGE',
-    targetType: 'TEST_CASE',
-    targetId: 'TC-101',
-    targetTitle: 'สร้าง Dynamic PromptPay QR Code และยืนยันการชำระเงินสำเร็จ',
-    details: 'เปลี่ยนสถานะจาก "in_progress" เป็น "passed" พร้อมแนบภาพหลักฐานผลการทดสอบจริง',
-    changes: [
-      { field: 'status', oldValue: 'in_progress', newValue: 'passed' },
-      { field: 'actualResults', oldValue: '', newValue: 'ระบบทำงานได้สมบูรณ์ตามเกณฑ์ ทุกขั้นตอนผ่านฉลุย Response Time เฉลี่ย 230ms' },
-    ],
-  },
-  {
-    id: 'aud-2',
-    timestamp: '2026-09-30T09:00:00Z',
-    userId: 'user-3',
-    userName: 'Alex Chen',
-    userRole: 'Automation Engineer',
-    action: 'STATUS_CHANGE',
-    targetType: 'TEST_CASE',
-    targetId: 'TC-103',
-    targetTitle: 'Concurrency & Idempotency Test สำหรับ Bank Callback',
-    details: 'รัน k6 automated concurrency test แล้วพบ Bug Race Condition ปรับสถานะเป็น "failed"',
-    changes: [{ field: 'status', oldValue: 'untested', newValue: 'failed' }],
-  },
-  {
-    id: 'aud-3',
-    timestamp: '2026-09-29T14:20:00Z',
-    userId: 'user-2',
-    userName: 'Pitchaya Srisuk',
-    userRole: 'Senior QA Tester',
-    action: 'ADD_SUBCASE',
-    targetType: 'TEST_CASE',
-    targetId: 'TC-101-1',
-    targetTitle: '[Sub-case] ตรวจสอบระบบปฏิเสธการชำระเงินเมื่อ QR Code เกินเวลา 15 นาที',
-    details: 'สร้าง Sub-test case ย่อยภายใต้ TC-101 เพื่อครอบคลุมเงื่อนไข Expiration Timeout',
-  },
-  {
-    id: 'aud-4',
-    timestamp: '2026-09-28T08:00:00Z',
-    userId: 'user-2',
-    userName: 'Pitchaya Srisuk',
-    userRole: 'Senior QA Tester',
-    action: 'CREATE',
-    targetType: 'PROJECT',
-    targetId: 'proj-2',
-    targetTitle: 'Omnichannel SuperApp E-Commerce',
-    details: 'สร้างโปรเจกต์ใหม่และนำเข้าข้อกำหนดจาก PRD Sprint 42',
-  },
-]
 
 // --- API ------------------------------------------------------------------------
 /**
