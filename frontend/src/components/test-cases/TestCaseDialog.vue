@@ -470,7 +470,7 @@ const rules = { required }
               <v-row class="fox-grid">
                 <v-col cols="12" md="6">
                   <div class="text-overline text-muted mb-3">ประวัติเวอร์ชัน</div>
-                  <TestCaseVersionTimeline :history="testCase?.versionHistory ?? []" />
+                  <TestCaseVersionTimeline :history="testCase?.versionHistory ?? []" :test-case="testCase" />
                 </v-col>
                 <v-col cols="12" md="6">
                   <div class="text-overline text-muted mb-3">Audit Trail</div>

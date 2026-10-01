@@ -147,6 +147,12 @@ export interface TestStep {
   expectedResult: string
 }
 
+/** What a version defines (the spec); images are not kept in history to save storage */
+export type TestCaseSpec = Pick<
+  TestCase,
+  'name' | 'requirement' | 'requirementIds' | 'testScenario' | 'description' | 'prerequisite' | 'steps' | 'expectedResults'
+>
+
 export interface TestCaseVersionRecord {
   version: string
   updatedBy: string
@@ -154,6 +160,8 @@ export interface TestCaseVersionRecord {
   changeSummary: string
   status: TestCaseStatus
   reason?: string
+  /** the spec as of this version (versions saved before snapshots existed have none) */
+  snapshot?: TestCaseSpec
 }
 
 export interface ActiveUserPresence {

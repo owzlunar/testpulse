@@ -256,7 +256,7 @@ watch(
   <SaveTemplateDialog v-model="saveTemplateOpen" :test-case="target" @saved="notify(`บันทึก Template “${$event}” แล้ว`)" />
   <TestCaseImportDialog v-model="importOpen" @imported="notify(`นำเข้า ${$event} เคสแล้ว`)" />
   <TestCaseAiDraftDialog v-model="aiOpen" @created="notify(`เพิ่ม ${$event} เคสจากร่าง AI แล้ว`)" />
-  <TestCaseHistoryDialog v-model="historyOpen" :test-case="target" />
+  <TestCaseHistoryDialog v-model="historyOpen" :test-case="target" @restored="notify" />
   <ExtendDueDateDialog v-model="extendOpen" :test-case="target" @extended="notify(`ขยายกำหนดส่ง ${$event.id} แล้ว`)" />
   <TestCaseRemoveDialog v-model="removeOpen" :test-case="removing" :mode="removeMode" :loading="saving" @confirm="onRemove" />
   <v-snackbar v-model="snackbar.show" :color="snackbar.color">{{ snackbar.text }}</v-snackbar>

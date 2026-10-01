@@ -1,5 +1,5 @@
 import type {
-  ActiveUserPresence, Actor, Option, Requirement, TestCase, TestCaseImpact, TestCaseInput, TestCaseOrder, TestCasePriority, TestCaseReorderResult,
+  ActiveUserPresence, Actor, Option, Requirement, TestCase, TestCaseImpact, TestCaseInput, TestCaseOrder, TestCaseSpec, TestCasePriority, TestCaseReorderResult,
   TestCaseStatus, TestCaseUpdateResult, TestCaseVersionRecord, Tone,
 } from '@/types'
 import { daysFromToday } from '@/utils/date'
@@ -93,7 +93,7 @@ export const isDueSoon = (tc: TestCase, days = 3): boolean => {
 export const isHighChurn = (tc: TestCase): boolean => (tc.churnCount ?? 0) > 1
 
 /** fields that define what is tested; changing any of them makes a new version */
-const SPEC_FIELDS = ['name', 'requirement', 'requirementIds', 'testScenario', 'description', 'prerequisite', 'steps', 'expectedResults', 'expectedImages'] as const
+const SPEC_FIELDS = ['name', 'requirement', 'requirementIds', 'testScenario', 'description', 'prerequisite', 'steps', 'expectedResults', 'expectedImages'] as const satisfies readonly (keyof TestCase)[]
 
 /** comparable form of a spec field: steps by text and order, empty lists equal to missing */
 function specValue(tc: Partial<TestCase>, field: (typeof SPEC_FIELDS)[number]): string {
@@ -113,6 +113,46 @@ function specValue(tc: Partial<TestCase>, field: (typeof SPEC_FIELDS)[number]): 
 export function hasSpecChanges(old: TestCase, next: Partial<TestCase>, requirements: Requirement[] = []): boolean {
   const base = old.requirementIds?.length ? old : { ...old, requirementIds: requirementsForCase(old, requirements).map((r) => r.id) }
   return SPEC_FIELDS.some((f) => f in next && specValue(base, f) !== specValue(next, f))
+}
+
+/** spec fields shown when comparing versions (requirement links shown together with the requirement text) */
+export const SPEC_FIELD_LABELS: { field: keyof TestCaseSpec; label: string }[] = [
+  { field: 'name', label: 'ชื่อ Test Case' },
+  { field: 'requirement', label: 'Requirement' },
+  { field: 'testScenario', label: 'Test Scenario' },
+  { field: 'prerequisite', label: 'Prerequisite' },
+  { field: 'description', label: 'คำอธิบายเพิ่มเติม' },
+  { field: 'steps', label: 'ขั้นตอน' },
+  { field: 'expectedResults', label: 'ผลลัพธ์ที่คาดหวัง' },
+]
+
+/** the spec part of a case, as stored in a version snapshot */
+export const specOf = (tc: TestCaseSpec): TestCaseSpec => ({
+  name: tc.name,
+  requirement: tc.requirement,
+  requirementIds: [...(tc.requirementIds ?? [])],
+  testScenario: tc.testScenario,
+  description: tc.description,
+  prerequisite: tc.prerequisite,
+  steps: tc.steps.map((s) => ({ ...s })),
+  expectedResults: tc.expectedResults,
+})
+
+/** a spec whose requirement links are explicit: legacy text-linked specs get the links their text resolves to */
+function withEffectiveLinks(spec: TestCaseSpec, projectId: string, requirements: Requirement[]): TestCaseSpec {
+  if (spec.requirementIds?.length || !requirements.length) return spec
+  const ids = requirementsForCase({ ...spec, projectId } as TestCase, requirements).map((r) => r.id)
+  return { ...spec, requirementIds: ids }
+}
+
+/**
+ * Fields (of SPEC_FIELD_LABELS) that differ between two specs; requirement covers the links too.
+ * Pass the project's requirements so text-linked and explicitly linked specs compare by their effective links.
+ */
+export function specDiff(a: TestCaseSpec, b: TestCaseSpec, projectId = '', requirements: Requirement[] = []): (keyof TestCaseSpec)[] {
+  const [x, y] = [withEffectiveLinks(a, projectId, requirements), withEffectiveLinks(b, projectId, requirements)]
+  const differs = (f: (typeof SPEC_FIELDS)[number]) => specValue(x as Partial<TestCase>, f) !== specValue(y as Partial<TestCase>, f)
+  return SPEC_FIELD_LABELS.map((l) => l.field).filter((f) => differs(f) || (f === 'requirement' && differs('requirementIds')))
 }
 
 /** v1.0 -> v1.1, or v2.0 when `major` */
@@ -148,6 +188,7 @@ export function applyCasePatch(old: TestCase, patch: Partial<TestCaseInput>, act
     timestamp: now,
     changeSummary: (changeSummary || 'แก้ไขข้อกำหนดหรือขั้นตอน') + (passInvalidated ? ` (ผลผ่านของ ${old.version} ถูกยกเลิก ต้องทดสอบใหม่)` : ''),
     status,
+    snapshot: specOf({ ...old, ...updates }),
   }
   const bounced =
     (old.status === 'failed' && status === 'ready_for_test') ||
@@ -536,6 +577,15 @@ function testCases(): TestCase[] {
     if (sample104 && !cases.some((c) => demo(c, 'TC-104'))) cases.push(sample104)
     save(STORAGE_KEYS.testCases, cases)
   })
+  // versions saved before snapshots existed: keep at least the current version's spec, so it can be restored later
+  migrateOnce('version-snapshots-v1', () => {
+    const cases = load(STORAGE_KEYS.testCases, SEED_TEST_CASES)
+    for (const tc of cases) {
+      const current = [...(tc.versionHistory ?? [])].reverse().find((r) => r.version === tc.version)
+      if (current && !current.snapshot) current.snapshot = specOf(tc)
+    }
+    save(STORAGE_KEYS.testCases, cases)
+  })
   return load(STORAGE_KEYS.testCases, SEED_TEST_CASES)
 }
 
@@ -570,7 +620,7 @@ export const createTestCases = (projectId: string, inputs: TestCaseInput[], acto
         version,
         versionHistory: data.versionHistory?.length
           ? data.versionHistory
-          : [{ version, updatedBy: actor.name, timestamp: now, changeSummary: 'สร้าง Test Case ครั้งแรก', status: data.status }],
+          : [{ version, updatedBy: actor.name, timestamp: now, changeSummary: 'สร้าง Test Case ครั้งแรก', status: data.status, snapshot: specOf(data) }],
         activeUser: presenceOf(actor),
         createdAt: now,
         updatedAt: now,
@@ -602,6 +652,24 @@ export function patchStoredCase(projectId: string, id: string, patch: Partial<Te
 /** PATCH /projects/:projectId/test-cases/:id (the server versions the case: see applyCasePatch) */
 export const updateTestCase = (projectId: string, id: string, patch: Partial<TestCaseInput>, actor: Actor) =>
   respond(() => patchStoredCase(projectId, id, patch, actor))
+
+/**
+ * POST /projects/:projectId/test-cases/:id/versions/:version/restore
+ * Brings back the spec of an earlier version as a new version (same rules as an edit:
+ * a passed case must be tested again). Images stay as they are (they are not kept in history).
+ */
+export const restoreVersion = (projectId: string, id: string, version: string, actor: Actor) =>
+  respond(() => {
+    const tc = storedCase(projectId, id)
+    if (!tc) throw new ApiError(`ไม่พบ ${id}`, 404)
+    const snapshot = tc.versionHistory?.find((r) => r.version === version)?.snapshot
+    if (!snapshot) throw new ApiError(`${version} ไม่มีเนื้อหาที่บันทึกไว้ให้กู้คืน`, 404)
+    const requirements = requirementsOf(projectId)
+    if (!specDiff(snapshot, tc, projectId, requirements).length) throw new ApiError(`เนื้อหาของ ${version} เหมือนเวอร์ชันปัจจุบันแล้ว`, 409)
+    // keep the links the old text resolved to, rather than dropping explicit links
+    const spec = specOf(withEffectiveLinks(snapshot, projectId, requirements))
+    return patchStoredCase(projectId, id, { ...spec, changeSummary: `กู้คืนเนื้อหาจาก ${version}` }, actor)
+  })
 
 /** PATCH /projects/:projectId/test-cases/:id/due-date (reason required; a due date is not part of the spec: no new version) */
 export const extendDueDate = (projectId: string, id: string, newDate: string, reason: string, actor: Actor) =>

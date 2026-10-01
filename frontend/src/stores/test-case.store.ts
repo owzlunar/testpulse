@@ -345,6 +345,11 @@ export const useTestCaseStore = defineStore('testCase', () => {
     testCases.value = testCases.value.filter((tc) => tc.projectId !== projectId)
   }
 
+  /** bring back the spec of an earlier version as a new version (rules in the service) */
+  async function restoreVersion(id: string, projectId: string, version: string) {
+    return applyUpdate(await api.restoreVersion(projectId, id, version, actor()))
+  }
+
   /** Reschedule with a mandatory reason (checked by the server); writes the audit trail */
   async function extendDueDate(id: string, newDate: string, reason: string, projectId?: string): Promise<TestCase | null> {
     const old = getById(id, projectId)
@@ -411,6 +416,6 @@ export const useTestCaseStore = defineStore('testCase', () => {
   return {
     testCases, activeCases,
     load, fromDraft, createMany, applyUpdate, replaceLocal, casesOf, treeOf, getById, nextId,
-    create, update, archive, restore, remove, impactOf, archivedOf, removeProjectCases, extendDueDate, reorder, scanAllExpiries,
+    create, update, restoreVersion, archive, restore, remove, impactOf, archivedOf, removeProjectCases, extendDueDate, reorder, scanAllExpiries,
   }
 })
