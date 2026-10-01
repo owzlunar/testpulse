@@ -13,6 +13,7 @@ import { PRIORITIES, STATUSES, isHighChurn, isOverdue } from '@/services/test-ca
 import { useProjectStore } from '@/stores/project.store'
 import type { Tone } from '@/types'
 import { formatPercent } from '@/utils/format'
+import { useAsyncAction } from '@/composables/useAsyncAction'
 
 const projectStore = useProjectStore()
 const { currentProject, currentCases: cases, currentStats: stats } = storeToRefs(projectStore)
@@ -57,9 +58,12 @@ const kpis = computed(() => [
   },
 ])
 
+const { run } = useAsyncAction()
 function exportReport() {
-  const file = projectStore.exportMarkdown()
-  if (file) notify(`ดาวน์โหลด ${file} แล้ว`)
+  run(
+    () => projectStore.exportMarkdown(),
+    (file) => file && notify(`ดาวน์โหลด ${file} แล้ว`),
+  )
 }
 </script>
 

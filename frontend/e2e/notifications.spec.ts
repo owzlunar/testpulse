@@ -28,16 +28,27 @@ test('a failed verdict notifies the assigned developer, not the other developers
 })
 
 test('reading a notification marks it read for that person only', async ({ page }) => {
-  await login(page, 'ธนากร')
-  const items = await openBell(page)
-  const first = items.first()
-  const title = (await first.locator('.text-subtitle-2, .notif__title').first().innerText()).trim()
-  await expect(first).toHaveClass(/notif__item--unread/)
-  await first.click()
-  await login(page, 'ธนากร')
-  await expect((await openBell(page)).filter({ hasText: title }).first()).not.toHaveClass(/notif__item--unread/)
+  type Stored = { id: string; readBy?: string[] }
+  const readByDev2 = async () => (await db<Stored[]>(page, 'testpulse_notifications')).find((n) => n.readBy?.includes('user-dev-2'))?.id
+  /** what the API answers to the signed-in user for one notification */
+  const readFor = (id: string) =>
+    page.evaluate(async (nid) => {
+      const path = '/src/services/notification.service.ts' // served by the dev server
+      const api = (await import(/* @vite-ignore */ path)) as { fetchNotifications: () => Promise<{ id: string; read: boolean }[]> }
+      return (await api.fetchNotifications()).find((n) => n.id === nid)?.read
+    }, id)
 
+  await login(page, 'ธนากร') // user-dev-2
+  const unreadItems = (await openBell(page)).and(page.locator('.notif__item--unread'))
+  await expect(unreadItems.first()).toBeVisible()
+  await unreadItems.first().click() // the bell toggles: don't open it again
+  // the mock saves read state in the background (a backend answers first): wait for it
+  await expect.poll(readByDev2).toBeTruthy()
+  const id = (await readByDev2())!
+
+  await login(page, 'ธนากร')
+  expect(await readFor(id)).toBe(true)
+  // user-dev-1, same team: not read for him (unread, or not addressed to him at all)
   await login(page, 'กิตติศักดิ์')
-  const theirs = (await openBell(page)).filter({ hasText: title }).first()
-  if (await theirs.count()) await expect(theirs).toHaveClass(/notif__item--unread/)
+  expect(await readFor(id)).not.toBe(true)
 })

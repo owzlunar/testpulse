@@ -1,31 +1,18 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import type { Project, ProjectInput, ProjectStats, TestCase, TestCaseStatus } from '@/types'
+import type { Project, ProjectInput, ProjectStats } from '@/types'
 import * as api from '@/services/project.service'
-import { STATUSES } from '@/services/test-case.service'
 import { downloadMarkdownFile, generateProjectMarkdown } from '@/services/export.service'
 import { todayISO } from '@/utils/date'
+import { useAppStore } from './app.store'
 import { useAuditStore } from './audit.store'
 import { useAuthStore } from './auth.store'
 import { useNotificationStore } from './notification.store'
 import { useRequirementStore } from './requirement.store'
 import { useTestCaseStore } from './test-case.store'
 
-export function statsOf(cases: TestCase[]): ProjectStats {
-  const byStatus = Object.fromEntries(STATUSES.map((s) => [s.value, 0])) as Record<TestCaseStatus, number>
-  cases.forEach((tc) => byStatus[tc.status]++)
-  const total = cases.length
-  return {
-    total,
-    passed: byStatus.passed,
-    failed: byStatus.failed,
-    blocked: byStatus.blocked,
-    inProgress: byStatus.in_progress,
-    untested: byStatus.untested,
-    passRate: total ? (byStatus.passed / total) * 100 : 0,
-    byStatus,
-  }
-}
+/** case counts of a list of cases (the rule is the server's: caseStatsOf in project.service) */
+export const statsOf = api.caseStatsOf
 
 export const useProjectStore = defineStore('project', () => {
   const projects = ref<Project[]>([])
@@ -47,22 +34,32 @@ export const useProjectStore = defineStore('project', () => {
   const currentCases = computed(() => (currentProject.value ? testCaseStore.casesOf(currentProject.value.id) : []))
   const currentTree = computed(() => (currentProject.value ? testCaseStore.treeOf(currentProject.value.id) : []))
 
-  const statsFor = (projectId: string) => statsOf(testCaseStore.casesOf(projectId))
+  /** a loaded project is counted from its cases (stays current after edits); others use the server's counts */
+  function statsFor(projectId: string): ProjectStats {
+    if (testCaseStore.isLoaded(projectId)) return statsOf(testCaseStore.casesOf(projectId))
+    return projects.value.find((p) => p.id === projectId)?.caseStats ?? statsOf([])
+  }
   const currentStats = computed(() => statsOf(currentCases.value))
+  /** the selected project's cases have arrived (pages show a skeleton until then) */
+  const currentCasesLoaded = computed(() => testCaseStore.isLoaded(currentProject.value?.id))
 
   const overallStats = computed(() => {
-    const all = testCaseStore.activeCases
-    const passed = all.filter((tc) => tc.status === 'passed').length
+    const all = projects.value.map((p) => statsFor(p.id))
+    const total = all.reduce((n, s) => n + s.total, 0)
+    const passed = all.reduce((n, s) => n + s.passed, 0)
     return {
       totalProjects: projects.value.length,
-      totalTestCases: all.length,
-      passRate: all.length ? (passed / all.length) * 100 : 0,
+      totalTestCases: total,
+      passRate: total ? (passed / total) * 100 : 0,
+      /** overdue or due soon, across projects */
+      attention: all.reduce((n, s) => n + s.attention, 0),
     }
   })
 
   function select(projectId: string) {
     selectedProjectId.value = projectId
     api.saveSelectedProjectId(projectId)
+    testCaseStore.ensureProject(projectId).catch(useAppStore().showError)
   }
 
   /** create (no id) or update */
@@ -126,10 +123,11 @@ export const useProjectStore = defineStore('project', () => {
     if (selectedProjectId.value === id) select(projects.value[0]?.id ?? '')
   }
 
-  /** Download the project's test cases as Obsidian Markdown */
-  function exportMarkdown(projectId = selectedProjectId.value) {
+  /** Download the project's test cases as Obsidian Markdown (loads them first if needed) */
+  async function exportMarkdown(projectId = selectedProjectId.value) {
     const project = projects.value.find((p) => p.id === projectId)
     if (!project) return
+    await testCaseStore.ensureProject(projectId)
     const cases = testCaseStore.casesOf(projectId)
     const filename = `${project.key}_TestCases_${todayISO()}.md`
     downloadMarkdownFile(filename, generateProjectMarkdown(project, cases, statsOf(cases), useRequirementStore().textFor))
@@ -161,6 +159,7 @@ export const useProjectStore = defineStore('project', () => {
     currentTree,
     currentStats,
     overallStats,
+    currentCasesLoaded,
     load,
     select,
     statsFor,

@@ -32,8 +32,34 @@ export const useTestCaseStore = defineStore('testCase', () => {
   const auth = useAuthStore()
   const settingsStore = useSettingsStore()
 
+  // Cases load one project at a time (a project's list can be long); lists and totals of the other
+  // projects come with the projects themselves (project.caseStats).
+  const loadedProjects = ref(new Set<string>())
+  const loading = new Map<string, Promise<void>>()
+
+  /** (re)load one project's cases */
+  async function loadProject(projectId: string) {
+    const cases = await api.fetchTestCases(projectId)
+    testCases.value = [...testCases.value.filter((tc) => tc.projectId !== projectId), ...cases]
+    loadedProjects.value = new Set([...loadedProjects.value, projectId])
+  }
+
+  /** load a project's cases once (concurrent callers share the request) */
+  function ensureProject(projectId: string | null | undefined): Promise<void> {
+    if (!projectId || loadedProjects.value.has(projectId)) return Promise.resolve()
+    if (!loading.has(projectId))
+      loading.set(
+        projectId,
+        loadProject(projectId).finally(() => loading.delete(projectId)),
+      )
+    return loading.get(projectId)!
+  }
+
+  const isLoaded = (projectId: string | null | undefined) => !!projectId && loadedProjects.value.has(projectId)
+
+  /** reload every project loaded so far */
   async function load() {
-    testCases.value = await api.fetchTestCases()
+    await Promise.all([...loadedProjects.value].map(loadProject))
   }
 
   /** the copy of a case this client is looking at (sent with changes; see assertFresh in the service) */
@@ -43,11 +69,11 @@ export const useTestCaseStore = defineStore('testCase', () => {
   }
 
   /** someone else changed the data first (409 'stale'): reload so the list shows their version, then report */
-  async function guardStale<T>(call: () => Promise<T>): Promise<T> {
+  async function guardStale<T>(projectId: string, call: () => Promise<T>): Promise<T> {
     try {
       return await call()
     } catch (e) {
-      if (e instanceof ApiError && e.code === 'stale') await load()
+      if (e instanceof ApiError && e.code === 'stale') await loadProject(projectId)
       throw e
     }
   }
@@ -230,7 +256,7 @@ export const useTestCaseStore = defineStore('testCase', () => {
   async function update(id: string, patch: Partial<TestCaseInput>, projectId?: string): Promise<TestCase | null> {
     const old = getById(id, projectId)
     if (!old) return null
-    return applyUpdate(await guardStale(() => api.updateTestCase(old.projectId, id, patch, actor(), expectOf(id, old.projectId))))
+    return applyUpdate(await guardStale(old.projectId, () => api.updateTestCase(old.projectId, id, patch, actor(), expectOf(id, old.projectId))))
   }
 
   /** show a server-side case update and record its audit entry / alerts (also used by run results) */
@@ -334,7 +360,7 @@ export const useTestCaseStore = defineStore('testCase', () => {
 
   /** archive the case and its sub-cases (the default way to remove a case: it can be restored) */
   async function archive(id: string, projectId: string) {
-    const archived = await guardStale(() => api.archiveTestCase(projectId, id, actor(), expectOf(id, projectId)))
+    const archived = await guardStale(projectId, () => api.archiveTestCase(projectId, id, actor(), expectOf(id, projectId)))
     replaceMany(archived)
     const [target] = archived
     audit.record({
@@ -362,7 +388,7 @@ export const useTestCaseStore = defineStore('testCase', () => {
   }
 
   async function restore(id: string, projectId: string) {
-    const restored = await guardStale(() => api.restoreTestCase(projectId, id, expectOf(id, projectId)))
+    const restored = await guardStale(projectId, () => api.restoreTestCase(projectId, id, expectOf(id, projectId)))
     replaceMany(restored)
     audit.record({
       action: 'RESTORE',
@@ -385,7 +411,7 @@ export const useTestCaseStore = defineStore('testCase', () => {
   async function remove(id: string, projectId?: string) {
     const target = getById(id, projectId)
     if (!target) return
-    const ids = await guardStale(() => api.deleteTestCase(target.projectId, id, expectOf(id, target.projectId)))
+    const ids = await guardStale(target.projectId, () => api.deleteTestCase(target.projectId, id, expectOf(id, target.projectId)))
     testCases.value = testCases.value.filter((tc) => !(tc.projectId === target.projectId && ids.includes(tc.id)))
     useRunStore().detachCases(target.projectId, ids)
     useDefectStore().detachCases(target.projectId, ids)
@@ -417,7 +443,7 @@ export const useTestCaseStore = defineStore('testCase', () => {
 
   /** reviewed against the changed requirement: nothing to change in the case */
   async function markReviewed(id: string, projectId: string) {
-    const { testCase: tc, cleared } = await guardStale(() => api.markReviewed(projectId, id, actor(), expectOf(id, projectId)))
+    const { testCase: tc, cleared } = await guardStale(projectId, () => api.markReviewed(projectId, id, actor(), expectOf(id, projectId)))
     replaceLocal(tc)
     audit.record({
       action: 'UPDATE',
@@ -432,14 +458,14 @@ export const useTestCaseStore = defineStore('testCase', () => {
 
   /** bring back the spec of an earlier version as a new version (rules in the service) */
   async function restoreVersion(id: string, projectId: string, version: string) {
-    return applyUpdate(await guardStale(() => api.restoreVersion(projectId, id, version, actor(), expectOf(id, projectId))))
+    return applyUpdate(await guardStale(projectId, () => api.restoreVersion(projectId, id, version, actor(), expectOf(id, projectId))))
   }
 
   /** Reschedule with a mandatory reason (checked by the server); writes the audit trail */
   async function extendDueDate(id: string, newDate: string, reason: string, projectId?: string): Promise<TestCase | null> {
     const old = getById(id, projectId)
     if (!old) return null
-    const { testCase: tc, oldDate: previous } = await guardStale(() =>
+    const { testCase: tc, oldDate: previous } = await guardStale(old.projectId, () =>
       api.extendDueDate(old.projectId, id, newDate, reason, actor(), expectOf(id, old.projectId)),
     )
     const oldDate = previous || '-'
@@ -486,7 +512,7 @@ export const useTestCaseStore = defineStore('testCase', () => {
       )
     } catch (e) {
       testCases.value = previous
-      if (e instanceof ApiError && e.code === 'stale') await load()
+      if (e instanceof ApiError && e.code === 'stale') await loadProject(projectId)
       throw e
     }
     testCases.value = [...result.cases, ...testCases.value.filter((tc) => tc.projectId !== projectId)]
@@ -512,6 +538,9 @@ export const useTestCaseStore = defineStore('testCase', () => {
     testCases,
     activeCases,
     load,
+    loadProject,
+    ensureProject,
+    isLoaded,
     fromDraft,
     createMany,
     applyUpdate,

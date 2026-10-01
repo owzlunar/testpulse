@@ -17,11 +17,10 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useSnackbar } from '@/composables/useSnackbar'
 import { auditActionOf } from '@/services/audit.service'
 import { PROJECT_STATUSES } from '@/services/project.service'
-import { STATUSES, isDueSoon, isOverdue } from '@/services/test-case.service'
+import { STATUSES } from '@/services/test-case.service'
 import { useAuditStore } from '@/stores/audit.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { useProjectStore } from '@/stores/project.store'
-import { useTestCaseStore } from '@/stores/test-case.store'
 import type { Project, ProjectInput, ProjectStatus, TimelineItem } from '@/types'
 import { formatTime } from '@/utils/date'
 import { firstName, formatPercent } from '@/utils/format'
@@ -30,7 +29,6 @@ const route = useRoute()
 const router = useRouter()
 const projectStore = useProjectStore()
 const { projects, selectedProjectId, overallStats, currentProject, currentStats } = storeToRefs(projectStore)
-const { activeCases: testCases } = storeToRefs(useTestCaseStore())
 const auth = useAuthStore()
 const { currentUser, users } = storeToRefs(auth)
 const canSeeAudit = computed(() => auth.can('audit.view'))
@@ -45,7 +43,7 @@ const { snackbar, notify } = useSnackbar()
 const { busy: saving, run } = useAsyncAction()
 
 // --- stats -------------------------------------------------------------------
-const urgentCount = computed(() => testCases.value.filter((tc) => isOverdue(tc) || isDueSoon(tc)).length)
+const urgentCount = computed(() => overallStats.value.attention)
 const stats = computed(() => [
   { label: 'โปรเจกต์ทั้งหมด', value: overallStats.value.totalProjects, icon: 'tabler:folders', tone: 'primary' as const },
   { label: 'Test Cases ทั้งหมด', value: overallStats.value.totalTestCases, icon: 'tabler:flask', tone: 'info' as const },
@@ -128,8 +126,10 @@ function openProject(id: string) {
 }
 
 function exportProject(id?: string) {
-  const file = projectStore.exportMarkdown(id)
-  if (file) notify(`ดาวน์โหลด ${file} แล้ว`)
+  run(
+    () => projectStore.exportMarkdown(id),
+    (file) => file && notify(`ดาวน์โหลด ${file} แล้ว`),
+  )
 }
 
 // the project switcher links here with ?action=new-project

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import FoxEmptyState from '@/components/ui/FoxEmptyState.vue'
+import FoxTablePagination from '@/components/ui/FoxTablePagination.vue'
 import TestCaseArchiveList from './TestCaseArchiveList.vue'
 import TestCaseCard from './TestCaseCard.vue'
 import TestCaseMoveControls from './TestCaseMoveControls.vue'
@@ -69,6 +70,19 @@ function matches(tc: TestCase): boolean {
 const isFiltering = computed(() => !!(search.value || status.value || priority.value))
 /** a parent stays visible when it or any of its sub-cases match */
 const visible = computed(() => props.cases.filter((p) => matches(p) || p.subCases.some(matches)))
+
+// --- pages: long lists render one page of parent cases at a time -----------------
+// indexes stay positions in the whole list (`visible`), so moving and dropping work across pages
+const page = ref(1)
+const perPage = ref(20)
+const pageStart = computed(() => (page.value - 1) * perPage.value)
+const pageEnd = computed(() => Math.min(pageStart.value + perPage.value, visible.value.length))
+const paged = computed(() => visible.value.slice(pageStart.value, pageEnd.value).map((parent, i) => ({ parent, pIdx: pageStart.value + i })))
+watch([search, status, priority], () => (page.value = 1))
+// the last page can empty out (archive, filters): step back
+watch([pageStart, () => visible.value.length], ([start, count]) => {
+  if (start > 0 && start >= count) page.value = Math.max(1, Math.ceil(count / perPage.value))
+})
 
 function resetFilters() {
   search.value = ''
@@ -157,7 +171,7 @@ function onParentsDragOver(e: DragEvent) {
     return
   }
   e.preventDefault()
-  setDropTarget('parents', insertIndex(e, '.tc-slot'), src.index)
+  setDropTarget('parents', pageStart.value + insertIndex(e, '.tc-slot'), src.index)
 }
 
 function onSubsDragOver(e: DragEvent, parentId: string) {
@@ -332,7 +346,7 @@ function insertClass(list: string, index: number, length: number) {
       @dragleave="onDragLeave"
       @drop.prevent="onDrop"
     >
-      <div v-for="(parent, pIdx) in visible" :key="parent.id" class="tc-slot" :class="insertClass('parents', pIdx, visible.length)">
+      <div v-for="{ parent, pIdx } in paged" :key="parent.id" class="tc-slot" :class="insertClass('parents', pIdx, pageEnd)">
         <v-card class="tc-card" :class="{ 'tc-card--dragging': dragging?.kind === 'parent' && dragging.index === pIdx }">
           <TestCaseCard
             :test-case="parent"
@@ -424,6 +438,15 @@ function insertClass(list: string, index: number, length: number) {
           </template>
         </v-card>
       </div>
+      <v-card v-if="visible.length > 10">
+        <FoxTablePagination
+          v-model:page="page"
+          v-model:items-per-page="perPage"
+          :total="visible.length"
+          :options="[10, 20, 50, 100]"
+          class="fox-card-body py-3"
+        />
+      </v-card>
     </div>
 
     <!-- empty -->

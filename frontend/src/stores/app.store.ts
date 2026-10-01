@@ -25,13 +25,9 @@ export const useAppStore = defineStore('app', () => {
       try {
         failed.value = ''
         await useAuthStore().load()
-        await Promise.all([
-          useSettingsStore().load(),
-          useProjectStore().load(),
-          useTestCaseStore().load(),
-          useAuditStore().load(),
-          useNotificationStore().load(),
-        ])
+        await Promise.all([useSettingsStore().load(), useProjectStore().load(), useAuditStore().load(), useNotificationStore().load()])
+        // cases load per project: the selected one now, others when opened
+        await useTestCaseStore().ensureProject(useProjectStore().currentProject?.id)
         ready.value = true
       } catch (e) {
         failed.value = errorMessage(e)

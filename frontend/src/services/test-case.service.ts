@@ -22,9 +22,9 @@ import { detachAuditCases, renameAuditCases } from './audit.service'
 import { defectsOf, detachDefectCases, isOpenDefect, renameDefectCases } from './defect.service'
 import { ApiError, newId, respond } from './http'
 import { detachNotificationCases, renameNotificationCases } from './notification.service'
-import { casesForRequirement, requirementsForCase, requirementsOf } from './requirement.service'
+import { casesForRequirement, requirementText, requirementsForCase, requirementsOf } from './requirement.service'
 import { detachRunCases, renameRunCases, runsOf } from './run.service'
-import { assertCan, inAccessibleProjects, sessionCan } from './project.service'
+import { accessibleProjectIds, assertCan, sessionCan } from './project.service'
 import { STORAGE_KEYS, load, migrateOnce, save } from './storage.service'
 import { SEED_TEST_CASES } from './seeds/test-cases.seed'
 
@@ -290,8 +290,27 @@ function testCases(): TestCase[] {
 
 const sameCase = (a: TestCase, projectId: string, id: string) => a.projectId === projectId && a.id === id
 
-/** GET /test-cases (of the projects the signed-in user may open) */
-export const fetchTestCases = () => respond(() => (sessionCan('case.view') ? inAccessibleProjects(testCases()) : []))
+/** GET /projects/:projectId/test-cases (archived included; the client loads one project at a time) */
+export const fetchTestCases = (projectId: string) =>
+  respond(() => {
+    assertCan('case.view', projectId)
+    return testCases().filter((c) => c.projectId === projectId)
+  })
+
+/** GET /test-cases?search=:q (active cases of every project the user may open; id, name, requirement, scenario) */
+export const searchTestCases = (q: string, limit = 20) =>
+  respond(() => {
+    const text = q.trim().toLowerCase()
+    if (!text || !sessionCan('case.view')) return { cases: [] as TestCase[], total: 0 }
+    const projects = accessibleProjectIds()
+    const found = testCases().filter(
+      (c) =>
+        !c.archivedAt &&
+        projects.has(c.projectId) &&
+        `${c.id} ${c.name} ${requirementText(c, requirementsOf(c.projectId))} ${c.testScenario}`.toLowerCase().includes(text),
+    )
+    return { cases: found.slice(0, limit), total: found.length }
+  })
 
 /**
  * POST /projects/:projectId/test-cases (accepts several for import / AI drafts)

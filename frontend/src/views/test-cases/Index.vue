@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import FoxPageHeader from '@/components/ui/FoxPageHeader.vue'
+import FoxPageSkeleton from '@/components/ui/FoxPageSkeleton.vue'
 import FoxStatCard from '@/components/ui/FoxStatCard.vue'
 import ProjectAvatar from '@/components/projects/ProjectAvatar.vue'
 import TestCaseList from '@/components/test-cases/TestCaseList.vue'
@@ -27,7 +28,7 @@ import type { TestCase, TestCaseInput, TestCaseTemplate } from '@/types'
 const route = useRoute()
 const router = useRouter()
 const projectStore = useProjectStore()
-const { currentProject, currentTree, currentStats, currentCases } = storeToRefs(projectStore)
+const { currentProject, currentTree, currentStats, currentCases, currentCasesLoaded } = storeToRefs(projectStore)
 const store = useTestCaseStore()
 // cards show linked requirements by code and title; until loaded they show the case's own text
 useRequirementStore()
@@ -177,17 +178,20 @@ function onRestore(tc: TestCase) {
 }
 
 function exportMarkdown() {
-  const file = projectStore.exportMarkdown()
-  if (file) notify(`ดาวน์โหลด ${file} แล้ว`)
+  run(
+    () => projectStore.exportMarkdown(),
+    (file) => file && notify(`ดาวน์โหลด ${file} แล้ว`),
+  )
 }
 
-// deep link from notifications / search: /test-cases?caseId=TC-101
+// deep link from notifications / search: /test-cases?caseId=TC-101 (once the project's cases have loaded)
 watch(
-  () => route.query.caseId,
-  (caseId) => {
+  [() => route.query.caseId, currentCasesLoaded],
+  ([caseId, loaded]) => {
+    if (!caseId || !loaded) return
     const tc = typeof caseId === 'string' ? store.getById(caseId, currentProject.value?.id) : undefined
     if (tc) openEdit(tc)
-    if (caseId) router.replace({ query: {} })
+    router.replace({ query: {} })
   },
   { immediate: true },
 )
@@ -268,8 +272,10 @@ watch(
       </v-col>
     </v-row>
 
+    <!-- cases load per project: right after switching project they are on their way -->
+    <FoxPageSkeleton v-if="currentProject && !currentCasesLoaded" :stats="0" :rows="3" />
     <TestCaseList
-      v-if="currentProject"
+      v-else-if="currentProject"
       :project-id="currentProject.id"
       :cases="currentTree"
       :archived="archived"

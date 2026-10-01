@@ -181,6 +181,8 @@ export interface Project {
   milestones?: ProjectMilestone[]
   /** teams that may open the project; empty = everyone with a role (Admins always can) */
   teamIds?: string[]
+  /** case counts of the active cases, worked out by the server for lists (cases load per project) */
+  caseStats?: ProjectStats
 }
 
 /** Project being created (no id) or edited */
@@ -399,6 +401,8 @@ export interface ProjectStats {
   passRate: number
   /** count for every status, including pending / ready_for_test */
   byStatus: Record<TestCaseStatus, number>
+  /** cases overdue or due within the warning window */
+  attention: number
 }
 
 // =============================================================================

@@ -1,8 +1,19 @@
-import type { MilestoneType, Option, Project, ProjectInput, ProjectStatus, PermissionKey, User } from '@/types'
+import type {
+  MilestoneType,
+  Option,
+  Project,
+  ProjectInput,
+  ProjectStatus,
+  PermissionKey,
+  User,
+  ProjectStats,
+  TestCase,
+  TestCaseStatus,
+} from '@/types'
 import { ApiError, newId, respond } from './http'
 import { permissionOf, roleById } from './role.service'
 import { teams } from './team.service'
-import { storedCases } from './test-case.service'
+import { STATUSES, isDueSoon, isOverdue, storedCases } from './test-case.service'
 import { sessionUser } from './user.service'
 import { STORAGE_KEYS, load, save } from './storage.service'
 import { SEED_PROJECTS } from './seeds/projects.seed'
@@ -99,19 +110,46 @@ export function inAccessibleProjects<T extends { projectId?: string }>(list: T[]
   return list.filter((x) => !x.projectId || ids.has(x.projectId))
 }
 
-/** GET /projects (only the ones the signed-in user may open) */
+/** case counts by status (+ overdue / due soon), for a project card or the current project */
+export function caseStatsOf(cases: TestCase[]): ProjectStats {
+  const byStatus = Object.fromEntries(STATUSES.map((s) => [s.value, 0])) as Record<TestCaseStatus, number>
+  cases.forEach((tc) => byStatus[tc.status]++)
+  const total = cases.length
+  return {
+    total,
+    passed: byStatus.passed,
+    failed: byStatus.failed,
+    blocked: byStatus.blocked,
+    inProgress: byStatus.in_progress,
+    untested: byStatus.untested,
+    passRate: total ? (byStatus.passed / total) * 100 : 0,
+    byStatus,
+    attention: cases.filter((tc) => isOverdue(tc) || isDueSoon(tc)).length,
+  }
+}
+
+/**
+ * GET /projects (only the ones the signed-in user may open), each with the counts of its active cases:
+ * the client loads cases one project at a time, so lists and totals come from here
+ */
 export const fetchProjects = () =>
   respond(() => {
     const user = sessionUser()
-    return projects().filter((p) => canAccessProject(user, p))
+    const cases = storedCases().filter((c) => !c.archivedAt)
+    return projects()
+      .filter((p) => canAccessProject(user, p))
+      .map((p) => ({ ...p, caseStats: caseStatsOf(cases.filter((c) => c.projectId === p.id)) }))
   })
+
+/** server-side: what a client sends never sets computed fields */
+const withoutComputed = ({ caseStats: _stats, ...input }: ProjectInput & { caseStats?: ProjectStats }) => input
 
 /** POST /projects (Admin only) */
 export const createProject = (input: ProjectInput) =>
   respond(() => {
     assertCan('admin')
     const now = new Date().toISOString()
-    const project: Project = { ...input, id: newId('proj'), createdAt: now, updatedAt: now }
+    const project: Project = { ...withoutComputed(input), id: newId('proj'), createdAt: now, updatedAt: now }
     save(STORAGE_KEYS.projects, [project, ...projects()])
     return project
   })
@@ -123,7 +161,7 @@ export const updateProject = (id: string, input: ProjectInput) =>
     const list = projects()
     const i = list.findIndex((p) => p.id === id)
     if (i < 0) throw new ApiError('ไม่พบโปรเจกต์', 404)
-    list[i] = { ...list[i], ...input, id, updatedAt: new Date().toISOString() }
+    list[i] = { ...list[i], ...withoutComputed(input), id, updatedAt: new Date().toISOString() }
     save(STORAGE_KEYS.projects, list)
     return list[i]
   })

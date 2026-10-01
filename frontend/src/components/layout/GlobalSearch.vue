@@ -1,31 +1,44 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import ProjectAvatar from '@/components/projects/ProjectAvatar.vue'
 import TestCaseStatusChip from '@/components/test-cases/TestCaseStatusChip.vue'
+import { searchTestCases } from '@/services/test-case.service'
 import { useProjectStore } from '@/stores/project.store'
 import { useRequirementStore } from '@/stores/requirement.store'
-import { useTestCaseStore } from '@/stores/test-case.store'
 import type { Project, TestCase } from '@/types'
 
-// Universal search across projects and test cases of every project
+// Universal search: projects (already loaded) and the test cases of every project (asked from the
+// server, since cases load one project at a time)
 const router = useRouter()
 const projectStore = useProjectStore()
 const { projects } = storeToRefs(projectStore)
-const { activeCases: testCases } = storeToRefs(useTestCaseStore())
 const requirementStore = useRequirementStore()
 
 const open = ref(false)
 const query = ref('')
+const found = ref<{ cases: TestCase[]; total: number }>({ cases: [], total: 0 })
+
+// ask once typing pauses; ignore answers to an older query
+let timer: ReturnType<typeof setTimeout> | undefined
+watch(query, (q) => {
+  clearTimeout(timer)
+  const text = q?.trim() ?? ''
+  if (!text) {
+    found.value = { cases: [], total: 0 }
+    return
+  }
+  timer = setTimeout(async () => {
+    const result = await searchTestCases(text, 6).catch(() => ({ cases: [], total: 0 }))
+    if ((query.value?.trim() ?? '') === text) found.value = result
+  }, 250)
+})
 
 const results = computed(() => {
   const q = query.value?.trim().toLowerCase() ?? ''
-  const cases = q
-    ? testCases.value.filter((tc) => `${tc.id} ${tc.name} ${requirementStore.textFor(tc)} ${tc.testScenario}`.toLowerCase().includes(q))
-    : testCases.value
   const projs = q ? projects.value.filter((p) => `${p.name} ${p.key} ${p.description}`.toLowerCase().includes(q)) : projects.value
-  return { cases: cases.slice(0, 6), projects: projs.slice(0, 3), total: cases.length + projs.length }
+  return { cases: q ? found.value.cases : [], projects: projs.slice(0, 3), total: (q ? found.value.total : 0) + projs.length }
 })
 
 function goToCase(tc: TestCase) {

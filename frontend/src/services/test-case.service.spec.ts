@@ -89,7 +89,7 @@ describe('reorder renumbers and re-keys what points at a case', () => {
       { id: 'TC-101', subIds: ['TC-101-1'] },
       { id: 'TC-103', subIds: [] },
     ])
-    const cases = await fetchTestCases()
+    const cases = await fetchTestCases(PAY)
     expect(ids(cases)).toEqual(['TC-101', 'TC-102', 'TC-102-1', 'TC-103'])
     expect(cases.find((c) => c.id === 'TC-101')!.name).toContain('Webhook')
     const bug3 = (await fetchDefects()).find((d) => d.id === 'BUG-003')!
@@ -181,7 +181,7 @@ describe('stale changes (assertFresh)', () => {
 
   it('a reorder made from a list someone renumbered since is refused', async () => {
     await signIn(USERS.admin)
-    const uids = Object.fromEntries((await fetchTestCases()).filter((c) => c.projectId === PAY).map((c) => [c.id, c.uid!]))
+    const uids = Object.fromEntries((await fetchTestCases(PAY)).map((c) => [c.id, c.uid!]))
     const order = [
       { id: 'TC-104', subIds: [] },
       { id: 'TC-101', subIds: ['TC-101-1'] },

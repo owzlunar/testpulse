@@ -22,7 +22,7 @@ describe('project access by team', () => {
   it('a member opens their team projects and the ones without a team', async () => {
     await signIn(USERS.tester) // E-Commerce
     expect(await projectIds()).toEqual(['proj-2', 'proj-3'])
-    expect(new Set((await fetchTestCases()).map((c) => c.projectId))).not.toContain('proj-1')
+    expect(new Set((await fetchTestCases('proj-2')).map((c) => c.projectId))).not.toContain('proj-1')
   })
 
   it('a user without a role opens nothing', async () => {
@@ -46,8 +46,8 @@ describe('permissions', () => {
     expect((await refusal(reorderTestCases('proj-2', []))).status).toBe(403)
     expect((await refusal(deleteTestCase('proj-2', 'TC-201'))).status).toBe(403)
     await signIn(USERS.qaLead)
-    const order = (await fetchTestCases())
-      .filter((c) => c.projectId === 'proj-1' && !c.parentId)
+    const order = (await fetchTestCases('proj-1'))
+      .filter((c) => !c.parentId)
       .map((c) => ({ id: c.id, subIds: c.id === 'TC-101' ? ['TC-101-1'] : [] }))
     await expect(reorderTestCases('proj-1', order.reverse())).resolves.toBeTruthy()
   })
@@ -116,5 +116,29 @@ describe('requirement changes flag linked cases for review', () => {
     const { flaggedCases } = await saveRequirement({ ...req, title: 'ชื่อใหม่' })
     expect(flaggedCases.map((c) => c.id)).toContain('TC-101')
     expect(storedCase('proj-1', 'TC-101')!.reviewNeeded?.requirementCodes).toEqual(['REQ-PAY-01'])
+  })
+})
+
+describe('cases load per project', () => {
+  it('a project of another team is refused; project lists carry case counts without archived cases', async () => {
+    await signIn(USERS.tester)
+    expect((await refusal(fetchTestCases('proj-1'))).status).toBe(403)
+    expect((await fetchTestCases('proj-2')).every((c) => c.projectId === 'proj-2')).toBe(true)
+
+    await signIn(USERS.admin)
+    const before = (await fetchProjects()).find((p) => p.id === 'proj-1')!.caseStats!.total
+    const { archiveTestCase } = await import('./test-case.service')
+    await archiveTestCase('proj-1', 'TC-104', await signIn(USERS.admin))
+    expect((await fetchProjects()).find((p) => p.id === 'proj-1')!.caseStats!.total).toBe(before - 1)
+  })
+
+  it('search finds cases in every project the user may open, and only those', async () => {
+    const { searchTestCases } = await import('./test-case.service')
+    await signIn(USERS.admin)
+    expect((await searchTestCases('TC-')).cases.map((c) => c.projectId)).toEqual(expect.arrayContaining(['proj-1', 'proj-2']))
+    await signIn(USERS.tester)
+    const found = await searchTestCases('TC-')
+    expect(found.cases.length).toBeGreaterThan(0)
+    expect(found.cases.every((c) => c.projectId !== 'proj-1')).toBe(true)
   })
 })
