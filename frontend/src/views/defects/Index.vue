@@ -11,10 +11,13 @@ import DefectDialog from '@/components/defects/DefectDialog.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useSnackbar } from '@/composables/useSnackbar'
 import { DEFECT_STATUSES, SEVERITIES, defectStatusOf, isOpenDefect, severityOf } from '@/services/defect.service'
+import { useAuthStore } from '@/stores/auth.store'
 import { useDefectStore } from '@/stores/defect.store'
 import type { Defect, DefectInput, DefectSeverity, DefectStatus, Tone } from '@/types'
 import { formatDateTime, formatRelative } from '@/utils/date'
 import { firstName } from '@/utils/format'
+
+const auth = useAuthStore()
 
 const route = useRoute()
 const router = useRouter()
@@ -88,6 +91,9 @@ function onSave(input: DefectInput) {
   })
 }
 
+// closing / rejecting is a verdict (defect.resolve); the other steps are progress updates (defect.report)
+const canSetDefectStatus = (s: DefectStatus) => auth.can(s === 'closed' || s === 'rejected' ? 'defect.resolve' : 'defect.report')
+
 function setStatus(d: Defect, s: DefectStatus) {
   run(() => store.setStatus(d, s), () => {
     detail.value = store.defects.find((x) => x.id === d.id) ?? null
@@ -115,7 +121,7 @@ watch([() => route.query.id, loaded], ([id, isLoaded]) => {
 <template>
   <FoxPageHeader sticky title="Defects" :breadcrumbs="[{ title: 'Defects' }]">
     <template #actions>
-      <v-btn color="error" prepend-icon="tabler:bug" @click="openCreate">รายงาน Defect</v-btn>
+      <v-btn v-if="auth.can('defect.report')" color="error" prepend-icon="tabler:bug" @click="openCreate">รายงาน Defect</v-btn>
     </template>
   </FoxPageHeader>
 
@@ -182,7 +188,7 @@ watch([() => route.query.id, loaded], ([id, isLoaded]) => {
       <div class="defect-head">
         <span class="text-h5 text-error fox-num">{{ detail.id }}</span>
         <div>
-          <v-btn icon="tabler:pencil" variant="text" size="small" aria-label="แก้ไข" @click="openEdit(detail)" />
+          <v-btn v-if="auth.can('defect.report')" icon="tabler:pencil" variant="text" size="small" aria-label="แก้ไข" @click="openEdit(detail)" />
           <v-btn icon="tabler:x" variant="text" size="small" aria-label="ปิด" @click="detail = null" />
         </div>
       </div>
@@ -205,7 +211,7 @@ watch([() => route.query.id, loaded], ([id, isLoaded]) => {
                 :subtitle="s.hint"
                 :base-color="s.tone"
                 :active="s.value === detail.status"
-                :disabled="saving"
+                :disabled="saving || !canSetDefectStatus(s.value)"
                 @click="setStatus(detail, s.value)"
               />
             </v-list>
@@ -248,10 +254,12 @@ watch([() => route.query.id, loaded], ([id, isLoaded]) => {
             <div class="text-body-2">{{ c.text }}</div>
           </div>
         </div>
-        <v-textarea v-model="comment" rows="2" auto-grow placeholder="เพิ่มความคิดเห็น" aria-label="ความคิดเห็น" />
-        <div class="d-flex justify-end mt-2">
-          <v-btn color="primary" size="small" :loading="saving" :disabled="!comment.trim()" @click="addComment">ส่ง</v-btn>
-        </div>
+        <template v-if="auth.can('defect.report')">
+          <v-textarea v-model="comment" rows="2" auto-grow placeholder="เพิ่มความคิดเห็น" aria-label="ความคิดเห็น" />
+          <div class="d-flex justify-end mt-2">
+            <v-btn color="primary" size="small" :loading="saving" :disabled="!comment.trim()" @click="addComment">ส่ง</v-btn>
+          </div>
+        </template>
       </section>
     </template>
   </v-navigation-drawer>

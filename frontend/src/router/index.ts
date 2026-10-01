@@ -1,10 +1,18 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { ApiError } from '@/services/http'
+import { useAppStore } from '@/stores/app.store'
+import { useAuthStore } from '@/stores/auth.store'
+import type { PermissionKey } from '@/types'
 
 declare module 'vue-router' {
   interface RouteMeta {
     title?: string
     /** 'blank' = no drawer / app bar (e.g. login) */
     layout?: 'default' | 'blank'
+    /** needed to open the page (same keys as the sidebar); pages without one are open to every signed-in user */
+    permission?: PermissionKey
+    /** built-in Admin role only (users, roles, teams) */
+    adminOnly?: boolean
   }
 }
 
@@ -20,31 +28,31 @@ const routes: RouteRecordRaw[] = [
     path: '/requirements',
     name: 'requirements',
     component: () => import('@/views/requirements/Index.vue'),
-    meta: { title: 'Requirements' },
+    meta: { title: 'Requirements', permission: 'requirement.view' },
   },
   {
     path: '/test-cases',
     name: 'test-cases',
     component: () => import('@/views/test-cases/Index.vue'),
-    meta: { title: 'Test Cases' },
+    meta: { title: 'Test Cases', permission: 'case.view' },
   },
   {
     path: '/test-runs',
     name: 'test-runs',
     component: () => import('@/views/test-runs/Index.vue'),
-    meta: { title: 'รอบการทดสอบ' },
+    meta: { title: 'รอบการทดสอบ', permission: 'run.view' },
   },
   {
     path: '/test-runs/:id',
     name: 'test-run-execute',
     component: () => import('@/views/test-runs/Execute.vue'),
-    meta: { title: 'บันทึกผลการทดสอบ' },
+    meta: { title: 'บันทึกผลการทดสอบ', permission: 'run.view' },
   },
   {
     path: '/defects',
     name: 'defects',
     component: () => import('@/views/defects/Index.vue'),
-    meta: { title: 'Defects' },
+    meta: { title: 'Defects', permission: 'defect.view' },
   },
   {
     path: '/calendar',
@@ -54,49 +62,49 @@ const routes: RouteRecordRaw[] = [
       default: () => import('@/views/calendar/Index.vue'),
       aside: () => import('@/components/calendar/CalendarAside.vue'),
     },
-    meta: { title: 'ปฏิทินงานทดสอบ' },
+    meta: { title: 'ปฏิทินงานทดสอบ', permission: 'calendar.view' },
   },
   {
     path: '/documents',
     name: 'documents',
     component: () => import('@/views/documents/Index.vue'),
-    meta: { title: 'ศูนย์เอกสาร' },
+    meta: { title: 'ศูนย์เอกสาร', permission: 'document.view' },
   },
   {
     path: '/documents/:id',
     name: 'document-preview',
     component: () => import('@/views/documents/Preview.vue'),
-    meta: { title: 'เอกสาร' },
+    meta: { title: 'เอกสาร', permission: 'document.view' },
   },
   {
     path: '/reports',
     name: 'reports',
     component: () => import('@/views/reports/Index.vue'),
-    meta: { title: 'รายงาน' },
+    meta: { title: 'รายงาน', permission: 'report.view' },
   },
   {
     path: '/audit-trail',
     name: 'audit-trail',
     component: () => import('@/views/audit-trail/Index.vue'),
-    meta: { title: 'Audit Logs' },
+    meta: { title: 'Audit Logs', permission: 'audit.view' },
   },
   {
     path: '/admin/users',
     name: 'users',
     component: () => import('@/views/users/Index.vue'),
-    meta: { title: 'ผู้ใช้งาน' },
+    meta: { title: 'ผู้ใช้งาน', adminOnly: true },
   },
   {
     path: '/admin/permissions',
     name: 'permissions',
     component: () => import('@/views/permissions/Index.vue'),
-    meta: { title: 'Role และสิทธิ์' },
+    meta: { title: 'Role และสิทธิ์', adminOnly: true },
   },
   {
     path: '/admin/teams',
     name: 'teams',
     component: () => import('@/views/teams/Index.vue'),
-    meta: { title: 'ทีม' },
+    meta: { title: 'ทีม', adminOnly: true },
   },
   {
     path: '/settings',
@@ -123,6 +131,19 @@ const router = createRouter({
   history: createWebHistory(),
   routes,
   scrollBehavior: () => ({ top: 0 }),
+})
+
+// pages the role may not open redirect to the dashboard (the sidebar hides them too; this covers typed URLs)
+router.beforeEach(async (to) => {
+  if (to.meta.layout === 'blank' || (!to.meta.permission && !to.meta.adminOnly)) return true
+  const app = useAppStore()
+  await app.bootstrap()
+  if (!app.ready) return true // start-up failed: the layout shows the error and a retry
+  const auth = useAuthStore()
+  const allowed = to.meta.adminOnly ? auth.isAdmin : auth.can(to.meta.permission!)
+  if (allowed) return true
+  app.showError(new ApiError(`คุณไม่มีสิทธิ์เปิดหน้า ${to.meta.title ?? to.path} (${auth.roleOf(auth.currentUser).label})`, 403))
+  return { path: '/dashboard' }
 })
 
 router.afterEach((to) => {

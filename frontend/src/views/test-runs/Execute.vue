@@ -308,7 +308,7 @@ function complete() {
                     <v-textarea :id="`act-${i}`" v-model="draft.stepResults[i].actual" rows="2" auto-grow :readonly="readonly" placeholder="อธิบายสิ่งที่เกิดขึ้น ข้อความ Error หรือ Response" />
                     <div class="fox-label mt-3">หลักฐาน</div>
                     <FoxImageUpload v-model="draft.stepResults[i].evidence" :readonly="readonly" />
-                    <v-btn v-if="!readonly && draft.stepResults[i].status === 'failed'" class="mt-3" color="error" variant="tonal" prepend-icon="tabler:bug" @click="reportDefect(i)">
+                    <v-btn v-if="!readonly && draft.stepResults[i].status === 'failed' && auth.can('defect.report')" class="mt-3" color="error" variant="tonal" prepend-icon="tabler:bug" @click="reportDefect(i)">
                       รายงาน Defect จากขั้นตอนนี้
                     </v-btn>
                   </div>

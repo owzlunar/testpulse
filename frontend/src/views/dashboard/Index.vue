@@ -32,7 +32,9 @@ const projectStore = useProjectStore()
 const { projects, selectedProjectId, overallStats, currentProject, currentStats } = storeToRefs(projectStore)
 const { activeCases: testCases } = storeToRefs(useTestCaseStore())
 const auth = useAuthStore()
-const { currentUser } = storeToRefs(auth)
+const { currentUser, users } = storeToRefs(auth)
+const canSeeAudit = computed(() => auth.can('audit.view'))
+const admins = computed(() => users.value.filter((u) => auth.roleById(u.roleId)?.builtIn === 'admin').map((u) => u.name).join(', '))
 const { sortedLogs } = storeToRefs(useAuditStore())
 const { snackbar, notify } = useSnackbar()
 const { busy: saving, run } = useAsyncAction()
@@ -138,12 +140,20 @@ watch(
 <template>
   <FoxPageHeader :eyebrow="`ยินดีต้อนรับ คุณ${firstName(currentUser.name)}`" title="ภาพรวมโปรเจกต์">
     <template #actions>
-      <v-btn variant="outlined" prepend-icon="tabler:markdown" @click="exportProject()">ส่งออก .md</v-btn>
+      <v-btn v-if="auth.can('case.view') && projects.length" variant="outlined" prepend-icon="tabler:markdown" @click="exportProject()">ส่งออก .md</v-btn>
       <v-btn v-if="auth.isAdmin" color="primary" prepend-icon="tabler:plus" @click="openCreate">สร้างโปรเจกต์</v-btn>
     </template>
   </FoxPageHeader>
 
-  <div class="fox-stack">
+  <!-- a new user without a role: only the dashboard and settings until an Admin assigns one -->
+  <v-card v-if="!auth.hasRole" class="fox-card-body">
+    <FoxEmptyState icon="tabler:user-question" title="บัญชีของคุณยังไม่มี Role" text="ผู้ดูแลระบบ (Admin) จะกำหนด Role และทีมให้ จากนั้นคุณจะเห็นโปรเจกต์และเมนูตามสิทธิ์ ระหว่างนี้เปิดได้เฉพาะภาพรวมและตั้งค่า">
+      <div class="text-body-2 text-muted mt-3">Admin: {{ admins || '-' }}</div>
+      <v-btn class="mt-3" variant="tonal" color="primary" prepend-icon="tabler:settings" to="/settings">ไปที่ตั้งค่า</v-btn>
+    </FoxEmptyState>
+  </v-card>
+
+  <div v-else class="fox-stack">
     <v-row class="fox-grid">
       <v-col v-for="s in stats" :key="s.label" cols="12" sm="6" lg="3">
         <FoxStatCard v-bind="s" />
@@ -155,7 +165,7 @@ watch(
       <v-col cols="12" lg="4">
         <TodoCard />
       </v-col>
-      <v-col cols="12" md="5" lg="4">
+      <v-col cols="12" :md="canSeeAudit ? 5 : 12" :lg="canSeeAudit ? 4 : 8">
         <v-card class="fox-card-body h-100">
           <FoxCardHeader title="สถานะการทดสอบ" :subtitle="currentProject?.name ?? '-'" />
           <v-divider class="my-5" />
@@ -169,7 +179,7 @@ watch(
           <FoxEmptyState v-else icon="tabler:flask" title="ยังไม่มี Test Case" text="เริ่มสร้าง Test Case แรกของโปรเจกต์นี้" />
         </v-card>
       </v-col>
-      <v-col cols="12" md="7" lg="4">
+      <v-col v-if="canSeeAudit" cols="12" md="7" lg="4">
         <v-card class="fox-card-body h-100">
           <FoxCardHeader title="กิจกรรมล่าสุด" subtitle="จาก Audit Trail">
             <v-btn variant="text" color="primary" size="small" append-icon="tabler:arrow-right" to="/audit-trail">ดูทั้งหมด</v-btn>
@@ -226,9 +236,13 @@ watch(
       </v-col>
     </v-row>
     <v-card v-else>
-      <FoxEmptyState icon="tabler:folder-search" title="ไม่พบโปรเจกต์" text="ลองเปลี่ยนคำค้นหาหรือตัวกรอง หรือสร้างโปรเจกต์ใหม่">
+      <FoxEmptyState
+        icon="tabler:folder-search"
+        :title="projects.length ? 'ไม่พบโปรเจกต์' : 'ยังไม่มีโปรเจกต์ที่คุณเข้าถึงได้'"
+        :text="projects.length ? 'ลองเปลี่ยนคำค้นหาหรือตัวกรอง' : auth.isAdmin ? 'สร้างโปรเจกต์แรก' : 'โปรเจกต์จะแสดงเมื่อ Admin เพิ่มคุณเข้าทีมของโปรเจกต์'"
+      >
         <div class="d-flex ga-2 mt-3">
-          <v-btn variant="tonal" color="primary" @click="resetFilters">ล้างตัวกรอง</v-btn>
+          <v-btn v-if="projects.length" variant="tonal" color="primary" @click="resetFilters">ล้างตัวกรอง</v-btn>
           <v-btn v-if="auth.isAdmin" color="primary" prepend-icon="tabler:plus" @click="openCreate">สร้างโปรเจกต์</v-btn>
         </div>
       </FoxEmptyState>

@@ -10,9 +10,12 @@ import DocumentWizardDialog from '@/components/documents/DocumentWizardDialog.vu
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useSnackbar } from '@/composables/useSnackbar'
 import { DOCUMENT_STATUSES, DOCUMENT_TYPES, documentStatusOf, documentTypeOf } from '@/services/document.service'
+import { useAuthStore } from '@/stores/auth.store'
 import { useDocumentStore } from '@/stores/document.store'
 import type { DocumentRecord, DocumentStatus, DocumentType } from '@/types'
 import { formatRelative } from '@/utils/date'
+
+const auth = useAuthStore()
 
 const route = useRoute()
 const router = useRouter()
@@ -47,7 +50,7 @@ function onGenerated(doc: DocumentRecord) {
 watch(
   () => route.query.create,
   (t) => {
-    if (typeof t !== 'string' || !DOCUMENT_TYPES.some((x) => x.value === t)) return
+    if (typeof t !== 'string' || !DOCUMENT_TYPES.some((x) => x.value === t) || !auth.can('document.create')) return
     create(t as DocumentType, typeof route.query.runId === 'string' ? route.query.runId : null)
     router.replace({ query: {} })
   },
@@ -70,14 +73,14 @@ function onDelete() {
 <template>
   <FoxPageHeader title="ศูนย์เอกสาร" :breadcrumbs="[{ title: 'เอกสาร' }]">
     <template #actions>
-      <v-btn color="primary" prepend-icon="tabler:file-plus" @click="create()">สร้างเอกสาร</v-btn>
+      <v-btn v-if="auth.can('document.create')" color="primary" prepend-icon="tabler:file-plus" @click="create()">สร้างเอกสาร</v-btn>
     </template>
   </FoxPageHeader>
 
   <FoxPageSkeleton v-if="!loaded" :stats="4" :rows="1" />
   <div v-else class="fox-stack">
     <!-- one-click create -->
-    <v-row class="fox-grid">
+    <v-row v-if="auth.can('document.create')" class="fox-grid">
       <v-col v-for="t in DOCUMENT_TYPES" :key="t.value" cols="12" sm="6" lg="3">
         <v-card class="fox-card-body h-100 doc-quick" @click="create(t.value)">
           <div class="d-flex align-center ga-3 mb-3">

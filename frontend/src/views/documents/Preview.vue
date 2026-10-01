@@ -11,9 +11,12 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useSnackbar } from '@/composables/useSnackbar'
 import { documentStatusOf, documentTypeOf, uatDecisionOf } from '@/services/document.service'
 import { downloadWordDocument } from '@/services/export.service'
+import { useAuthStore } from '@/stores/auth.store'
 import { useDocumentStore } from '@/stores/document.store'
 import { useProjectStore } from '@/stores/project.store'
 import { formatDateTime, formatRelative } from '@/utils/date'
+
+const auth = useAuthStore()
 
 const route = useRoute()
 const store = useDocumentStore()
@@ -90,7 +93,7 @@ function confirmSign() {
       <template #actions>
         <v-btn variant="outlined" prepend-icon="tabler:printer" @click="print">พิมพ์ / PDF</v-btn>
         <v-btn variant="outlined" prepend-icon="tabler:file-type-doc" @click="downloadWord">ดาวน์โหลด Word</v-btn>
-        <v-btn v-if="doc.status === 'draft' && doc.signatories.length" color="primary" prepend-icon="tabler:signature" :loading="busy" @click="requestSignoff">ส่งขอลงนาม</v-btn>
+        <v-btn v-if="doc.status === 'draft' && doc.signatories.length && auth.can('document.create')" color="primary" prepend-icon="tabler:signature" :loading="busy" @click="requestSignoff">ส่งขอลงนาม</v-btn>
       </template>
     </FoxPageHeader>
 
@@ -150,7 +153,7 @@ function confirmSign() {
                     <div v-if="sg.signedAt" class="text-caption text-muted">{{ formatRelative(sg.signedAt) }}</div>
                   </div>
                 </div>
-                <div v-if="doc.status === 'pending_signoff' && sg.status === 'pending'" class="d-flex ga-2 mt-2 ml-11">
+                <div v-if="doc.status === 'pending_signoff' && sg.status === 'pending' && auth.can('document.sign')" class="d-flex ga-2 mt-2 ml-11">
                   <v-btn size="small" color="success" variant="tonal" prepend-icon="tabler:signature" @click="openSign(i, 'signed')">ลงนาม</v-btn>
                   <v-btn size="small" color="error" variant="text" @click="openSign(i, 'rejected')">ปฏิเสธ</v-btn>
                 </div>

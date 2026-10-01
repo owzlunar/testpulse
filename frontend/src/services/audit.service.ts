@@ -1,5 +1,6 @@
 import type { AuditAction, AuditTrailEntry, Option } from '@/types'
 import { respond } from './http'
+import { accessibleProjectIds, sessionCan } from './project.service'
 import { STORAGE_KEYS, load, update } from './storage.service'
 
 export const AUDIT_ACTIONS: Option<AuditAction>[] = [
@@ -99,7 +100,14 @@ export function detachAuditCases(projectId: string, caseIds: string[]) {
 }
 
 /** GET /audit-logs */
-export const fetchAuditLogs = () => respond(() => load(STORAGE_KEYS.auditLogs, SEED_AUDIT_LOGS))
+export const fetchAuditLogs = () =>
+  respond(() => {
+    const logs = load(STORAGE_KEYS.auditLogs, SEED_AUDIT_LOGS)
+    if (sessionCan('audit.view')) return logs
+    // others still see the history of the cases they can open (case history tab)
+    const projects = accessibleProjectIds()
+    return logs.filter((l) => l.targetType === 'TEST_CASE' && !!l.projectId && projects.has(l.projectId))
+  })
 
 /** POST /audit-logs (on the real backend the server writes these itself) */
 export const createAuditLog = (entry: AuditTrailEntry) =>

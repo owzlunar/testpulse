@@ -1,4 +1,4 @@
-import type { MilestoneType, Option, Project, ProjectInput, ProjectStatus, User } from '@/types'
+import type { MilestoneType, Option, Project, ProjectInput, ProjectStatus, PermissionKey, User } from '@/types'
 import { ApiError, newId, respond } from './http'
 import { roleById } from './role.service'
 import { teams } from './team.service'
@@ -100,6 +100,12 @@ export function canAccessProject(user: User | null, project: Pick<Project, 'team
 export function accessibleProjectIds(): Set<string> {
   const user = sessionUser()
   return new Set(projects().filter((p) => canAccessProject(user, p)).map((p) => p.id))
+}
+
+/** server-side: does the signed-in user's role have this permission? (the built-in Admin has all) */
+export function sessionCan(key: PermissionKey): boolean {
+  const role = roleById(sessionUser()?.roleId)
+  return !!role && (role.builtIn === 'admin' || role.permissions.includes(key))
 }
 
 /** server-side: keep the records that belong to projects the signed-in user may open (no project = global) */

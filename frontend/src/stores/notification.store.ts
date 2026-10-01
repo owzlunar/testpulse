@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import type { NotificationItem } from '@/types'
 import { newId } from '@/services/http'
 import * as api from '@/services/notification.service'
+import { useAuthStore } from './auth.store'
 
 export type NotificationInput = Omit<NotificationItem, 'id' | 'timestamp' | 'read'>
 
@@ -18,7 +19,8 @@ export const useNotificationStore = defineStore('notification', () => {
 
   function add(input: NotificationInput): NotificationItem {
     const item: NotificationItem = { ...input, id: newId('notif'), timestamp: new Date().toISOString(), read: false }
-    notifications.value.unshift(item)
+    // still stored for the team; shown here only if this role receives notifications
+    if (useAuthStore().can('notification.receive')) notifications.value.unshift(item)
     api.createNotification(item).catch(() => {})
     return item
   }

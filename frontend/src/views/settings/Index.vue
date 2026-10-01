@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import FoxPageHeader from '@/components/ui/FoxPageHeader.vue'
 import FoxCardHeader from '@/components/ui/FoxCardHeader.vue'
@@ -30,7 +30,9 @@ function switchUser(id: string) {
 }
 
 const documentStore = useDocumentStore()
-run(() => documentStore.ensureLoaded())
+// the UAT document template is part of creating documents
+const canEditTemplate = computed(() => auth.can('document.create'))
+if (canEditTemplate.value) run(() => documentStore.ensureLoaded())
 
 const confirmReset = ref(false)
 function reset() {
@@ -45,7 +47,8 @@ function reset() {
   <v-row class="fox-grid">
     <v-col cols="12" md="6">
       <div class="fox-stack">
-        <v-card class="fox-card-body">
+        <!-- each section shows only for roles that use it -->
+        <v-card v-if="auth.can('notification.receive')" class="fox-card-body">
           <FoxCardHeader title="การแจ้งเตือน" subtitle="เลือกเหตุการณ์ที่ต้องการรับแจ้งเตือน" />
           <div class="d-flex flex-column ga-1 mt-4">
             <v-switch v-model="settings.alertOnModification" label="เมื่อ Test Case ถูกแก้ไขหรือเพิ่มใหม่" />
@@ -69,7 +72,7 @@ function reset() {
           </div>
         </v-card>
 
-        <v-card class="fox-card-body">
+        <v-card v-if="auth.can('case.view')" class="fox-card-body">
           <FoxCardHeader title="ส่งออก Obsidian (.md)" subtitle="รูปแบบไฟล์ Markdown ที่ส่งออก" />
           <div class="d-flex flex-column mt-4">
             <v-checkbox v-model="settings.obsidianFrontmatter" label="ใส่ YAML Frontmatter (tags, metadata, สถิติ)" />
@@ -101,7 +104,7 @@ function reset() {
           />
         </v-card>
 
-        <v-card color="light-warning" variant="flat" class="fox-card-body">
+        <v-card v-if="auth.isAdmin" color="light-warning" variant="flat" class="fox-card-body">
           <div class="d-flex align-start ga-4">
             <v-avatar color="warning" variant="flat" size="44"><v-icon icon="tabler:database" size="22" /></v-avatar>
             <div>
@@ -113,7 +116,7 @@ function reset() {
         </v-card>
       </div>
     </v-col>
-    <v-col cols="12">
+    <v-col v-if="canEditTemplate" cols="12">
       <DocumentTemplateForm v-if="documentStore.loaded" @saved="notify('บันทึกแม่แบบเอกสารแล้ว')" />
       <v-card v-else class="fox-card-body"><v-skeleton-loader type="heading, paragraph" /></v-card>
     </v-col>
