@@ -490,7 +490,8 @@ export const createTestCases = (cases: TestCase[]) =>
     const list = testCases()
     const clash = cases.find((c) => list.some((x) => sameCase(x, c.projectId, c.id)))
     if (clash) throw new ApiError(`รหัส ${clash.id} มีอยู่แล้วในโปรเจกต์นี้`, 409)
-    save(STORAGE_KEYS.testCases, [...cases, ...list])
+    // appended: the stored order is the list order users arrange by drag and drop
+    save(STORAGE_KEYS.testCases, [...list, ...cases])
     return cases
   })
 

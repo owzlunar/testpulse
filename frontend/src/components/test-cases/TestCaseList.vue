@@ -83,8 +83,14 @@ type DropTarget = { list: string; index: number }
 
 const dragging = ref<DragSource | null>(null)
 const dropTarget = ref<DropTarget | null>(null)
-// filtered lists would renumber the hidden cases too, so only allow it on the full list
-const canReorder = computed(() => canEdit.value && !isFiltering.value)
+// reordering renumbers ids, so it is an explicit mode (grips hidden otherwise) on the full, unfiltered list
+const reorderMode = ref(false)
+const canReorder = computed(() => canEdit.value && reorderMode.value && !isFiltering.value)
+
+function startReorder() {
+  resetFilters()
+  reorderMode.value = true
+}
 
 /** started from the grip handle; the whole card/row is used as the drag image */
 function onDragStart(e: DragEvent, source: DragSource) {
@@ -196,6 +202,7 @@ function insertClass(list: string, index: number, length: number) {
               prepend-inner-icon="tabler:search"
               aria-label="ค้นหา Test Case"
               clearable
+              :disabled="reorderMode"
             />
           </v-col>
           <v-col cols="6" md="3">
@@ -208,6 +215,7 @@ function insertClass(list: string, index: number, length: number) {
               placeholder="ทุกสถานะ"
               aria-label="กรองสถานะ"
               clearable
+              :disabled="reorderMode"
             >
               <template #item="{ props: item, item: { raw } }">
                 <v-list-item v-bind="item" :prepend-icon="raw.icon" :base-color="raw.tone" />
@@ -224,6 +232,7 @@ function insertClass(list: string, index: number, length: number) {
               placeholder="ทุก Priority"
               aria-label="กรอง Priority"
               clearable
+              :disabled="reorderMode"
             >
               <template #item="{ props: item, item: { raw } }">
                 <v-list-item v-bind="item" :prepend-icon="raw.icon" :base-color="raw.tone" />
@@ -234,10 +243,14 @@ function insertClass(list: string, index: number, length: number) {
             <span class="text-body-2 text-muted">{{ visible.length }} จาก {{ cases.length }} เคสหลัก</span>
           </v-col>
         </v-row>
-        <div v-if="canEdit" class="d-flex align-center ga-2 mt-3 text-body-2 text-muted">
-          <v-icon icon="tabler:grip-vertical" size="18" />
-          <span v-if="canReorder">ลากการ์ดเพื่อจัดลำดับ ระบบจะรันรหัส TC-101, TC-102 … ใหม่ให้อัตโนมัติ</span>
-          <span v-else>ล้างตัวกรองเพื่อจัดลำดับด้วยการลาก</span>
+        <div v-if="canEdit && reorderMode" class="d-flex flex-wrap align-center ga-3 mt-3">
+          <v-icon icon="tabler:arrows-sort" color="primary" size="18" />
+          <span class="text-body-2 text-muted flex-grow-1">ลากการ์ดหรือ Sub-case ด้วยปุ่ม <v-icon icon="tabler:grip-vertical" size="16" /> ไปวางตำแหน่งที่ต้องการ ระบบจะรันรหัส TC-101, TC-102 … ใหม่ทันทีที่วาง</span>
+          <v-btn color="primary" size="small" prepend-icon="tabler:check" @click="reorderMode = false">เสร็จสิ้น</v-btn>
+        </div>
+        <div v-else-if="canEdit && cases.length > 1" class="d-flex flex-wrap align-center ga-3 mt-3">
+          <span class="text-body-2 text-muted flex-grow-1">เคสใหม่ต่อท้ายรายการ</span>
+          <v-btn variant="outlined" size="small" prepend-icon="tabler:arrows-sort" @click="startReorder">จัดลำดับ</v-btn>
         </div>
       </div>
     </v-card>

@@ -125,7 +125,8 @@ export const useTestCaseStore = defineStore('testCase', () => {
 
   async function create(input: TestCaseInput): Promise<TestCase> {
     const [tc] = await api.createTestCases([build(input)])
-    testCases.value.unshift(tc)
+    // new cases go to the end: the list order is the manual order (see reorder)
+    testCases.value.push(tc)
 
     const isSub = !!tc.parentId
     audit.record({
