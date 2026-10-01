@@ -80,5 +80,6 @@ src
 ## Workflow
 
 - Before changing a page, list the hardcoded colors, inline styles and duplicated components in it and propose the fix.
+- Before committing: `npm run check` (type-check, lint, format, unit tests) and `npm run build`. For UI changes also `npm run test:e2e` (Playwright, starts its own dev server; first time on a machine: `npx playwright install chromium`). Add or update a spec in `e2e/` for a changed flow.
 - Run `npm run build` after each group, then commit it.
 - When unsure whether a style belongs to the theme or the page, ask.
