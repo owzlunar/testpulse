@@ -40,5 +40,5 @@ test('the comparison shows the most used roles and can hide the permissions they
   const all = await page.locator('.role-compare tbody tr').count()
   await page.getByLabel('แสดงเฉพาะสิทธิ์ที่ต่างกัน').click()
   await expect.poll(() => page.locator('.role-compare tbody tr').count()).toBeLessThan(all)
-  await expect(page.locator('.role-compare .ti-circle-check').first()).toBeVisible()
+  await expect.poll(() => page.locator('.role-compare .d-sr-only', { hasText: ': มีสิทธิ์' }).count()).toBeGreaterThan(0)
 })

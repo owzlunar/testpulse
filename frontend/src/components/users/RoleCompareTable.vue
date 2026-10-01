@@ -110,8 +110,9 @@ function toggleGroup(module: string) {
                   :icon="granted(r, item.key) ? 'tabler:circle-check' : 'tabler:minus'"
                   :color="granted(r, item.key) ? r.tone : undefined"
                   :class="{ 'text-muted': !granted(r, item.key) }"
-                  :aria-label="`${item.label} · ${r.name}: ${granted(r, item.key) ? 'มีสิทธิ์' : 'ไม่มีสิทธิ์'}`"
                 />
+                <!-- icons are aria-hidden: the answer for screen readers -->
+                <span class="d-sr-only">{{ item.label }} · {{ r.name }}: {{ granted(r, item.key) ? 'มีสิทธิ์' : 'ไม่มีสิทธิ์' }}</span>
               </td>
             </tr>
           </template>
