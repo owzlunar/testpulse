@@ -22,7 +22,7 @@
     "pinia": "^2.3.1",
     "vue": "^3.5.43",
     "vue-router": "^4.6.4",
-    "vuetify": "^3.5.9"
+    "vuetify": "3.5.9"
   },
   "devDependencies": {
     "@types/canvas-confetti": "^1.9.0",

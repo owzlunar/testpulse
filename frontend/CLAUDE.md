@@ -2,7 +2,7 @@
 
 Shared product rules: `../CLAUDE.md`. Product spec: `../PRD.md`.
 
-Stack: Vue 3, Vite, Vuetify 3.5.9, FullCalendar 6 (all `@fullcalendar/*` packages must stay on major 6).
+Stack: Vue 3, Vite, Vuetify 3.5.9 (pinned exactly, no `^`: same version as `../../fox`, whose look `main.scss` is tuned to; check the Vuetify 3.5 docs before using a newer API), FullCalendar 6 (all `@fullcalendar/*` packages must stay on major 6).
 Design reference: Fox admin dashboard (`../../fox`, light + dark, blue primary). Font: Noto Sans Thai.
 
 ## Theme source of truth
