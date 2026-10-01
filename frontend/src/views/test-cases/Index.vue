@@ -3,7 +3,6 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import FoxPageHeader from '@/components/ui/FoxPageHeader.vue'
-import FoxConfirmDialog from '@/components/ui/FoxConfirmDialog.vue'
 import FoxStatCard from '@/components/ui/FoxStatCard.vue'
 import ProjectAvatar from '@/components/projects/ProjectAvatar.vue'
 import TestCaseList from '@/components/test-cases/TestCaseList.vue'
@@ -15,6 +14,7 @@ import TemplatePickerDialog from '@/components/test-cases/TemplatePickerDialog.v
 import SaveTemplateDialog from '@/components/test-cases/SaveTemplateDialog.vue'
 import TestCaseImportDialog from '@/components/test-cases/TestCaseImportDialog.vue'
 import TestCaseAiDraftDialog from '@/components/test-cases/TestCaseAiDraftDialog.vue'
+import TestCaseRemoveDialog from '@/components/test-cases/TestCaseRemoveDialog.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useSnackbar } from '@/composables/useSnackbar'
 import { useTestCasePermissions } from '@/composables/useTestCasePermissions'
@@ -100,8 +100,11 @@ const historyOpen = ref(false)
 const extendOpen = ref(false)
 const target = ref<TestCase | null>(null)
 
-const confirmOpen = ref(false)
-const deleting = ref<TestCase | null>(null)
+// archive (default) / permanent delete from the archive, both confirmed with their impact
+const removeOpen = ref(false)
+const removeMode = ref<'archive' | 'delete'>('archive')
+const removing = ref<TestCase | null>(null)
+const archived = computed(() => (currentProject.value ? store.archivedOf(currentProject.value.id) : []))
 
 function openCreate(parent: string | null = null) {
   editing.value = null
@@ -138,15 +141,27 @@ function openExtend(tc: TestCase) {
   extendOpen.value = true
 }
 
-function askDelete(tc: TestCase) {
-  deleting.value = tc
-  confirmOpen.value = true
+function askRemove(tc: TestCase, mode: 'archive' | 'delete') {
+  removing.value = tc
+  removeMode.value = mode
+  removeOpen.value = true
 }
 
-function onDelete() {
-  const target = deleting.value
-  if (!target) return
-  run(() => store.remove(target.id, target.projectId), () => notify(`ลบ ${target.id} แล้ว`))
+function onRemove() {
+  const tc = removing.value
+  if (!tc) return
+  const archiving = removeMode.value === 'archive'
+  run(
+    async () => void (archiving ? await store.archive(tc.id, tc.projectId) : await store.remove(tc.id, tc.projectId)),
+    () => {
+      removeOpen.value = false
+      notify(archiving ? `เก็บ ${tc.id} เข้าคลังแล้ว กู้คืนได้จากแท็บคลังเก็บ` : `ลบ ${tc.id} ถาวรแล้ว`)
+    },
+  )
+}
+
+function onRestore(tc: TestCase) {
+  run(() => store.restore(tc.id, tc.projectId), () => notify(`กู้คืน ${tc.id} แล้ว`))
 }
 
 function exportMarkdown() {
@@ -221,10 +236,13 @@ watch(
       v-if="currentProject"
       :project-id="currentProject.id"
       :cases="currentTree"
+      :archived="archived"
       @create="openCreate()"
       @add-subcase="openCreate"
       @edit="openEdit"
-      @delete="askDelete"
+      @archive="askRemove($event, 'archive')"
+      @restore="onRestore"
+      @purge="askRemove($event, 'delete')"
       @history="openHistory"
       @extend="openExtend"
       @clone="openClone"
@@ -240,12 +258,6 @@ watch(
   <TestCaseAiDraftDialog v-model="aiOpen" @created="notify(`เพิ่ม ${$event} เคสจากร่าง AI แล้ว`)" />
   <TestCaseHistoryDialog v-model="historyOpen" :test-case="target" />
   <ExtendDueDateDialog v-model="extendOpen" :test-case="target" @extended="notify(`ขยายกำหนดส่ง ${$event.id} แล้ว`)" />
-  <FoxConfirmDialog
-    v-model="confirmOpen"
-    title="ลบ Test Case?"
-    :text="deleting ? `${deleting.id} และ Sub-case ทั้งหมดที่อยู่ภายใต้จะถูกลบถาวร` : ''"
-    confirm-text="ลบ"
-    @confirm="onDelete"
-  />
+  <TestCaseRemoveDialog v-model="removeOpen" :test-case="removing" :mode="removeMode" :loading="saving" @confirm="onRemove" />
   <v-snackbar v-model="snackbar.show" :color="snackbar.color">{{ snackbar.text }}</v-snackbar>
 </template>

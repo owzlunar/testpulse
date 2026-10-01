@@ -81,7 +81,9 @@ const empty = (): Omit<TestCase, 'createdAt' | 'updatedAt'> => ({
 const form = reactive(empty())
 
 const isEdit = computed(() => !!props.testCase)
-const readonly = computed(() => (isEdit.value ? !canEdit.value : !canCreate.value))
+const isArchived = computed(() => !!props.testCase?.archivedAt)
+// archived cases can only be viewed (restore them from the archive to edit)
+const readonly = computed(() => (isEdit.value ? !canEdit.value || isArchived.value : !canCreate.value))
 const title = computed(() =>
   isEdit.value ? `${readonly.value ? '' : 'แก้ไข '}${form.id}` : form.parentId ? `สร้าง Sub-case ภายใต้ ${form.parentId}` : 'สร้าง Test Case ใหม่',
 )
@@ -223,7 +225,8 @@ const rules = { required }
           <div class="d-flex flex-wrap align-center ga-2">
             <h2 class="text-h5">{{ title }}</h2>
             <v-chip size="small" color="primary" variant="tonal" class="fox-num">{{ form.version }}</v-chip>
-            <v-chip v-if="readonly" size="small" color="secondary" variant="tonal" prepend-icon="tabler:eye">ดูอย่างเดียว</v-chip>
+            <v-chip v-if="isArchived" size="small" color="secondary" variant="tonal" prepend-icon="tabler:archive">อยู่ในคลังเก็บ</v-chip>
+            <v-chip v-else-if="readonly" size="small" color="secondary" variant="tonal" prepend-icon="tabler:eye">ดูอย่างเดียว</v-chip>
           </div>
           <p class="text-body-2 text-muted text-truncate">{{ currentProject?.name }}</p>
         </div>

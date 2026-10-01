@@ -69,7 +69,9 @@ const outcomeOf = (status: string): DocCase['outcome'] =>
 function buildSnapshot(req: DocumentRequest): DocumentSnapshot {
   const project = load<Project[]>(STORAGE_KEYS.projects, []).find((p) => p.id === req.projectId)
   if (!project) throw new ApiError('ไม่พบโปรเจกต์', 404)
-  const allCases = load<TestCase[]>(STORAGE_KEYS.testCases, []).filter((c) => c.projectId === req.projectId)
+  const projectCases = load<TestCase[]>(STORAGE_KEYS.testCases, []).filter((c) => c.projectId === req.projectId)
+  // archived cases are out of scope (lists, coverage); a run still shows the ones it executed
+  const allCases = projectCases.filter((c) => !c.archivedAt)
   const run = req.options.runId ? load<TestRun[]>(STORAGE_KEYS.testRuns, []).find((r) => r.id === req.options.runId) : undefined
   if (req.options.runId && !run) throw new ApiError('ไม่พบรอบการทดสอบที่เลือก', 404)
   const defects = load<Defect[]>(STORAGE_KEYS.defects, []).filter((d) => d.projectId === req.projectId)
@@ -79,7 +81,7 @@ function buildSnapshot(req: DocumentRequest): DocumentSnapshot {
   let cases: DocCase[]
   if (run) {
     cases = run.results.map((r) => {
-      const tc = r.caseDeleted ? undefined : allCases.find((c) => c.id === r.caseId)
+      const tc = r.caseDeleted ? undefined : projectCases.find((c) => c.id === r.caseId)
       const res = resultOf(r.status)
       return {
         id: r.caseDeleted ? `${r.caseId} (ลบแล้ว)` : r.caseId, name: r.caseName, parentId: tc?.parentId, requirement: tc ? requirementText(tc, requirements) : '', testScenario: tc?.testScenario ?? '',

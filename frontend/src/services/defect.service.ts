@@ -81,6 +81,9 @@ export function detachDefectCases(projectId: string, caseIds: string[]) {
   save(STORAGE_KEYS.defects, list)
 }
 
+/** server-side: the stored defects of a project */
+export const defectsOf = (projectId: string): Defect[] => defects().filter((d) => d.projectId === projectId)
+
 /** GET /defects */
 export const fetchDefects = () => respond(defects)
 

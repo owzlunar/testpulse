@@ -118,6 +118,9 @@ export function detachRunCases(projectId: string, caseIds: string[]) {
   save(STORAGE_KEYS.testRuns, list)
 }
 
+/** server-side: the stored runs of a project */
+export const runsOf = (projectId: string): TestRun[] => runs().filter((r) => r.projectId === projectId)
+
 /** GET /test-runs */
 export const fetchRuns = () => respond(runs)
 
@@ -156,6 +159,7 @@ export function caseSyncBlock(run: TestRun, result: RunResult, tc: TestCase | un
   if (result.caseDeleted) return 'Test Case นี้ถูกลบแล้ว'
   if (run.status === 'completed') return 'รอบนี้ปิดแล้ว'
   if (!tc) return 'ไม่พบ Test Case'
+  if (tc.archivedAt) return 'Test Case นี้อยู่ในคลังเก็บ'
   if (tc.version !== result.caseVersion) return `ผลนี้ทดสอบกับ ${result.caseVersion} แต่เคสเป็น ${tc.version} แล้ว`
   const newer = allRuns.find(
     (r) => r.projectId === run.projectId && r.id !== run.id && r.createdAt > run.createdAt &&

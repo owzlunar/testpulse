@@ -10,6 +10,8 @@ export const AUDIT_ACTIONS: Option<AuditAction>[] = [
   { value: 'EXTEND_DUE_DATE', label: 'ขยายกำหนดส่ง', tone: 'warning', icon: 'tabler:calendar-time' },
   { value: 'SLA_BREACHED', label: 'เลยกำหนด SLA', tone: 'caution', icon: 'tabler:clock-exclamation' },
   { value: 'EXPORT', label: 'ส่งออกเอกสาร', tone: 'warning', icon: 'tabler:download' },
+  { value: 'ARCHIVE', label: 'เก็บเข้าคลัง', tone: 'secondary', icon: 'tabler:archive' },
+  { value: 'RESTORE', label: 'กู้คืนจากคลัง', tone: 'success', icon: 'tabler:archive-off' },
   { value: 'DELETE', label: 'ลบข้อมูล', tone: 'error', icon: 'tabler:trash' },
 ]
 

@@ -13,7 +13,7 @@ import type { Project, TestCase } from '@/types'
 const router = useRouter()
 const projectStore = useProjectStore()
 const { projects } = storeToRefs(projectStore)
-const { testCases } = storeToRefs(useTestCaseStore())
+const { activeCases: testCases } = storeToRefs(useTestCaseStore())
 const requirementStore = useRequirementStore()
 
 const open = ref(false)

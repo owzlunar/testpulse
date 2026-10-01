@@ -1,14 +1,14 @@
 import type {
-  ActiveUserPresence, Actor, Option, Requirement, TestCase, TestCaseInput, TestCaseOrder, TestCasePriority, TestCaseReorderResult,
+  ActiveUserPresence, Actor, Option, Requirement, TestCase, TestCaseImpact, TestCaseInput, TestCaseOrder, TestCasePriority, TestCaseReorderResult,
   TestCaseStatus, TestCaseUpdateResult, TestCaseVersionRecord, Tone,
 } from '@/types'
 import { daysFromToday } from '@/utils/date'
 import { detachAuditCases, renameAuditCases } from './audit.service'
-import { detachDefectCases, renameDefectCases } from './defect.service'
+import { defectsOf, detachDefectCases, isOpenDefect, renameDefectCases } from './defect.service'
 import { ApiError, respond } from './http'
 import { detachNotificationCases, renameNotificationCases } from './notification.service'
-import { requirementsForCase, requirementsOf } from './requirement.service'
-import { detachRunCases, renameRunCases } from './run.service'
+import { casesForRequirement, requirementsForCase, requirementsOf } from './requirement.service'
+import { detachRunCases, renameRunCases, runsOf } from './run.service'
 import { STORAGE_KEYS, load, migrateOnce, save } from './storage.service'
 
 // Dev <-> QA lifecycle: Pending Dev -> Ready for Test -> (QA) -> Passed | Failed -> back to Dev
@@ -592,6 +592,7 @@ export function patchStoredCase(projectId: string, id: string, patch: Partial<Te
   const list = testCases()
   const i = list.findIndex((x) => sameCase(x, projectId, id))
   if (i < 0) throw new ApiError(`ไม่พบ ${id}`, 404)
+  if (list[i].archivedAt) throw new ApiError(`${id} อยู่ในคลังเก็บ กู้คืนก่อนจึงแก้ไขได้`, 409)
   const result = applyCasePatch(list[i], patch, actor)
   list[i] = result.testCase
   save(STORAGE_KEYS.testCases, list)
@@ -610,14 +611,77 @@ export const extendDueDate = (projectId: string, id: string, newDate: string, re
     const list = testCases()
     const tc = list.find((x) => sameCase(x, projectId, id))
     if (!tc) throw new ApiError(`ไม่พบ ${id}`, 404)
+    if (tc.archivedAt) throw new ApiError(`${id} อยู่ในคลังเก็บ กู้คืนก่อนจึงแก้ไขได้`, 409)
     const oldDate = tc.expiryDate
     Object.assign(tc, { expiryDate: newDate, activeUser: presenceOf(actor), updatedAt: new Date().toISOString() })
     save(STORAGE_KEYS.testCases, list)
     return { testCase: tc, oldDate }
   })
 
+/** the case and, for a parent, its sub-cases */
+const withSubs = (list: TestCase[], projectId: string, id: string) =>
+  list.filter((x) => x.projectId === projectId && (x.id === id || x.parentId === id))
+
 /**
- * DELETE /projects/:projectId/test-cases/:id (and its sub-cases)
+ * POST /projects/:projectId/test-cases/:id/archive (with its sub-cases)
+ * The default way to remove a case: it keeps its id (never reused while archived) and every
+ * run result, defect and audit entry stays attached, so it can be restored.
+ */
+export const archiveTestCase = (projectId: string, id: string, actor: Actor) =>
+  respond(() => {
+    const list = testCases()
+    const target = list.find((x) => sameCase(x, projectId, id))
+    if (!target) throw new ApiError(`ไม่พบ ${id}`, 404)
+    if (target.archivedAt) throw new ApiError(`${id} อยู่ในคลังเก็บแล้ว`, 409)
+    const now = new Date().toISOString()
+    const archived = withSubs(list, projectId, id).filter((x) => !x.archivedAt)
+    archived.forEach((x) => Object.assign(x, { archivedAt: now, archivedBy: actor.name, activeUser: null }))
+    save(STORAGE_KEYS.testCases, list)
+    return archived
+  })
+
+/** POST /projects/:projectId/test-cases/:id/restore (with the sub-cases archived together with it) */
+export const restoreTestCase = (projectId: string, id: string) =>
+  respond(() => {
+    const list = testCases()
+    const target = list.find((x) => sameCase(x, projectId, id))
+    if (!target) throw new ApiError(`ไม่พบ ${id}`, 404)
+    if (!target.archivedAt) throw new ApiError(`${id} ไม่ได้อยู่ในคลังเก็บ`, 409)
+    const parent = target.parentId ? list.find((x) => sameCase(x, projectId, target.parentId!)) : undefined
+    if (parent?.archivedAt) throw new ApiError(`กู้คืนเคสหลัก ${parent.id} ก่อน`, 409)
+    const restored = withSubs(list, projectId, id).filter((x) => x.archivedAt === target.archivedAt)
+    restored.forEach((x) => {
+      delete x.archivedAt
+      delete x.archivedBy
+    })
+    save(STORAGE_KEYS.testCases, list)
+    return restored
+  })
+
+/** GET /projects/:projectId/test-cases/:id/impact (what archiving or deleting it, with its sub-cases, touches) */
+export const caseImpact = (projectId: string, id: string) =>
+  respond<TestCaseImpact>(() => {
+    const list = testCases()
+    const cases = withSubs(list, projectId, id)
+    if (!cases.length) throw new ApiError(`ไม่พบ ${id}`, 404)
+    const ids = cases.map((x) => x.id)
+    const remaining = list.filter((x) => x.projectId === projectId && !x.archivedAt && !ids.includes(x.id))
+    return {
+      caseIds: ids,
+      runs: runsOf(projectId)
+        .filter((r) => r.results.some((x) => ids.includes(x.caseId) && !x.caseDeleted))
+        .map((r) => ({ name: r.name, round: r.round, open: r.status !== 'completed' })),
+      openDefects: defectsOf(projectId)
+        .filter((d) => d.caseId && ids.includes(d.caseId) && !d.caseDeleted && isOpenDefect(d))
+        .map((d) => ({ id: d.id, title: d.title })),
+      requirements: requirementsOf(projectId)
+        .filter((r) => casesForRequirement(r, cases).length)
+        .map((r) => ({ code: r.code, title: r.title, uncovered: !casesForRequirement(r, remaining).length })),
+    }
+  })
+
+/**
+ * DELETE /projects/:projectId/test-cases/:id (and its sub-cases): permanent, archived cases only.
  * Ids are reused later (new cases, renumbering), so everything that pointed at the deleted
  * cases is detached: run results and defects keep the old id as history only, alerts lose the link.
  * Returns the deleted ids.
@@ -625,20 +689,22 @@ export const extendDueDate = (projectId: string, id: string, newDate: string, re
 export const deleteTestCase = (projectId: string, id: string) =>
   respond(() => {
     const list = testCases()
-    const gone = (x: TestCase) => x.projectId === projectId && (x.id === id || x.parentId === id)
-    const ids = list.filter(gone).map((x) => x.id)
-    if (!ids.length) throw new ApiError(`ไม่พบ ${id}`, 404)
+    const target = list.find((x) => sameCase(x, projectId, id))
+    if (!target) throw new ApiError(`ไม่พบ ${id}`, 404)
+    if (!target.archivedAt) throw new ApiError(`เก็บ ${id} เข้าคลังก่อน จึงลบถาวรได้`, 409)
+    const ids = withSubs(list, projectId, id).map((x) => x.id)
     detachRunCases(projectId, ids)
     detachDefectCases(projectId, ids)
     detachNotificationCases(projectId, ids)
     detachAuditCases(projectId, ids)
-    save(STORAGE_KEYS.testCases, list.filter((x) => !gone(x)))
+    save(STORAGE_KEYS.testCases, list.filter((x) => !(x.projectId === projectId && ids.includes(x.id))))
     return ids
   })
 
 /**
- * PUT /projects/:projectId/test-cases/order
- * Renumbers ids in the given order (TC-101, TC-102 … and TC-101-1, TC-101-2 …) and
+ * PUT /projects/:projectId/test-cases/order (the active cases, as shown in the list)
+ * Renumbers ids in the given order (TC-101, TC-102 … and TC-101-1, TC-101-2 …), archived cases
+ * after the active ones (archived sub-cases after their parent's active ones), and
  * re-keys every record that points at a case (run results, defects, notifications,
  * audit entries), so they keep pointing at the same case after its id changes.
  */
@@ -655,7 +721,12 @@ export const reorderTestCases = (projectId: string, order: TestCaseOrder[]) =>
       if (oldId !== id) renames[oldId] = id
       return { ...tc, id, numericId, parentId }
     }
-    const cases = order.flatMap(({ id: oldId, subIds }, p) => {
+    const subsOf = (parentId: string) => mine.filter((x) => x.parentId === parentId)
+    const full: TestCaseOrder[] = [
+      ...order.map((o) => ({ id: o.id, subIds: [...o.subIds, ...subsOf(o.id).filter((x) => x.archivedAt).map((x) => x.id)] })),
+      ...mine.filter((x) => !x.parentId && x.archivedAt).map((p) => ({ id: p.id, subIds: subsOf(p.id).map((x) => x.id) })),
+    ]
+    const cases = full.flatMap(({ id: oldId, subIds }, p) => {
       const numericId = 101 + p
       const id = `TC-${numericId}`
       return [renumber(oldId, id, numericId, null), ...subIds.map((subId, s) => renumber(subId, `${id}-${s + 1}`, numericId, id))]

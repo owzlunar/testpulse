@@ -200,6 +200,9 @@ export interface TestCase {
   /** e.g. "v1.0", "v1.1" */
   version: string
   versionHistory?: TestCaseVersionRecord[]
+  /** archived (soft-deleted): hidden from lists, stats, coverage and new runs; keeps its id and references */
+  archivedAt?: string
+  archivedBy?: string
   activeUser?: ActiveUserPresence | null
   createdAt: string
   updatedAt: string
@@ -244,7 +247,7 @@ export type TestCaseInput = Omit<TestCase, 'createdAt' | 'updatedAt'> & {
   bumpMajor?: boolean
 }
 
-export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'STATUS_CHANGE' | 'EXPORT' | 'ADD_SUBCASE' | 'EXTEND_DUE_DATE' | 'SLA_BREACHED'
+export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'ARCHIVE' | 'RESTORE' | 'STATUS_CHANGE' | 'EXPORT' | 'ADD_SUBCASE' | 'EXTEND_DUE_DATE' | 'SLA_BREACHED'
 
 export interface AuditChange {
   field: string
@@ -393,6 +396,16 @@ export interface RunResult {
   notes: string
   executedBy?: string
   executedAt?: string
+}
+
+/** What archiving or deleting a case (with its sub-cases) touches */
+export interface TestCaseImpact {
+  /** the case and its sub-cases */
+  caseIds: string[]
+  runs: { name: string; round: number; open: boolean }[]
+  openDefects: { id: string; title: string }[]
+  /** linked requirements; `uncovered` = no other active case covers it */
+  requirements: { code: string; title: string; uncovered: boolean }[]
 }
 
 /** Saving a run result: the run, and the case update when the verdict became the case status */

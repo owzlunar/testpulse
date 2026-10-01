@@ -12,14 +12,21 @@ import { PRIORITIES, STATUSES, isDueSoon, isHighChurn, isOverdue } from '@/servi
 import { useRequirementStore } from '@/stores/requirement.store'
 import { useTestCaseStore } from '@/stores/test-case.store'
 import type { TestCase, TestCaseNode, TestCasePriority, TestCaseStatus } from '@/types'
-import { formatDateTH } from '@/utils/date'
+import { formatDateTH, formatDateTime } from '@/utils/date'
 import { firstName } from '@/utils/format'
 
-const props = defineProps<{ projectId: string; cases: TestCaseNode[] }>()
+const props = defineProps<{
+  projectId: string
+  cases: TestCaseNode[]
+  /** archived cases of the project (archive view) */
+  archived: TestCase[]
+}>()
 const emit = defineEmits<{
   create: []
   edit: [tc: TestCase]
-  delete: [tc: TestCase]
+  archive: [tc: TestCase]
+  restore: [tc: TestCase]
+  purge: [tc: TestCase]
   'add-subcase': [parentId: string]
   history: [tc: TestCase]
   extend: [tc: TestCase]
@@ -32,6 +39,9 @@ const store = useTestCaseStore()
 const requirementStore = useRequirementStore()
 const { run } = useAsyncAction()
 const { canCreate, canEdit, canDelete, canHandOff } = useTestCasePermissions()
+
+// --- active cases / archive ----------------------------------------------------
+const view = ref<'active' | 'archive'>('active')
 
 // --- filters -----------------------------------------------------------------
 type StatusFilter = TestCaseStatus | 'OVERDUE' | 'PING_PONG'
@@ -193,7 +203,24 @@ function insertClass(list: string, index: number, length: number) {
     <!-- filters -->
     <v-card>
       <div class="fox-card-body">
-        <v-row dense class="row-gap-3 align-center">
+        <v-btn-toggle
+          v-if="archived.length || view === 'archive'"
+          v-model="view"
+          mandatory
+          divided
+          variant="outlined"
+          color="primary"
+          density="comfortable"
+          class="mb-4"
+          :disabled="reorderMode"
+        >
+          <v-btn value="active" prepend-icon="tabler:flask">ใช้งานอยู่ <span class="fox-num ml-1">{{ cases.length }}</span></v-btn>
+          <v-btn value="archive" prepend-icon="tabler:archive">คลังเก็บ <span class="fox-num ml-1">{{ archived.length }}</span></v-btn>
+        </v-btn-toggle>
+        <p v-if="view === 'archive'" class="text-body-2 text-muted">
+          เคสในคลังถูกซ่อนจากรายการ สถิติ Coverage และการสร้างรอบทดสอบ แต่ยังคงรหัสและประวัติไว้ กู้คืนหรือลบถาวรได้จากที่นี่
+        </p>
+        <v-row v-else dense class="row-gap-3 align-center">
           <v-col cols="12" md="5" lg="4">
             <v-text-field
               v-model="search"
@@ -243,7 +270,8 @@ function insertClass(list: string, index: number, length: number) {
             <span class="text-body-2 text-muted">{{ visible.length }} จาก {{ cases.length }} เคสหลัก</span>
           </v-col>
         </v-row>
-        <div v-if="canEdit && reorderMode" class="d-flex flex-wrap align-center ga-3 mt-3">
+        <div v-if="view === 'archive'" />
+        <div v-else-if="canEdit && reorderMode" class="d-flex flex-wrap align-center ga-3 mt-3">
           <v-icon icon="tabler:arrows-sort" color="primary" size="18" />
           <span class="text-body-2 text-muted flex-grow-1">ลากการ์ดหรือ Sub-case ด้วยปุ่ม <v-icon icon="tabler:grip-vertical" size="16" /> ไปวางตำแหน่งที่ต้องการ ระบบจะรันรหัส TC-101, TC-102 … ใหม่ทันทีที่วาง</span>
           <v-btn color="primary" size="small" prepend-icon="tabler:check" @click="reorderMode = false">เสร็จสิ้น</v-btn>
@@ -255,8 +283,35 @@ function insertClass(list: string, index: number, length: number) {
       </div>
     </v-card>
 
+    <!-- archive -->
+    <v-card v-if="view === 'archive'">
+      <FoxEmptyState v-if="!archived.length" icon="tabler:archive" title="คลังเก็บว่าง" text="เคสที่เก็บเข้าคลังจะแสดงที่นี่" />
+      <div v-else class="d-flex flex-column">
+        <template v-for="(tc, i) in archived" :key="tc.id">
+          <v-divider v-if="i" />
+          <div class="d-flex flex-wrap align-center ga-3 fox-card-body py-4">
+            <v-icon icon="tabler:archive" class="text-muted" />
+            <div class="flex-grow-1 overflow-hidden">
+              <div class="text-subtitle-2 text-truncate"><span class="text-primary fox-num mr-2">{{ tc.id }}</span>{{ tc.name }}</div>
+              <div class="text-caption text-muted">
+                <template v-if="tc.parentId">Sub-case ของ {{ tc.parentId }} · </template>
+                {{ tc.version }} · เก็บเมื่อ {{ formatDateTime(tc.archivedAt!) }}<template v-if="tc.archivedBy"> โดย {{ tc.archivedBy }}</template>
+              </div>
+            </div>
+            <div class="d-flex align-center ga-1 flex-shrink-0">
+              <v-btn icon="tabler:eye" variant="text" size="small" :aria-label="`ดู ${tc.id}`" @click="emit('edit', tc)" />
+              <template v-if="canDelete">
+                <v-btn variant="tonal" color="primary" size="small" prepend-icon="tabler:archive-off" @click="emit('restore', tc)">กู้คืน</v-btn>
+                <v-btn icon="tabler:trash" variant="text" size="small" color="error" :aria-label="`ลบถาวร ${tc.id}`" @click="emit('purge', tc)" />
+              </template>
+            </div>
+          </div>
+        </template>
+      </div>
+    </v-card>
+
     <!-- parent cases -->
-    <div v-if="visible.length" class="fox-stack" @dragover="onParentsDragOver" @dragleave="onDragLeave" @drop.prevent="onDrop">
+    <div v-else-if="visible.length" class="fox-stack" @dragover="onParentsDragOver" @dragleave="onDragLeave" @drop.prevent="onDrop">
       <div
         v-for="(parent, pIdx) in visible"
         :key="parent.id"
@@ -343,7 +398,7 @@ function insertClass(list: string, index: number, length: number) {
                     </template>
                     <template v-if="canDelete">
                       <v-divider class="my-1" />
-                      <v-list-item prepend-icon="tabler:trash" title="ลบ Test Case" base-color="error" @click="emit('delete', parent)" />
+                      <v-list-item prepend-icon="tabler:archive" title="เก็บเข้าคลัง" @click="emit('archive', parent)" />
                     </template>
                   </v-list>
                 </v-menu>
@@ -397,12 +452,11 @@ function insertClass(list: string, index: number, length: number) {
                         <v-btn icon="tabler:pencil" variant="text" size="x-small" color="primary" :aria-label="`เปิด ${sub.id}`" @click="emit('edit', sub)" />
                         <v-btn
                           v-if="canDelete"
-                          icon="tabler:trash"
+                          icon="tabler:archive"
                           variant="text"
                           size="x-small"
-                          color="error"
-                          :aria-label="`ลบ ${sub.id}`"
-                          @click="emit('delete', sub)"
+                          :aria-label="`เก็บ ${sub.id} เข้าคลัง`"
+                          @click="emit('archive', sub)"
                         />
                       </div>
                     </div>
@@ -416,7 +470,7 @@ function insertClass(list: string, index: number, length: number) {
     </div>
 
     <!-- empty -->
-    <v-card v-if="!visible.length">
+    <v-card v-else>
       <FoxEmptyState
         icon="tabler:flask"
         :title="isFiltering ? 'ไม่พบ Test Case ตามเงื่อนไข' : 'ยังไม่มี Test Case ในโปรเจกต์นี้'"

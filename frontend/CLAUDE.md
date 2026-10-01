@@ -57,6 +57,7 @@ src
 - Mutations are `async` and throw `ApiError`. Call them through `useAsyncAction()` (`busy` for button/dialog loading, errors go to the global toast in `App.vue`).
 - Dialogs never close themselves after save: they emit `save` and take a `loading` prop; the page closes them on success. `watch(open, …)` in dialogs uses `{ immediate: true }` (deep links open them on mount), so helpers used inside must be declared before the watcher or be `function` declarations.
 - Test case ids restart per project (TC-101…): look cases up with `getById(id, projectId)`. Reordering renumbers ids; the service re-keys runs, defects, notifications and audit entries.
+- Removing a case means archiving it (`archivedAt`): `casesOf` / `activeCases` exclude archived cases (lists, stats, coverage, new runs, documents); `getById` still finds them (read-only). Permanent delete is only allowed from the archive and detaches references. Confirm both with `TestCaseRemoveDialog` (shows the impact).
 - A case's requirement is its linked `requirementIds`; show it with `requirementStore.textFor(tc)`. The free-text `requirement` is an optional note (required only when nothing is linked).
 - Images: always pass uploads through `utils/image.ts` `compressImage()` (paste / drop / file).
 

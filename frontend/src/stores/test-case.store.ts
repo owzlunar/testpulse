@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import confetti from 'canvas-confetti'
 import type { Actor, AuditChange, TestCase, TestCaseDraft, TestCaseInput, TestCaseNode, TestCaseReorderResult, TestCaseUpdateResult } from '@/types'
 import * as api from '@/services/test-case.service'
@@ -32,7 +32,14 @@ export const useTestCaseStore = defineStore('testCase', () => {
   const actor = (): Actor => ({ id: auth.currentUser.id, name: auth.currentUser.name, avatar: auth.currentUser.avatar })
 
   // --- queries ---------------------------------------------------------------
-  const casesOf = (projectId: string) => testCases.value.filter((tc) => tc.projectId === projectId)
+  /** everything except archived cases (lists, stats, coverage, new runs, search) */
+  const activeCases = computed(() => testCases.value.filter((tc) => !tc.archivedAt))
+  const casesOf = (projectId: string) => activeCases.value.filter((tc) => tc.projectId === projectId)
+  /** archived cases of a project, most recently archived first */
+  const archivedOf = (projectId: string) =>
+    testCases.value
+      .filter((tc) => tc.projectId === projectId && tc.archivedAt)
+      .sort((a, b) => b.archivedAt!.localeCompare(a.archivedAt!) || a.id.localeCompare(b.id, undefined, { numeric: true }))
 
   /** parent cases with their sub-cases */
   function treeOf(projectId: string): TestCaseNode[] {
@@ -46,9 +53,9 @@ export const useTestCaseStore = defineStore('testCase', () => {
   const getById = (id: string, projectId?: string) =>
     testCases.value.find((tc) => tc.id === id && (!projectId || tc.projectId === projectId))
 
-  /** next "TC-1xx" id, or "<parent>-n" for a sub-case */
+  /** next "TC-1xx" id, or "<parent>-n" for a sub-case (archived cases keep their ids, so they count) */
   function nextId(projectId: string, parentId?: string | null): { id: string; numericId: number } {
-    const cases = casesOf(projectId)
+    const cases = testCases.value.filter((tc) => tc.projectId === projectId)
     const numericId = cases.filter((tc) => !tc.parentId).reduce((max, tc) => Math.max(max, tc.numericId || 100), 100) + 1
     if (!parentId) return { id: `TC-${numericId}`, numericId }
 
@@ -91,7 +98,7 @@ export const useTestCaseStore = defineStore('testCase', () => {
     }
   }
 
-  const scanAllExpiries = () => testCases.value.forEach(checkExpiry)
+  const scanAllExpiries = () => activeCases.value.forEach(checkExpiry)
 
   // --- mutations ---------------------------------------------------------------
   /** create one case; the server builds it (v1.0, history) and checks the id is free */
@@ -267,7 +274,44 @@ export const useTestCaseStore = defineStore('testCase', () => {
     }
   }
 
-  /** deletes the case and its sub-cases */
+  /** what archiving / deleting the case (with its sub-cases) touches, for the confirm dialog */
+  const impactOf = (id: string, projectId: string) => api.caseImpact(projectId, id)
+
+  /** replace the given cases in local state with the server copies */
+  const replaceMany = (cases: TestCase[]) => cases.forEach(replaceLocal)
+
+  /** archive the case and its sub-cases (the default way to remove a case: it can be restored) */
+  async function archive(id: string, projectId: string) {
+    const archived = await api.archiveTestCase(projectId, id, actor())
+    replaceMany(archived)
+    const [target] = archived
+    audit.record({
+      action: 'ARCHIVE',
+      targetType: 'TEST_CASE',
+      targetId: id,
+      projectId,
+      targetTitle: target?.name ?? id,
+      details: archived.length > 1 ? `เก็บ ${id} เข้าคลัง รวมถึง Sub-case ${archived.slice(1).map((c) => c.id).join(', ')}` : `เก็บ ${id} เข้าคลัง`,
+    })
+    notify.add({ type: 'MODIFIED', title: 'เก็บ Test Case เข้าคลัง', message: `${id}: "${target?.name}" ถูกเก็บเข้าคลัง กู้คืนได้`, projectId, severity: 'warning' })
+    return archived
+  }
+
+  async function restore(id: string, projectId: string) {
+    const restored = await api.restoreTestCase(projectId, id)
+    replaceMany(restored)
+    audit.record({
+      action: 'RESTORE',
+      targetType: 'TEST_CASE',
+      targetId: id,
+      projectId,
+      targetTitle: restored[0]?.name ?? id,
+      details: restored.length > 1 ? `กู้คืน ${id} พร้อม Sub-case ${restored.slice(1).map((c) => c.id).join(', ')}` : `กู้คืน ${id}`,
+    })
+    return restored
+  }
+
+  /** permanently delete an archived case and its sub-cases (references are detached, see the service) */
   async function remove(id: string, projectId?: string) {
     const target = getById(id, projectId)
     if (!target) return
@@ -285,11 +329,11 @@ export const useTestCaseStore = defineStore('testCase', () => {
       projectId: target.projectId,
       targetDeleted: true,
       targetTitle: target.name,
-      details: ids.length > 1 ? `ลบ Test Case ${id} รวมถึง Sub-case ${ids.slice(1).join(', ')}` : `ลบ Test Case ${id}`,
+      details: ids.length > 1 ? `ลบถาวร ${id} รวมถึง Sub-case ${ids.slice(1).join(', ')}` : `ลบถาวร ${id}`,
     })
     notify.add({
       type: 'MODIFIED',
-      title: 'ลบ Test Case',
+      title: 'ลบ Test Case ถาวร',
       message: `${id}: "${target.name}" ถูกลบออกจากระบบ`,
       projectId: target.projectId,
       severity: 'warning',
@@ -365,8 +409,8 @@ export const useTestCaseStore = defineStore('testCase', () => {
   }
 
   return {
-    testCases,
+    testCases, activeCases,
     load, fromDraft, createMany, applyUpdate, replaceLocal, casesOf, treeOf, getById, nextId,
-    create, update, remove, removeProjectCases, extendDueDate, reorder, scanAllExpiries,
+    create, update, archive, restore, remove, impactOf, archivedOf, removeProjectCases, extendDueDate, reorder, scanAllExpiries,
   }
 })

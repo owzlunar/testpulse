@@ -52,7 +52,7 @@ export const useProjectStore = defineStore('project', () => {
   const currentStats = computed(() => statsOf(currentCases.value))
 
   const overallStats = computed(() => {
-    const all = testCaseStore.testCases
+    const all = testCaseStore.activeCases
     const passed = all.filter((tc) => tc.status === 'passed').length
     return {
       totalProjects: projects.value.length,
