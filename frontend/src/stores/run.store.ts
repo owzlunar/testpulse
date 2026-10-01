@@ -1,14 +1,11 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import type { ResultStatus, RunResult, TestCaseStatus, TestRun, TestRunInput } from '@/types'
+import type { RunResult, TestRun, TestRunInput } from '@/types'
 import * as api from '@/services/run.service'
 import { useAuditStore } from './audit.store'
 import { useAuthStore } from './auth.store'
 import { useProjectStore } from './project.store'
 import { useTestCaseStore } from './test-case.store'
-
-/** a run verdict that should also become the case's current status */
-const CASE_STATUS: Partial<Record<ResultStatus, TestCaseStatus>> = { passed: 'passed', failed: 'failed', blocked: 'blocked' }
 
 export const useRunStore = defineStore('run', () => {
   const runs = ref<TestRun[]>([])
@@ -55,40 +52,15 @@ export const useRunStore = defineStore('run', () => {
     if (run) audit.record({ action: 'STATUS_CHANGE', targetType: 'PROJECT', targetId: run.id, targetTitle: run.name, details: `ปิดรอบทดสอบ ${run.name} รอบที่ ${run.round}` })
   }
 
-  /**
-   * Why a verdict in this run must not change the case's current status, or null when it may.
-   * The case status is "the latest result for the current spec": a closed run, a deleted case,
-   * a result for an older version or a run that a newer one has superseded only keep their history.
-   */
-  function caseSyncBlock(run: TestRun, result: RunResult): string | null {
-    if (result.caseDeleted) return 'Test Case นี้ถูกลบแล้ว'
-    if (run.status === 'completed') return 'รอบนี้ปิดแล้ว'
-    const tc = testCaseStore.getById(result.caseId, run.projectId)
-    if (!tc) return 'ไม่พบ Test Case'
-    if (tc.version !== result.caseVersion) return `ผลนี้ทดสอบกับ ${result.caseVersion} แต่เคสเป็น ${tc.version} แล้ว`
-    const newer = runs.value.find(
-      (r) => r.projectId === run.projectId && r.id !== run.id && r.createdAt > run.createdAt &&
-        r.results.some((x) => x.caseId === result.caseId && !x.caseDeleted && x.status !== 'untested'),
-    )
-    return newer ? `มีผลที่ใหม่กว่าใน ${newer.name} รอบที่ ${newer.round}` : null
-  }
+  /** why a verdict in this run won't become the case status (rules live in the service) */
+  const caseSyncBlock = (run: TestRun, result: RunResult) =>
+    api.caseSyncBlock(run, result, result.caseDeleted ? undefined : testCaseStore.getById(result.caseId, run.projectId), runs.value)
 
-  /** save one case's execution; the verdict also updates the test case itself (see caseSyncBlock) */
+  /** save one case's execution; the server also updates the case when the verdict counts (see caseSyncBlock) */
   async function saveResult(runId: string, result: RunResult) {
-    const stamped: RunResult = { ...result, executedBy: auth.currentUser.name, executedAt: new Date().toISOString() }
-    const run = await api.saveResult(runId, stamped)
+    const { run, caseUpdate } = await api.saveResult(runId, result, { id: auth.currentUser.id, name: auth.currentUser.name, avatar: auth.currentUser.avatar })
     replace(run)
-    const caseStatus = CASE_STATUS[result.status]
-    const tc = caseSyncBlock(run, stamped) ? undefined : testCaseStore.getById(result.caseId, run.projectId)
-    if (caseStatus && tc && tc.status !== caseStatus) {
-      await testCaseStore.update(tc.id, {
-        status: caseStatus,
-        actualResults: result.actualResults || tc.actualResults,
-        executedBy: stamped.executedBy,
-        executedAt: stamped.executedAt,
-        changeSummary: `ผลจาก ${run.name} รอบที่ ${run.round}: ${caseStatus}`,
-      }, run.projectId)
-    }
+    if (caseUpdate) testCaseStore.applyUpdate(caseUpdate)
     return run
   }
 

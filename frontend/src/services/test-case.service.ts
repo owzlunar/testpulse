@@ -1,10 +1,13 @@
-import type { Option, Requirement, TestCase, TestCaseOrder, TestCasePriority, TestCaseReorderResult, TestCaseStatus, Tone } from '@/types'
+import type {
+  ActiveUserPresence, Actor, Option, Requirement, TestCase, TestCaseInput, TestCaseOrder, TestCasePriority, TestCaseReorderResult,
+  TestCaseStatus, TestCaseUpdateResult, TestCaseVersionRecord, Tone,
+} from '@/types'
 import { daysFromToday } from '@/utils/date'
 import { detachAuditCases, renameAuditCases } from './audit.service'
 import { detachDefectCases, renameDefectCases } from './defect.service'
 import { ApiError, respond } from './http'
 import { detachNotificationCases, renameNotificationCases } from './notification.service'
-import { requirementsForCase } from './requirement.service'
+import { requirementsForCase, requirementsOf } from './requirement.service'
 import { detachRunCases, renameRunCases } from './run.service'
 import { STORAGE_KEYS, load, migrateOnce, save } from './storage.service'
 
@@ -110,6 +113,63 @@ function specValue(tc: Partial<TestCase>, field: (typeof SPEC_FIELDS)[number]): 
 export function hasSpecChanges(old: TestCase, next: Partial<TestCase>, requirements: Requirement[] = []): boolean {
   const base = old.requirementIds?.length ? old : { ...old, requirementIds: requirementsForCase(old, requirements).map((r) => r.id) }
   return SPEC_FIELDS.some((f) => f in next && specValue(base, f) !== specValue(next, f))
+}
+
+/** v1.0 -> v1.1, or v2.0 when `major` */
+export function nextVersion(current = 'v1.0', major = false): string {
+  const [maj = 1, min = 0] = current.replace(/^v/i, '').split('.').map((n) => parseInt(n, 10) || 0)
+  return major ? `v${maj + 1}.0` : `v${maj || 1}.${min + 1}`
+}
+
+const presenceOf = (actor: Actor): ActiveUserPresence => ({ ...actor, action: 'editing' })
+
+/**
+ * server-side rules for changing a case:
+ * - a version is a change to what is tested (hasSpecChanges) or an asked-for major bump;
+ *   status / due date / assignee changes stay in the audit trail
+ * - a pass only proves the spec it ran against: changing the spec of a passed case sends it back to ready_for_test
+ * - every bounce between Dev and QA counts as one churn round
+ * - id, project and parent can't be changed by a patch
+ */
+export function applyCasePatch(old: TestCase, patch: Partial<TestCaseInput>, actor: Actor): TestCaseUpdateResult {
+  const now = new Date().toISOString()
+  const { changeSummary, bumpMajor, ...updates } = patch
+  const specChanged = hasSpecChanges(old, updates, requirementsOf(old.projectId))
+  const passInvalidated = specChanged && old.status === 'passed' && (updates.status ?? old.status) === 'passed'
+  const status = passInvalidated ? 'ready_for_test' : updates.status ?? old.status
+  const version =
+    updates.version && updates.version !== old.version ? updates.version
+    : specChanged || bumpMajor ? nextVersion(old.version, bumpMajor)
+    : old.version
+  const newVersion = version !== old.version
+  const record: TestCaseVersionRecord = {
+    version,
+    updatedBy: actor.name,
+    timestamp: now,
+    changeSummary: (changeSummary || 'แก้ไขข้อกำหนดหรือขั้นตอน') + (passInvalidated ? ` (ผลผ่านของ ${old.version} ถูกยกเลิก ต้องทดสอบใหม่)` : ''),
+    status,
+  }
+  const bounced =
+    (old.status === 'failed' && status === 'ready_for_test') ||
+    (old.status === 'ready_for_test' && status === 'failed') ||
+    (old.status === 'pending' && status === 'ready_for_test')
+
+  const testCase: TestCase = {
+    ...old,
+    ...updates,
+    id: old.id,
+    projectId: old.projectId,
+    parentId: old.parentId,
+    numericId: old.numericId,
+    status,
+    churnCount: (old.churnCount ?? 0) + (bounced ? 1 : 0),
+    version,
+    versionHistory: newVersion ? [...(old.versionHistory ?? []), record] : old.versionHistory,
+    activeUser: presenceOf(actor),
+    createdAt: old.createdAt,
+    updatedAt: now,
+  }
+  return { testCase, before: old, statusChanged: status !== old.status, newVersion, passInvalidated }
 }
 
 const SEED_TEST_CASES: TestCase[] = [
@@ -484,26 +544,76 @@ const sameCase = (a: TestCase, projectId: string, id: string) => a.projectId ===
 /** GET /test-cases */
 export const fetchTestCases = () => respond(testCases)
 
-/** POST /projects/:projectId/test-cases (accepts several for import / clone) */
-export const createTestCases = (cases: TestCase[]) =>
+/**
+ * POST /projects/:projectId/test-cases (accepts several for import / AI drafts)
+ * The server builds the case (v1.0, first history entry, timestamps) and assigns the next
+ * TC number to inputs without an id; a given id must be free in the project.
+ */
+export const createTestCases = (projectId: string, inputs: TestCaseInput[], actor: Actor) =>
   respond(() => {
     const list = testCases()
-    const clash = cases.find((c) => list.some((x) => sameCase(x, c.projectId, c.id)))
-    if (clash) throw new ApiError(`รหัส ${clash.id} มีอยู่แล้วในโปรเจกต์นี้`, 409)
+    const now = new Date().toISOString()
+    let next = list.filter((x) => x.projectId === projectId && !x.parentId).reduce((max, x) => Math.max(max, x.numericId || 100), 100) + 1
+    const created: TestCase[] = []
+    for (const input of inputs) {
+      const { changeSummary: _summary, bumpMajor: _major, ...data } = input
+      const numericId = data.id ? data.numericId : next
+      const id = data.id?.trim() || `TC-${next}`
+      if (!data.id) next++
+      if ([...list, ...created].some((x) => sameCase(x, projectId, id))) throw new ApiError(`รหัส ${id} มีอยู่แล้วในโปรเจกต์นี้`, 409)
+      const version = data.version || 'v1.0'
+      created.push({
+        ...data,
+        id,
+        numericId,
+        projectId,
+        version,
+        versionHistory: data.versionHistory?.length
+          ? data.versionHistory
+          : [{ version, updatedBy: actor.name, timestamp: now, changeSummary: 'สร้าง Test Case ครั้งแรก', status: data.status }],
+        activeUser: presenceOf(actor),
+        createdAt: now,
+        updatedAt: now,
+      })
+    }
     // appended: the stored order is the list order users arrange by drag and drop
-    save(STORAGE_KEYS.testCases, [...list, ...cases])
-    return cases
+    save(STORAGE_KEYS.testCases, [...list, ...created])
+    return created
   })
 
-/** PUT /projects/:projectId/test-cases/:id */
-export const updateTestCase = (tc: TestCase) =>
+/** server-side: the stored case, if any */
+export const storedCase = (projectId: string, id: string): TestCase | undefined => testCases().find((x) => sameCase(x, projectId, id))
+
+/**
+ * server-side: load, patch (see applyCasePatch) and save one case. Used by the update endpoint
+ * and by run results that become the case status.
+ */
+export function patchStoredCase(projectId: string, id: string, patch: Partial<TestCaseInput>, actor: Actor): TestCaseUpdateResult {
+  const list = testCases()
+  const i = list.findIndex((x) => sameCase(x, projectId, id))
+  if (i < 0) throw new ApiError(`ไม่พบ ${id}`, 404)
+  const result = applyCasePatch(list[i], patch, actor)
+  list[i] = result.testCase
+  save(STORAGE_KEYS.testCases, list)
+  return result
+}
+
+/** PATCH /projects/:projectId/test-cases/:id (the server versions the case: see applyCasePatch) */
+export const updateTestCase = (projectId: string, id: string, patch: Partial<TestCaseInput>, actor: Actor) =>
+  respond(() => patchStoredCase(projectId, id, patch, actor))
+
+/** PATCH /projects/:projectId/test-cases/:id/due-date (reason required; a due date is not part of the spec: no new version) */
+export const extendDueDate = (projectId: string, id: string, newDate: string, reason: string, actor: Actor) =>
   respond(() => {
+    if (!reason.trim()) throw new ApiError('ต้องระบุเหตุผลในการขยายเวลา', 422)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) throw new ApiError('วันที่ไม่ถูกต้อง', 422)
     const list = testCases()
-    const i = list.findIndex((x) => sameCase(x, tc.projectId, tc.id))
-    if (i < 0) throw new ApiError(`ไม่พบ ${tc.id}`, 404)
-    list[i] = tc
+    const tc = list.find((x) => sameCase(x, projectId, id))
+    if (!tc) throw new ApiError(`ไม่พบ ${id}`, 404)
+    const oldDate = tc.expiryDate
+    Object.assign(tc, { expiryDate: newDate, activeUser: presenceOf(actor), updatedAt: new Date().toISOString() })
     save(STORAGE_KEYS.testCases, list)
-    return tc
+    return { testCase: tc, oldDate }
   })
 
 /**

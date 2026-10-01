@@ -220,6 +220,24 @@ export interface TestCaseReorderResult {
   renames: Record<string, string>
 }
 
+/** Who performs a mutation (the real backend takes it from the session) */
+export interface Actor {
+  id: string
+  name: string
+  avatar: string
+}
+
+/** A case update as applied by the server, with what changed (the client records audit / alerts from it) */
+export interface TestCaseUpdateResult {
+  testCase: TestCase
+  before: TestCase
+  statusChanged: boolean
+  /** a new version was created (the spec changed, or a major bump was asked for) */
+  newVersion: boolean
+  /** the spec of a passed case changed: its status went back to ready_for_test */
+  passInvalidated: boolean
+}
+
 /** Data sent by the test case form */
 export type TestCaseInput = Omit<TestCase, 'createdAt' | 'updatedAt'> & {
   changeSummary?: string
@@ -375,6 +393,12 @@ export interface RunResult {
   notes: string
   executedBy?: string
   executedAt?: string
+}
+
+/** Saving a run result: the run, and the case update when the verdict became the case status */
+export interface RunResultSaveResult {
+  run: TestRun
+  caseUpdate: TestCaseUpdateResult | null
 }
 
 export interface TestRun {

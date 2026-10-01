@@ -1,7 +1,10 @@
-import type { Option, ResultStatus, RunResult, RunStatus, RunType, StepResult, TestCase, TestRun, TestRunInput } from '@/types'
+import type {
+  Actor, Option, ResultStatus, RunResult, RunResultSaveResult, RunStatus, RunType, StepResult, TestCase, TestCaseStatus, TestRun, TestRunInput,
+} from '@/types'
 import { addDays, todayISO } from '@/utils/date'
 import { ApiError, newId, respond } from './http'
 import { STORAGE_KEYS, load, save } from './storage.service'
+import { patchStoredCase, storedCase } from './test-case.service'
 
 export const RUN_TYPES: Option<RunType>[] = [
   { value: 'smoke', label: 'Smoke', hint: 'ตรวจฟังก์ชันหลักหลัง Deploy', tone: 'info', icon: 'tabler:flame' },
@@ -140,20 +143,59 @@ export const updateRun = (id: string, patch: Partial<Omit<TestRun, 'results'>>) 
     return find(list, id)
   })
 
-/** PUT /test-runs/:id/results/:caseId */
-export const saveResult = (runId: string, result: RunResult) =>
-  respond(() => {
+/** a run verdict that also becomes the case's current status */
+const CASE_STATUS: Partial<Record<ResultStatus, TestCaseStatus>> = { passed: 'passed', failed: 'failed', blocked: 'blocked' }
+
+/**
+ * Why a verdict in this run must not change the case's current status, or null when it may.
+ * The case status is "the latest result for the current spec": a closed run, a deleted case,
+ * a result for an older version or a run that a newer one has superseded only keep their history.
+ * Used by the server (saveResult) and by Execute to explain it.
+ */
+export function caseSyncBlock(run: TestRun, result: RunResult, tc: TestCase | undefined, allRuns: TestRun[]): string | null {
+  if (result.caseDeleted) return 'Test Case นี้ถูกลบแล้ว'
+  if (run.status === 'completed') return 'รอบนี้ปิดแล้ว'
+  if (!tc) return 'ไม่พบ Test Case'
+  if (tc.version !== result.caseVersion) return `ผลนี้ทดสอบกับ ${result.caseVersion} แต่เคสเป็น ${tc.version} แล้ว`
+  const newer = allRuns.find(
+    (r) => r.projectId === run.projectId && r.id !== run.id && r.createdAt > run.createdAt &&
+      r.results.some((x) => x.caseId === result.caseId && !x.caseDeleted && x.status !== 'untested'),
+  )
+  return newer ? `มีผลที่ใหม่กว่าใน ${newer.name} รอบที่ ${newer.round}` : null
+}
+
+/**
+ * PUT /test-runs/:id/results/:caseId
+ * Stamps who ran it; when caseSyncBlock allows, the verdict also becomes the case status
+ * (same rules as a case update: see applyCasePatch).
+ */
+export const saveResult = (runId: string, result: RunResult, actor: Actor) =>
+  respond<RunResultSaveResult>(() => {
     const list = runs()
     const run = find(list, runId)
+    if (run.status === 'completed') throw new ApiError('รอบนี้ปิดแล้ว แก้ไขผลไม่ได้', 409)
     const i = run.results.findIndex((r) => r.caseId === result.caseId)
     if (i < 0) throw new ApiError(`${result.caseId} ไม่อยู่ในรอบนี้`, 404)
-    run.results[i] = result
+    const stamped: RunResult = { ...result, caseDeleted: run.results[i].caseDeleted, executedBy: actor.name, executedAt: new Date().toISOString() }
+    run.results[i] = stamped
     if (run.status === 'planned') {
       run.status = 'in_progress'
-      run.startedAt = new Date().toISOString()
+      run.startedAt = stamped.executedAt
     }
     save(STORAGE_KEYS.testRuns, list)
-    return run
+
+    const caseStatus = CASE_STATUS[stamped.status]
+    const tc = stamped.caseDeleted ? undefined : storedCase(run.projectId, stamped.caseId)
+    const caseUpdate =
+      caseStatus && tc && tc.status !== caseStatus && !caseSyncBlock(run, stamped, tc, list)
+        ? patchStoredCase(run.projectId, tc.id, {
+            status: caseStatus,
+            actualResults: stamped.actualResults || tc.actualResults,
+            executedBy: stamped.executedBy,
+            executedAt: stamped.executedAt,
+          }, actor)
+        : null
+    return { run, caseUpdate }
   })
 
 /** DELETE /test-runs/:id */

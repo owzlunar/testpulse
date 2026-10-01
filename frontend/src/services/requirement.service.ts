@@ -90,6 +90,9 @@ const SEED_REQUIREMENTS: Requirement[] = [
 // --- API ------------------------------------------------------------------------
 const requirements = () => load(STORAGE_KEYS.requirements, SEED_REQUIREMENTS)
 
+/** server-side: the stored requirements of a project */
+export const requirementsOf = (projectId: string): Requirement[] => requirements().filter((r) => r.projectId === projectId)
+
 /** GET /requirements */
 export const fetchRequirements = () => respond(requirements)
 

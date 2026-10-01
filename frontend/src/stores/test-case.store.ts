@@ -1,23 +1,16 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import confetti from 'canvas-confetti'
-import type { AuditChange, TestCase, TestCaseDraft, TestCaseInput, TestCaseNode, TestCaseReorderResult, TestCaseVersionRecord } from '@/types'
+import type { Actor, AuditChange, TestCase, TestCaseDraft, TestCaseInput, TestCaseNode, TestCaseReorderResult, TestCaseUpdateResult } from '@/types'
 import * as api from '@/services/test-case.service'
-import { hasSpecChanges, statusOf } from '@/services/test-case.service'
+import { statusOf } from '@/services/test-case.service'
 import { addDays, daysFromToday, todayISO } from '@/utils/date'
 import { useAuditStore } from './audit.store'
 import { useAuthStore } from './auth.store'
 import { useDefectStore } from './defect.store'
 import { useNotificationStore } from './notification.store'
-import { useRequirementStore } from './requirement.store'
 import { useRunStore } from './run.store'
 import { useSettingsStore } from './settings.store'
-
-/** v1.0 -> v1.1, or v2.0 when `major` */
-function nextVersion(current = 'v1.0', major = false): string {
-  const [maj = 1, min = 0] = current.replace(/^v/i, '').split('.').map((n) => parseInt(n, 10) || 0)
-  return major ? `v${maj + 1}.0` : `v${maj || 1}.${min + 1}`
-}
 
 export const useTestCaseStore = defineStore('testCase', () => {
   const testCases = ref<TestCase[]>([])
@@ -35,12 +28,8 @@ export const useTestCaseStore = defineStore('testCase', () => {
     const i = testCases.value.findIndex((x) => x.projectId === tc.projectId && x.id === tc.id)
     if (i >= 0) testCases.value[i] = tc
   }
-  const presence = () => ({
-    id: auth.currentUser.id,
-    name: auth.currentUser.name,
-    avatar: auth.currentUser.avatar,
-    action: 'editing' as const,
-  })
+  /** the signed-in user, sent with mutations (the real backend reads it from the session) */
+  const actor = (): Actor => ({ id: auth.currentUser.id, name: auth.currentUser.name, avatar: auth.currentUser.avatar })
 
   // --- queries ---------------------------------------------------------------
   const casesOf = (projectId: string) => testCases.value.filter((tc) => tc.projectId === projectId)
@@ -105,26 +94,9 @@ export const useTestCaseStore = defineStore('testCase', () => {
   const scanAllExpiries = () => testCases.value.forEach(checkExpiry)
 
   // --- mutations ---------------------------------------------------------------
-  /** build a new case object (also used by import / clone) */
-  function build(input: TestCaseInput): TestCase {
-    const now = new Date().toISOString()
-    const { changeSummary: _summary, bumpMajor: _major, ...data } = input
-    const version = data.version || 'v1.0'
-    const tc: TestCase = {
-      ...data,
-      version,
-      versionHistory: data.versionHistory?.length
-        ? data.versionHistory
-        : [{ version, updatedBy: auth.currentUser.name, timestamp: now, changeSummary: 'สร้าง Test Case ครั้งแรก', status: data.status }],
-      activeUser: presence(),
-      createdAt: now,
-      updatedAt: now,
-    }
-    return tc
-  }
-
+  /** create one case; the server builds it (v1.0, history) and checks the id is free */
   async function create(input: TestCaseInput): Promise<TestCase> {
-    const [tc] = await api.createTestCases([build(input)])
+    const [tc] = await api.createTestCases(input.projectId, [input], actor())
     // new cases go to the end: the list order is the manual order (see reorder)
     testCases.value.push(tc)
 
@@ -181,11 +153,9 @@ export const useTestCaseStore = defineStore('testCase', () => {
     }
   }
 
-  /** Create several top-level cases at once (import, AI drafts); ids continue from the last TC number */
+  /** Create several top-level cases at once (import, AI drafts); the server numbers them after the last TC */
   async function createMany(projectId: string, drafts: TestCaseDraft[], source: string): Promise<TestCase[]> {
-    const first = nextId(projectId).numericId
-    const cases = drafts.map((d, i) => build(fromDraft(d, projectId, `TC-${first + i}`, first + i)))
-    const saved = await api.createTestCases(cases)
+    const saved = await api.createTestCases(projectId, drafts.map((d, i) => fromDraft(d, projectId, '', i)), actor())
     testCases.value = [...testCases.value, ...saved]
     audit.record({
       action: 'CREATE',
@@ -204,58 +174,25 @@ export const useTestCaseStore = defineStore('testCase', () => {
     return saved
   }
 
+  /** save a change; the server decides the version and status (see applyCasePatch in the service) */
   async function update(id: string, patch: Partial<TestCaseInput>, projectId?: string): Promise<TestCase | null> {
     const old = getById(id, projectId)
     if (!old) return null
+    return applyUpdate(await api.updateTestCase(old.projectId, id, patch, actor()))
+  }
 
-    const now = new Date().toISOString()
-    const { changeSummary, bumpMajor, ...updates } = patch
-    // a version is a change to what is tested; status / due date / assignee changes stay in the audit trail
-    const specChanged = hasSpecChanges(old, updates, useRequirementStore().requirements)
-    // a pass only proves the spec it ran against: changing a passed case means it must be tested again
-    const passInvalidated = specChanged && old.status === 'passed' && (updates.status ?? old.status) === 'passed'
-    if (passInvalidated) updates.status = 'ready_for_test'
-    const statusChanged = !!updates.status && updates.status !== old.status
-    const version =
-      updates.version && updates.version !== old.version ? updates.version
-      : specChanged || bumpMajor ? nextVersion(old.version, bumpMajor)
-      : old.version
-    const newVersion = version !== old.version
-
-    const record: TestCaseVersionRecord = {
-      version,
-      updatedBy: auth.currentUser.name,
-      timestamp: now,
-      changeSummary:
-        (changeSummary || 'แก้ไขข้อกำหนดหรือขั้นตอน') + (passInvalidated ? ` (ผลผ่านของ ${old.version} ถูกยกเลิก ต้องทดสอบใหม่)` : ''),
-      status: updates.status ?? old.status,
-    }
-
-    // Defect churn: every bounce between Dev and QA counts as one round
-    const bounced =
-      (old.status === 'failed' && updates.status === 'ready_for_test') ||
-      (old.status === 'ready_for_test' && updates.status === 'failed') ||
-      (old.status === 'pending' && updates.status === 'ready_for_test')
-
-    const tc = await api.updateTestCase({
-      ...old,
-      ...updates,
-      churnCount: (old.churnCount ?? 0) + (bounced ? 1 : 0),
-      version,
-      versionHistory: newVersion ? [...(old.versionHistory ?? []), record] : old.versionHistory,
-      activeUser: presence(),
-      updatedAt: now,
-    })
+  /** show a server-side case update and record its audit entry / alerts (also used by run results) */
+  function applyUpdate({ testCase: tc, before: old, statusChanged, newVersion, passInvalidated }: TestCaseUpdateResult): TestCase {
     replaceLocal(tc)
 
     const changes: AuditChange[] = []
     if (statusChanged) changes.push({ field: 'status', oldValue: old.status, newValue: tc.status })
-    if (updates.name && updates.name !== old.name) changes.push({ field: 'name', oldValue: old.name, newValue: updates.name })
-    if (updates.actualResults && updates.actualResults !== old.actualResults) {
-      changes.push({ field: 'actualResults', oldValue: old.actualResults, newValue: updates.actualResults })
+    if (tc.name !== old.name) changes.push({ field: 'name', oldValue: old.name, newValue: tc.name })
+    if (tc.actualResults && tc.actualResults !== old.actualResults) {
+      changes.push({ field: 'actualResults', oldValue: old.actualResults, newValue: tc.actualResults })
     }
-    if (updates.rootCauseTag && updates.rootCauseTag !== old.rootCauseTag) {
-      changes.push({ field: 'rootCauseTag', oldValue: old.rootCauseTag, newValue: updates.rootCauseTag })
+    if (tc.rootCauseTag && tc.rootCauseTag !== old.rootCauseTag) {
+      changes.push({ field: 'rootCauseTag', oldValue: old.rootCauseTag, newValue: tc.rootCauseTag })
     }
 
     audit.record({
@@ -364,14 +301,12 @@ export const useTestCaseStore = defineStore('testCase', () => {
     testCases.value = testCases.value.filter((tc) => tc.projectId !== projectId)
   }
 
-  /** Reschedule with a mandatory reason; writes the audit trail */
+  /** Reschedule with a mandatory reason (checked by the server); writes the audit trail */
   async function extendDueDate(id: string, newDate: string, reason: string, projectId?: string): Promise<TestCase | null> {
     const old = getById(id, projectId)
     if (!old) return null
-
-    const oldDate = old.expiryDate || '-'
-    // a new due date doesn't change what is tested: no new version (the audit entry keeps the reason)
-    const tc = await api.updateTestCase({ ...old, expiryDate: newDate, updatedAt: new Date().toISOString() })
+    const { testCase: tc, oldDate: previous } = await api.extendDueDate(old.projectId, id, newDate, reason, actor())
+    const oldDate = previous || '-'
     replaceLocal(tc)
 
     audit.record({
@@ -431,7 +366,7 @@ export const useTestCaseStore = defineStore('testCase', () => {
 
   return {
     testCases,
-    load, build, fromDraft, createMany, replaceLocal, casesOf, treeOf, getById, nextId,
+    load, fromDraft, createMany, applyUpdate, replaceLocal, casesOf, treeOf, getById, nextId,
     create, update, remove, removeProjectCases, extendDueDate, reorder, scanAllExpiries,
   }
 })
