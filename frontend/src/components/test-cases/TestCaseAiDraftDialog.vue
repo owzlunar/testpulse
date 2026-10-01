@@ -26,14 +26,14 @@ const store = useTestCaseStore()
 const generating = useAsyncAction()
 const saving = useAsyncAction()
 
-const requirement = ref('')
+const requirementText = ref('')
 const options = reactive<DraftOptions>({ positive: true, negative: true, boundary: true, context: '' })
 const drafts = ref<(TestCaseDraft & { keep: boolean })[]>([])
 const expanded = ref<number[]>([])
 
 watch(open, (isOpen) => {
   if (!isOpen) return
-  requirement.value = props.requirement
+  requirementText.value = props.requirement
   drafts.value = []
 }, { immediate: true })
 
@@ -42,7 +42,7 @@ const knownRequirements = computed(() => [...new Set(currentCases.value.map((c) 
 
 function generate() {
   generating.run(
-    () => draftTestCases(requirement.value, options),
+    () => draftTestCases(requirementText.value, options),
     (result) => {
       drafts.value = result.map((d) => ({ ...d, requirementIds: props.requirementIds, keep: true }))
       expanded.value = []
@@ -89,7 +89,7 @@ function save() {
                 <label class="fox-label" for="ai-req">Requirement / User Story *</label>
                 <v-textarea
                   id="ai-req"
-                  v-model="requirement"
+                  v-model="requirementText"
                   rows="6"
                   auto-grow
                   placeholder="เช่น REQ-PAY-05: ลูกค้าสามารถชำระเงินด้วย PromptPay QR โดย QR หมดอายุใน 15 นาที และระบบต้องไม่บันทึกรายการซ้ำเมื่อธนาคารส่ง callback ซ้ำ"
@@ -99,7 +99,7 @@ function save() {
                     <v-btn v-bind="menu" variant="text" size="small" color="primary" prepend-icon="tabler:list-search" class="mt-1">ใช้ Requirement ที่มีในโปรเจกต์</v-btn>
                   </template>
                   <v-list max-width="420">
-                    <v-list-item v-for="r in knownRequirements" :key="r" :title="r" class="text-body-2" @click="requirement = r" />
+                    <v-list-item v-for="r in knownRequirements" :key="r" :title="r" class="text-body-2" @click="requirementText = r" />
                   </v-list>
                 </v-menu>
               </div>
@@ -120,7 +120,7 @@ function save() {
                 size="large"
                 prepend-icon="tabler:sparkles"
                 :loading="generating.busy.value"
-                :disabled="!requirement.trim() || !(options.positive || options.negative || options.boundary)"
+                :disabled="!requirementText.trim() || !(options.positive || options.negative || options.boundary)"
                 @click="generate"
               >
                 {{ drafts.length ? 'สร้างร่างใหม่' : 'สร้างร่าง Test Case' }}

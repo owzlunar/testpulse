@@ -29,7 +29,8 @@ const { busy, run } = useAsyncAction()
 
 const formRef = ref<VForm>()
 const step = ref(1)
-const type = ref<DocumentType>('uat')
+/** the type being built (the `type` prop only picks the starting one) */
+const docType = ref<DocumentType>('uat')
 const title = ref('')
 const docNumber = ref('')
 const options = reactive<DocumentOptions>({ runId: undefined, includeSubCases: true, includeSteps: true, includeEvidence: true, includeDefects: true, includeTraceability: false })
@@ -41,7 +42,7 @@ const runOptions = computed(() => runStore.current.map((r) => ({ title: `${r.nam
 const selectedRun = computed(() => runStore.current.find((r) => r.id === options.runId))
 
 function applyType(t: DocumentType) {
-  type.value = t
+  docType.value = t
   const key = currentProject.value?.key ?? 'PRJ'
   const runDefault = props.runId ?? (t === 'test_spec' || t === 'rtm' ? undefined : runStore.current[0]?.id)
   Object.assign(options, {
@@ -60,9 +61,9 @@ function updateTitle() {
   const name = currentProject.value?.name ?? ''
   const r = selectedRun.value
   title.value =
-    type.value === 'uat' ? `เอกสารตรวจรับระบบ (UAT Sign-off) ${name}`
-    : type.value === 'test_summary' ? `รายงานผลการทดสอบ ${r ? `${r.name} รอบที่ ${r.round}` : name}`
-    : type.value === 'test_spec' ? `เอกสารกรณีทดสอบ (Test Specification) ${name}`
+    docType.value === 'uat' ? `เอกสารตรวจรับระบบ (UAT Sign-off) ${name}`
+    : docType.value === 'test_summary' ? `รายงานผลการทดสอบ ${r ? `${r.name} รอบที่ ${r.round}` : name}`
+    : docType.value === 'test_spec' ? `เอกสารกรณีทดสอบ (Test Specification) ${name}`
     : `Requirement Traceability Matrix ${name}`
   if (r) {
     uat.testPeriod = `${formatDateTH(r.plannedStart)} – ${formatDateTH(r.plannedEnd)}`
@@ -94,7 +95,7 @@ const risks = computed(() => {
     failed && `Failed ${failed} เคส`, blocked && `Blocked ${blocked} เคส`, overdue && `เลยกำหนด ${overdue} เคส`, openDefects && `Defect เปิดอยู่ ${openDefects} รายการ`,
   ].filter(Boolean) as string[]
 })
-const atRisk = computed(() => type.value === 'uat' && risks.value.length > 0)
+const atRisk = computed(() => docType.value === 'uat' && risks.value.length > 0)
 watch(atRisk, (risky) => risky && uat.decision === 'accepted' && (uat.decision = 'conditional'), { immediate: true })
 
 const signerNames = computed(() => users.value.map((u) => u.name))
@@ -113,11 +114,11 @@ async function generate() {
     () =>
       docStore.generate({
         projectId: currentProject.value!.id,
-        type: type.value,
+        type: docType.value,
         title: title.value,
         docNumber: docNumber.value,
         options: { ...options },
-        uat: type.value === 'uat' ? { ...uat } : undefined,
+        uat: docType.value === 'uat' ? { ...uat } : undefined,
         signatories: signatories.value.filter((s) => s.role || s.name),
       }),
     (doc) => {
@@ -164,9 +165,9 @@ const steps = ['ประเภทเอกสาร', 'เนื้อหา', 
                   variant="flat"
                   border
                   class="pa-5 wiz-type"
-                  :class="{ 'wiz-type--on': type === t.value }"
+                  :class="{ 'wiz-type--on': docType === t.value }"
                   role="radio"
-                  :aria-checked="type === t.value"
+                  :aria-checked="docType === t.value"
                   @click="applyType(t.value)"
                 >
                   <div class="d-flex align-center ga-3 mb-2">
@@ -192,7 +193,7 @@ const steps = ['ประเภทเอกสาร', 'เนื้อหา', 
                   <label class="fox-label" for="doc-no">เลขที่เอกสาร *</label>
                   <v-text-field id="doc-no" v-model="docNumber" :rules="[required]" />
                 </v-col>
-                <v-col v-if="type !== 'rtm'" cols="12">
+                <v-col v-if="docType !== 'rtm'" cols="12">
                   <label class="fox-label" for="doc-run">ข้อมูลผลทดสอบจาก</label>
                   <v-select
                     id="doc-run"
@@ -205,15 +206,15 @@ const steps = ['ประเภทเอกสาร', 'เนื้อหา', 
                 <v-col cols="12">
                   <span class="fox-label">เนื้อหาที่รวมในเอกสาร</span>
                   <div class="wiz-options">
-                    <v-checkbox v-model="options.includeSteps" :disabled="type === 'rtm'" label="ตารางขั้นตอนทดสอบ" />
+                    <v-checkbox v-model="options.includeSteps" :disabled="docType === 'rtm'" label="ตารางขั้นตอนทดสอบ" />
                     <v-checkbox v-model="options.includeEvidence" label="ภาพหลักฐาน" />
                     <v-checkbox v-model="options.includeDefects" label="รายการ Defect" />
-                    <v-checkbox v-model="options.includeTraceability" :disabled="type === 'rtm'" label="Traceability Matrix" />
+                    <v-checkbox v-model="options.includeTraceability" :disabled="docType === 'rtm'" label="Traceability Matrix" />
                     <v-checkbox v-model="options.includeSubCases" label="รวม Sub-case" />
                   </div>
                 </v-col>
 
-                <template v-if="type === 'uat'">
+                <template v-if="docType === 'uat'">
                   <v-col cols="12"><v-divider /></v-col>
                   <v-col cols="12" sm="6">
                     <label class="fox-label" for="doc-period">ช่วงเวลาตรวจรับ *</label>
@@ -278,7 +279,7 @@ const steps = ['ประเภทเอกสาร', 'เนื้อหา', 
       <v-divider />
       <div class="d-flex align-center ga-3 fox-card-body py-4">
         <v-btn v-if="step > 1" variant="text" prepend-icon="tabler:chevron-left" @click="step--">ย้อนกลับ</v-btn>
-        <span v-else class="text-body-2 text-muted">{{ documentTypeOf(type).label }}</span>
+        <span v-else class="text-body-2 text-muted">{{ documentTypeOf(docType).label }}</span>
         <v-spacer />
         <v-btn variant="outlined" @click="open = false">ยกเลิก</v-btn>
         <v-btn v-if="step < 3" color="primary" append-icon="tabler:chevron-right" @click="step++">ถัดไป</v-btn>

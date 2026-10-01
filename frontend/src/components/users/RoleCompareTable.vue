@@ -27,7 +27,8 @@ const countIn = (r: Role, g: (typeof PERMISSION_GROUPS)[number]) => g.items.filt
 
 function toggleGroup(module: string) {
   const next = new Set(collapsed.value)
-  next.has(module) ? next.delete(module) : next.add(module)
+  if (next.has(module)) next.delete(module)
+  else next.add(module)
   collapsed.value = next
 }
 </script>

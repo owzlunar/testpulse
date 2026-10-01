@@ -24,7 +24,7 @@ const emit = defineEmits<{
 }>()
 defineSlots<{
   /** custom event body; falls back to the event title */
-  event?: (props: { event: CalendarEvent<T>; view: string }) => any
+  event?: (props: { event: CalendarEvent<T>; view: string }) => unknown
 }>()
 
 const { smAndDown, xs } = useDisplay()

@@ -4,7 +4,7 @@
 import type { TimelineItem } from '@/types'
 
 defineProps<{ items: TimelineItem[] }>()
-defineSlots<{ item?: (props: { item: TimelineItem; index: number }) => any }>()
+defineSlots<{ item?: (props: { item: TimelineItem; index: number }) => unknown }>()
 </script>
 
 <template>

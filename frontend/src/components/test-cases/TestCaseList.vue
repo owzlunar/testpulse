@@ -84,7 +84,8 @@ function resetFilters() {
 const collapsed = ref(new Set<string>())
 function toggle(id: string) {
   const next = new Set(collapsed.value)
-  next.has(id) ? next.delete(id) : next.add(id)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
   collapsed.value = next
 }
 

@@ -88,7 +88,7 @@ export interface CalendarEventChange {
 }
 
 /** Vuetify field rule */
-export type Rule = (value: any) => true | string
+export type Rule = (value: unknown) => true | string
 
 // =============================================================================
 // Domain types (TestPulse)
