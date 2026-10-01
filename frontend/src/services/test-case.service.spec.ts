@@ -140,3 +140,54 @@ describe('restore a version', () => {
     expect(testCase.versionHistory!.at(-1)!.changeSummary).toContain(v)
   })
 })
+
+describe('stale changes (assertFresh)', () => {
+  const seen = (id: string) => {
+    const tc = storedCase(PAY, id)!
+    return { uid: tc.uid!, rev: tc.rev! }
+  }
+
+  it('a change based on the current copy is accepted and bumps the revision', async () => {
+    const actor = await signIn(USERS.admin)
+    const before = seen('TC-104')
+    const { testCase } = await updateTestCase(PAY, 'TC-104', { status: 'ready_for_test' }, actor, before)
+    expect(testCase.rev).toBe(before.rev + 1)
+    expect(testCase.uid).toBe(before.uid)
+  })
+
+  it('a change based on an older copy is refused (someone else saved first)', async () => {
+    const actor = await signIn(USERS.admin)
+    const mine = seen('TC-104')
+    await updateTestCase(PAY, 'TC-104', { name: 'บันทึกโดยอีกคน' }, actor, mine)
+    const err = await refusal(updateTestCase(PAY, 'TC-104', { name: 'ของฉัน' }, actor, mine))
+    expect(err.status).toBe(409)
+    expect(err.message).toContain('ถูกแก้ไขโดย')
+    expect(storedCase(PAY, 'TC-104')!.name).toBe('บันทึกโดยอีกคน')
+  })
+
+  it('after a reorder, an old copy cannot write to the case that now has its id', async () => {
+    const actor = await signIn(USERS.admin)
+    const tc103 = seen('TC-103') // Concurrency test
+    await reorderTestCases(PAY, [
+      { id: 'TC-103', subIds: [] },
+      { id: 'TC-101', subIds: ['TC-101-1'] },
+      { id: 'TC-104', subIds: [] },
+    ])
+    // TC-103 is now the Webhook case; the form opened before still says TC-103
+    const err = await refusal(updateTestCase(PAY, 'TC-103', { name: 'x' }, actor, tc103))
+    expect(err.status).toBe(409)
+    expect(err.message).toContain('จัดลำดับ')
+  })
+
+  it('a reorder made from a list someone renumbered since is refused', async () => {
+    await signIn(USERS.admin)
+    const uids = Object.fromEntries((await fetchTestCases()).filter((c) => c.projectId === PAY).map((c) => [c.id, c.uid!]))
+    const order = [
+      { id: 'TC-104', subIds: [] },
+      { id: 'TC-101', subIds: ['TC-101-1'] },
+      { id: 'TC-103', subIds: [] },
+    ]
+    await reorderTestCases(PAY, order, uids) // someone else moves TC-104 first
+    expect((await refusal(reorderTestCases(PAY, order, uids))).status).toBe(409)
+  })
+})

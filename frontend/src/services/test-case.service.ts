@@ -1,5 +1,6 @@
 import type {
   ActiveUserPresence,
+  CaseExpectation,
   Actor,
   Option,
   PermissionKey,
@@ -16,10 +17,10 @@ import type {
   TestCaseVersionRecord,
   Tone,
 } from '@/types'
-import { daysFromToday } from '@/utils/date'
+import { daysFromToday, formatDateTime } from '@/utils/date'
 import { detachAuditCases, renameAuditCases } from './audit.service'
 import { defectsOf, detachDefectCases, isOpenDefect, renameDefectCases } from './defect.service'
-import { ApiError, respond } from './http'
+import { ApiError, newId, respond } from './http'
 import { detachNotificationCases, renameNotificationCases } from './notification.service'
 import { casesForRequirement, requirementsForCase, requirementsOf } from './requirement.service'
 import { detachRunCases, renameRunCases, runsOf } from './run.service'
@@ -232,6 +233,7 @@ export function applyCasePatch(old: TestCase, patch: Partial<TestCaseInput>, act
     parentId: old.parentId,
     numericId: old.numericId,
     status,
+    rev: (old.rev ?? 0) + 1,
     churnCount: (old.churnCount ?? 0) + (bounced ? 1 : 0),
     version,
     versionHistory: newVersion ? [...(old.versionHistory ?? []), record] : old.versionHistory,
@@ -615,6 +617,15 @@ function testCases(): TestCase[] {
     }
     save(STORAGE_KEYS.testCases, cases)
   })
+  // every case gets a stable identity and a revision (stale-change detection, see assertFresh)
+  migrateOnce('case-uid-rev-v1', () => {
+    const cases = load(STORAGE_KEYS.testCases, SEED_TEST_CASES)
+    cases.forEach((tc) => {
+      tc.uid ??= newId('tc')
+      tc.rev ??= 1
+    })
+    save(STORAGE_KEYS.testCases, cases)
+  })
   return load(STORAGE_KEYS.testCases, SEED_TEST_CASES)
 }
 
@@ -656,6 +667,8 @@ export const createTestCases = (projectId: string, inputs: TestCaseInput[], acto
       created.push({
         ...data,
         id,
+        uid: newId('tc'),
+        rev: 1,
         numericId,
         projectId,
         version,
@@ -689,10 +702,17 @@ export const storedCase = (projectId: string, id: string): TestCase | undefined 
  * server-side: load, patch (see applyCasePatch) and save one case. Used by the update endpoint
  * and by run results that become the case status.
  */
-export function patchStoredCase(projectId: string, id: string, patch: Partial<TestCaseInput>, actor: Actor): TestCaseUpdateResult {
+export function patchStoredCase(
+  projectId: string,
+  id: string,
+  patch: Partial<TestCaseInput>,
+  actor: Actor,
+  expected?: CaseExpectation,
+): TestCaseUpdateResult {
   const list = testCases()
   const i = list.findIndex((x) => sameCase(x, projectId, id))
   if (i < 0) throw new ApiError(`ไม่พบ ${id}`, 404)
+  assertFresh(list[i], expected)
   if (list[i].archivedAt) throw new ApiError(`${id} อยู่ในคลังเก็บ กู้คืนก่อนจึงแก้ไขได้`, 409)
   const result = applyCasePatch(list[i], patch, actor)
   list[i] = result.testCase
@@ -700,11 +720,31 @@ export function patchStoredCase(projectId: string, id: string, patch: Partial<Te
   return result
 }
 
-/** PATCH /projects/:projectId/test-cases/:id (the server versions the case: see applyCasePatch) */
-export const updateTestCase = (projectId: string, id: string, patch: Partial<TestCaseInput>, actor: Actor) =>
+/**
+ * server-side: refuse (409, code 'stale') a change based on an outdated copy of the case: another
+ * user saved it since (rev), or the list was renumbered and this id now belongs to another case (uid).
+ * Without an expectation (internal calls) nothing is checked.
+ */
+export function assertFresh(tc: TestCase, expected?: CaseExpectation): void {
+  if (!expected) return
+  if (tc.uid && expected.uid !== tc.uid) {
+    throw new ApiError(`รหัส ${tc.id} เป็นของอีกเคสแล้ว (มีการจัดลำดับใหม่) โหลดข้อมูลล่าสุดแล้วลองอีกครั้ง`, 409, 'stale')
+  }
+  if ((tc.rev ?? 0) !== expected.rev) {
+    const by = tc.activeUser?.name ?? 'ผู้ใช้อื่น'
+    throw new ApiError(
+      `${tc.id} ถูกแก้ไขโดย ${by} เมื่อ ${formatDateTime(tc.updatedAt)} หลังจากที่คุณเปิดดู โหลดข้อมูลล่าสุดแล้วลองอีกครั้ง`,
+      409,
+      'stale',
+    )
+  }
+}
+
+/** PATCH /projects/:projectId/test-cases/:id (the server versions the case: see applyCasePatch; `expected`: see assertFresh) */
+export const updateTestCase = (projectId: string, id: string, patch: Partial<TestCaseInput>, actor: Actor, expected?: CaseExpectation) =>
   respond(() => {
     assertCan(patchPermissions(patch, storedCase(projectId, id)), projectId)
-    return patchStoredCase(projectId, id, patch, actor)
+    return patchStoredCase(projectId, id, patch, actor, expected)
   })
 
 /**
@@ -726,11 +766,12 @@ function patchPermissions(patch: Partial<TestCaseInput>, old?: TestCase): Permis
  * Brings back the spec of an earlier version as a new version (same rules as an edit:
  * a passed case must be tested again). Images stay as they are (they are not kept in history).
  */
-export const restoreVersion = (projectId: string, id: string, version: string, actor: Actor) =>
+export const restoreVersion = (projectId: string, id: string, version: string, actor: Actor, expected?: CaseExpectation) =>
   respond(() => {
     assertCan('case.restoreVersion', projectId)
     const tc = storedCase(projectId, id)
     if (!tc) throw new ApiError(`ไม่พบ ${id}`, 404)
+    assertFresh(tc, expected)
     const snapshot = tc.versionHistory?.find((r) => r.version === version)?.snapshot
     if (!snapshot) throw new ApiError(`${version} ไม่มีเนื้อหาที่บันทึกไว้ให้กู้คืน`, 404)
     const requirements = requirementsOf(projectId)
@@ -754,28 +795,30 @@ export function flagCasesForReview(req: Requirement, reason: string): TestCase[]
   flagged.forEach((tc) => {
     const codes = new Set([...(tc.reviewNeeded?.requirementCodes ?? []), req.code])
     tc.reviewNeeded = { requirementCodes: [...codes], reason, since }
+    tc.rev = (tc.rev ?? 0) + 1
   })
   if (flagged.length) save(STORAGE_KEYS.testCases, list)
   return flagged
 }
 
 /** POST /projects/:projectId/test-cases/:id/review (reviewed against the changed requirement: nothing to change) */
-export const markReviewed = (projectId: string, id: string, actor: Actor) =>
+export const markReviewed = (projectId: string, id: string, actor: Actor, expected?: CaseExpectation) =>
   respond(() => {
     assertCan('case.edit', projectId)
     const list = testCases()
     const tc = list.find((x) => sameCase(x, projectId, id))
     if (!tc) throw new ApiError(`ไม่พบ ${id}`, 404)
+    assertFresh(tc, expected)
     if (!tc.reviewNeeded) throw new ApiError(`${id} ไม่มีรายการที่ต้องทบทวน`, 409)
     const cleared = tc.reviewNeeded
     delete tc.reviewNeeded
-    Object.assign(tc, { activeUser: presenceOf(actor), updatedAt: new Date().toISOString() })
+    Object.assign(tc, { rev: (tc.rev ?? 0) + 1, activeUser: presenceOf(actor), updatedAt: new Date().toISOString() })
     save(STORAGE_KEYS.testCases, list)
     return { testCase: tc, cleared }
   })
 
 /** PATCH /projects/:projectId/test-cases/:id/due-date (reason required; a due date is not part of the spec: no new version) */
-export const extendDueDate = (projectId: string, id: string, newDate: string, reason: string, actor: Actor) =>
+export const extendDueDate = (projectId: string, id: string, newDate: string, reason: string, actor: Actor, expected?: CaseExpectation) =>
   respond(() => {
     assertCan(['case.edit', 'case.handoff'], projectId)
     if (!reason.trim()) throw new ApiError('ต้องระบุเหตุผลในการขยายเวลา', 422)
@@ -784,8 +827,9 @@ export const extendDueDate = (projectId: string, id: string, newDate: string, re
     const tc = list.find((x) => sameCase(x, projectId, id))
     if (!tc) throw new ApiError(`ไม่พบ ${id}`, 404)
     if (tc.archivedAt) throw new ApiError(`${id} อยู่ในคลังเก็บ กู้คืนก่อนจึงแก้ไขได้`, 409)
+    assertFresh(tc, expected)
     const oldDate = tc.expiryDate
-    Object.assign(tc, { expiryDate: newDate, activeUser: presenceOf(actor), updatedAt: new Date().toISOString() })
+    Object.assign(tc, { expiryDate: newDate, rev: (tc.rev ?? 0) + 1, activeUser: presenceOf(actor), updatedAt: new Date().toISOString() })
     save(STORAGE_KEYS.testCases, list)
     return { testCase: tc, oldDate }
   })
@@ -799,27 +843,29 @@ const withSubs = (list: TestCase[], projectId: string, id: string) =>
  * The default way to remove a case: it keeps its id (never reused while archived) and every
  * run result, defect and audit entry stays attached, so it can be restored.
  */
-export const archiveTestCase = (projectId: string, id: string, actor: Actor) =>
+export const archiveTestCase = (projectId: string, id: string, actor: Actor, expected?: CaseExpectation) =>
   respond(() => {
     assertCan('case.archive', projectId)
     const list = testCases()
     const target = list.find((x) => sameCase(x, projectId, id))
     if (!target) throw new ApiError(`ไม่พบ ${id}`, 404)
+    assertFresh(target, expected)
     if (target.archivedAt) throw new ApiError(`${id} อยู่ในคลังเก็บแล้ว`, 409)
     const now = new Date().toISOString()
     const archived = withSubs(list, projectId, id).filter((x) => !x.archivedAt)
-    archived.forEach((x) => Object.assign(x, { archivedAt: now, archivedBy: actor.name, activeUser: null }))
+    archived.forEach((x) => Object.assign(x, { archivedAt: now, archivedBy: actor.name, activeUser: null, rev: (x.rev ?? 0) + 1 }))
     save(STORAGE_KEYS.testCases, list)
     return archived
   })
 
 /** POST /projects/:projectId/test-cases/:id/restore (with the sub-cases archived together with it) */
-export const restoreTestCase = (projectId: string, id: string) =>
+export const restoreTestCase = (projectId: string, id: string, expected?: CaseExpectation) =>
   respond(() => {
     assertCan('case.archive', projectId)
     const list = testCases()
     const target = list.find((x) => sameCase(x, projectId, id))
     if (!target) throw new ApiError(`ไม่พบ ${id}`, 404)
+    assertFresh(target, expected)
     if (!target.archivedAt) throw new ApiError(`${id} ไม่ได้อยู่ในคลังเก็บ`, 409)
     const parent = target.parentId ? list.find((x) => sameCase(x, projectId, target.parentId!)) : undefined
     if (parent?.archivedAt) throw new ApiError(`กู้คืนเคสหลัก ${parent.id} ก่อน`, 409)
@@ -827,6 +873,7 @@ export const restoreTestCase = (projectId: string, id: string) =>
     restored.forEach((x) => {
       delete x.archivedAt
       delete x.archivedBy
+      x.rev = (x.rev ?? 0) + 1
     })
     save(STORAGE_KEYS.testCases, list)
     return restored
@@ -861,12 +908,13 @@ export const caseImpact = (projectId: string, id: string) =>
  * cases is detached: run results and defects keep the old id as history only, alerts lose the link.
  * Returns the deleted ids.
  */
-export const deleteTestCase = (projectId: string, id: string) =>
+export const deleteTestCase = (projectId: string, id: string, expected?: CaseExpectation) =>
   respond(() => {
     assertCan('case.delete', projectId)
     const list = testCases()
     const target = list.find((x) => sameCase(x, projectId, id))
     if (!target) throw new ApiError(`ไม่พบ ${id}`, 404)
+    assertFresh(target, expected)
     if (!target.archivedAt) throw new ApiError(`เก็บ ${id} เข้าคลังก่อน จึงลบถาวรได้`, 409)
     const ids = withSubs(list, projectId, id).map((x) => x.id)
     detachRunCases(projectId, ids)
@@ -887,7 +935,7 @@ export const deleteTestCase = (projectId: string, id: string) =>
  * re-keys every record that points at a case (run results, defects, notifications,
  * audit entries), so they keep pointing at the same case after its id changes.
  */
-export const reorderTestCases = (projectId: string, order: TestCaseOrder[]) =>
+export const reorderTestCases = (projectId: string, order: TestCaseOrder[], uids?: Record<string, string>) =>
   respond<TestCaseReorderResult>(() => {
     assertCan('case.reorder', projectId)
     const list = testCases()
@@ -897,9 +945,14 @@ export const reorderTestCases = (projectId: string, order: TestCaseOrder[]) =>
     const renumber = (oldId: string, id: string, numericId: number, parentId: string | null): TestCase => {
       const tc = mine.find((x) => x.id === oldId)
       if (!tc || taken.has(oldId)) throw new ApiError(`ไม่พบ ${oldId} กรุณาโหลดหน้าใหม่แล้วลองอีกครั้ง`, 409)
+      // the order was made from a list someone else has renumbered since
+      if (uids?.[oldId] && tc.uid && uids[oldId] !== tc.uid) {
+        throw new ApiError('มีผู้อื่นจัดลำดับ Test Case ไปแล้ว โหลดข้อมูลล่าสุดแล้วลองอีกครั้ง', 409, 'stale')
+      }
       taken.add(oldId)
-      if (oldId !== id) renames[oldId] = id
-      return { ...tc, id, numericId, parentId }
+      if (oldId === id) return { ...tc, numericId, parentId }
+      renames[oldId] = id
+      return { ...tc, id, numericId, parentId, rev: (tc.rev ?? 0) + 1 }
     }
     const subsOf = (parentId: string) => mine.filter((x) => x.parentId === parentId)
     const full: TestCaseOrder[] = [

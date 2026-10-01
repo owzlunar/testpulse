@@ -11,6 +11,8 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public status = 500,
+    /** machine-readable reason, e.g. 'stale' (the data changed since the client loaded it) */
+    public code?: string,
   ) {
     super(message)
   }

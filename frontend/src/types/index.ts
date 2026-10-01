@@ -220,8 +220,12 @@ export interface ActiveUserPresence {
 }
 
 export interface TestCase {
-  /** e.g. "TC-101", sub-case "TC-101-1" */
+  /** e.g. "TC-101", sub-case "TC-101-1" (changes when the list is renumbered) */
   id: string
+  /** stable internal identity: never changes, even when renumbering changes `id` */
+  uid?: string
+  /** revision: +1 on every write; a change carries the one it was based on (CaseExpectation) */
+  rev?: number
   numericId: number
   /** parent case id for sub-cases */
   parentId?: string | null
@@ -283,6 +287,12 @@ export interface MoveTarget {
   index: number
   /** group title in the move menu (sub-cases: their parent) */
   group?: string
+}
+
+/** The copy of a case a change was based on; the server refuses (409 'stale') if the case moved on */
+export interface CaseExpectation {
+  uid: string
+  rev: number
 }
 
 /** A parent case with its sub-cases */

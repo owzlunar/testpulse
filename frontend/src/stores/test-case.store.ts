@@ -1,7 +1,18 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import confetti from 'canvas-confetti'
-import type { Actor, AuditChange, TestCase, TestCaseDraft, TestCaseInput, TestCaseNode, TestCaseReorderResult, TestCaseUpdateResult } from '@/types'
+import type {
+  Actor,
+  AuditChange,
+  CaseExpectation,
+  TestCase,
+  TestCaseDraft,
+  TestCaseInput,
+  TestCaseNode,
+  TestCaseReorderResult,
+  TestCaseUpdateResult,
+} from '@/types'
+import { ApiError } from '@/services/http'
 import * as api from '@/services/test-case.service'
 import { statusOf } from '@/services/test-case.service'
 import { addDays, daysFromToday, todayISO } from '@/utils/date'
@@ -21,6 +32,22 @@ export const useTestCaseStore = defineStore('testCase', () => {
 
   async function load() {
     testCases.value = await api.fetchTestCases()
+  }
+
+  /** the copy of a case this client is looking at (sent with changes; see assertFresh in the service) */
+  const expectOf = (id: string, projectId?: string): CaseExpectation | undefined => {
+    const tc = getById(id, projectId)
+    return tc?.uid ? { uid: tc.uid, rev: tc.rev ?? 0 } : undefined
+  }
+
+  /** someone else changed the data first (409 'stale'): reload so the list shows their version, then report */
+  async function guardStale<T>(call: () => Promise<T>): Promise<T> {
+    try {
+      return await call()
+    } catch (e) {
+      if (e instanceof ApiError && e.code === 'stale') await load()
+      throw e
+    }
   }
 
   /** replace one case in local state with the server copy */
@@ -191,7 +218,7 @@ export const useTestCaseStore = defineStore('testCase', () => {
   async function update(id: string, patch: Partial<TestCaseInput>, projectId?: string): Promise<TestCase | null> {
     const old = getById(id, projectId)
     if (!old) return null
-    return applyUpdate(await api.updateTestCase(old.projectId, id, patch, actor()))
+    return applyUpdate(await guardStale(() => api.updateTestCase(old.projectId, id, patch, actor(), expectOf(id, old.projectId))))
   }
 
   /** show a server-side case update and record its audit entry / alerts (also used by run results) */
@@ -292,7 +319,7 @@ export const useTestCaseStore = defineStore('testCase', () => {
 
   /** archive the case and its sub-cases (the default way to remove a case: it can be restored) */
   async function archive(id: string, projectId: string) {
-    const archived = await api.archiveTestCase(projectId, id, actor())
+    const archived = await guardStale(() => api.archiveTestCase(projectId, id, actor(), expectOf(id, projectId)))
     replaceMany(archived)
     const [target] = archived
     audit.record({
@@ -320,7 +347,7 @@ export const useTestCaseStore = defineStore('testCase', () => {
   }
 
   async function restore(id: string, projectId: string) {
-    const restored = await api.restoreTestCase(projectId, id)
+    const restored = await guardStale(() => api.restoreTestCase(projectId, id, expectOf(id, projectId)))
     replaceMany(restored)
     audit.record({
       action: 'RESTORE',
@@ -343,7 +370,7 @@ export const useTestCaseStore = defineStore('testCase', () => {
   async function remove(id: string, projectId?: string) {
     const target = getById(id, projectId)
     if (!target) return
-    const ids = await api.deleteTestCase(target.projectId, id)
+    const ids = await guardStale(() => api.deleteTestCase(target.projectId, id, expectOf(id, target.projectId)))
     testCases.value = testCases.value.filter((tc) => !(tc.projectId === target.projectId && ids.includes(tc.id)))
     useRunStore().detachCases(target.projectId, ids)
     useDefectStore().detachCases(target.projectId, ids)
@@ -375,7 +402,7 @@ export const useTestCaseStore = defineStore('testCase', () => {
 
   /** reviewed against the changed requirement: nothing to change in the case */
   async function markReviewed(id: string, projectId: string) {
-    const { testCase: tc, cleared } = await api.markReviewed(projectId, id, actor())
+    const { testCase: tc, cleared } = await guardStale(() => api.markReviewed(projectId, id, actor(), expectOf(id, projectId)))
     replaceLocal(tc)
     audit.record({
       action: 'UPDATE',
@@ -390,14 +417,16 @@ export const useTestCaseStore = defineStore('testCase', () => {
 
   /** bring back the spec of an earlier version as a new version (rules in the service) */
   async function restoreVersion(id: string, projectId: string, version: string) {
-    return applyUpdate(await api.restoreVersion(projectId, id, version, actor()))
+    return applyUpdate(await guardStale(() => api.restoreVersion(projectId, id, version, actor(), expectOf(id, projectId))))
   }
 
   /** Reschedule with a mandatory reason (checked by the server); writes the audit trail */
   async function extendDueDate(id: string, newDate: string, reason: string, projectId?: string): Promise<TestCase | null> {
     const old = getById(id, projectId)
     if (!old) return null
-    const { testCase: tc, oldDate: previous } = await api.extendDueDate(old.projectId, id, newDate, reason, actor())
+    const { testCase: tc, oldDate: previous } = await guardStale(() =>
+      api.extendDueDate(old.projectId, id, newDate, reason, actor(), expectOf(id, old.projectId)),
+    )
     const oldDate = previous || '-'
     replaceLocal(tc)
 
@@ -428,6 +457,8 @@ export const useTestCaseStore = defineStore('testCase', () => {
   async function reorder(projectId: string, ordered: TestCaseNode[]) {
     // optimistic: show the new order at once (old ids until the server answers), roll back if it refuses
     const previous = testCases.value
+    // which case each id meant when this order was made (refused if someone renumbered since)
+    const uids = Object.fromEntries(previous.filter((tc) => tc.projectId === projectId && tc.uid).map((tc) => [tc.id, tc.uid!]))
     const flat = ordered.flatMap(({ subCases, ...parent }) => [parent, ...subCases])
     testCases.value = [...flat, ...previous.filter((tc) => tc.projectId !== projectId)]
     let result: TestCaseReorderResult
@@ -435,9 +466,11 @@ export const useTestCaseStore = defineStore('testCase', () => {
       result = await api.reorderTestCases(
         projectId,
         ordered.map((p) => ({ id: p.id, subIds: p.subCases.map((s) => s.id) })),
+        uids,
       )
     } catch (e) {
       testCases.value = previous
+      if (e instanceof ApiError && e.code === 'stale') await load()
       throw e
     }
     testCases.value = [...result.cases, ...testCases.value.filter((tc) => tc.projectId !== projectId)]
