@@ -226,6 +226,17 @@ export interface TestCaseReviewFlag {
   since: string
 }
 
+/** A case to move another one before / after in reorder mode */
+export interface MoveTarget {
+  id: string
+  name: string
+  /** list the target is in ('parents' or a parent id) and its index there */
+  list: string
+  index: number
+  /** group title in the move menu (sub-cases: their parent) */
+  group?: string
+}
+
 /** A parent case with its sub-cases */
 export type TestCaseNode = TestCase & { subCases: TestCase[] }
 

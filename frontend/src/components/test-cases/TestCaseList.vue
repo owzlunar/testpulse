@@ -1,17 +1,19 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import FoxEmptyState from '@/components/ui/FoxEmptyState.vue'
 import UserAvatar from '@/components/users/UserAvatar.vue'
 import TestCaseBadges from './TestCaseBadges.vue'
+import TestCaseMoveControls from './TestCaseMoveControls.vue'
 import TestCasePriorityChip from './TestCasePriorityChip.vue'
 import TestCaseStatusChip from './TestCaseStatusChip.vue'
 import TestCaseStatusMenu from './TestCaseStatusMenu.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { useDragAutoScroll } from '@/composables/useDragAutoScroll'
 import { useTestCasePermissions } from '@/composables/useTestCasePermissions'
 import { PRIORITIES, STATUSES, isDueSoon, isHighChurn, isOverdue } from '@/services/test-case.service'
 import { useRequirementStore } from '@/stores/requirement.store'
 import { useTestCaseStore } from '@/stores/test-case.store'
-import type { TestCase, TestCaseNode, TestCasePriority, TestCaseStatus } from '@/types'
+import type { MoveTarget, TestCase, TestCaseNode, TestCasePriority, TestCaseStatus } from '@/types'
 import { formatDateTH, formatDateTime } from '@/utils/date'
 import { firstName } from '@/utils/format'
 
@@ -38,7 +40,7 @@ const emit = defineEmits<{
 
 const store = useTestCaseStore()
 const requirementStore = useRequirementStore()
-const { run } = useAsyncAction()
+const { busy, run } = useAsyncAction()
 const { canCreate, canEdit, canDelete, canHandOff } = useTestCasePermissions()
 
 // --- active cases / archive ----------------------------------------------------
@@ -105,9 +107,22 @@ function startReorder() {
   reorderMode.value = true
 }
 
+// Esc leaves reorder mode (the bottom bar also has "เสร็จสิ้น")
+const onKeydown = (e: KeyboardEvent) => e.key === 'Escape' && !dragging.value && (reorderMode.value = false)
+watch(reorderMode, (on) => (on ? window.addEventListener('keydown', onKeydown) : window.removeEventListener('keydown', onKeydown)))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
+
+// scroll while dragging near the edges of the visible list: below the sticky header, above the reorder bar
+const appBarHeight = () => parseInt(getComputedStyle(document.documentElement).getPropertyValue('--fox-appbar-height'), 10) || 72
+const autoScroll = useDragAutoScroll({
+  top: () => Math.max(appBarHeight(), document.querySelector('.fox-page-header--stuck')?.getBoundingClientRect().bottom ?? 0),
+  bottom: () => document.querySelector('.tc-reorder-bar .v-snackbar__wrapper')?.getBoundingClientRect().top ?? window.innerHeight,
+})
+
 /** started from the grip handle; the whole card/row is used as the drag image */
 function onDragStart(e: DragEvent, source: DragSource) {
   dragging.value = source
+  autoScroll.start()
   if (!e.dataTransfer) return
   e.dataTransfer.setData('text/plain', JSON.stringify(source))
   e.dataTransfer.effectAllowed = 'move'
@@ -122,6 +137,7 @@ function onDragStart(e: DragEvent, source: DragSource) {
 function onDragEnd() {
   dragging.value = null
   dropTarget.value = null
+  autoScroll.stop()
 }
 
 /** the item whose upper half is under the pointer; past every item = the end of the list */
@@ -168,7 +184,11 @@ function onDrop() {
   const src = dragging.value
   const target = dropTarget.value
   onDragEnd()
-  if (!src || !target) return
+  if (src && target) applyMove(src, target)
+}
+
+/** move a case to an insertion point (drag and drop and the move buttons); the store renumbers ids */
+function applyMove(src: DragSource, target: DropTarget) {
   const list = tree()
   if (src.kind === 'parent') {
     const [moved] = list.splice(src.index, 1)
@@ -191,6 +211,15 @@ function onSubsDrop(e: DragEvent) {
   e.stopPropagation()
   onDrop()
 }
+
+// --- move buttons (reorder mode) ---------------------------------------------------
+const parentTargets = computed<MoveTarget[]>(() => props.cases.map((p, index) => ({ id: p.id, name: p.name, list: 'parents', index })))
+const subTargets = computed<MoveTarget[]>(() =>
+  props.cases.flatMap((p) => p.subCases.map((s, index) => ({ id: s.id, name: s.name, list: p.id, index, group: `${p.id} ${p.name}` }))),
+)
+
+const moveParent = (index: number, to: DropTarget) => applyMove({ kind: 'parent', index }, to)
+const moveSub = (parentId: string, index: number, to: DropTarget) => applyMove({ kind: 'sub', parentId, index }, to)
 
 /** draws the insertion line above item `index`, or below the last item */
 function insertClass(list: string, index: number, length: number) {
@@ -274,12 +303,7 @@ function insertClass(list: string, index: number, length: number) {
           </v-col>
         </v-row>
         <div v-if="view === 'archive'" />
-        <div v-else-if="canEdit && reorderMode" class="d-flex flex-wrap align-center ga-3 mt-3">
-          <v-icon icon="tabler:arrows-sort" color="primary" size="18" />
-          <span class="text-body-2 text-muted flex-grow-1">ลากการ์ดหรือ Sub-case ด้วยปุ่ม <v-icon icon="tabler:grip-vertical" size="16" /> ไปวางตำแหน่งที่ต้องการ ระบบจะรันรหัส TC-101, TC-102 … ใหม่ทันทีที่วาง</span>
-          <v-btn color="primary" size="small" prepend-icon="tabler:check" @click="reorderMode = false">เสร็จสิ้น</v-btn>
-        </div>
-        <div v-else-if="canEdit && cases.length > 1" class="d-flex flex-wrap align-center ga-3 mt-3">
+        <div v-else-if="canEdit && cases.length > 1 && !reorderMode" class="d-flex flex-wrap align-center ga-3 mt-3">
           <span class="text-body-2 text-muted flex-grow-1">เคสใหม่ต่อท้ายรายการ</span>
           <v-btn variant="outlined" size="small" prepend-icon="tabler:arrows-sort" @click="startReorder">จัดลำดับ</v-btn>
         </div>
@@ -314,7 +338,11 @@ function insertClass(list: string, index: number, length: number) {
     </v-card>
 
     <!-- parent cases -->
-    <div v-else-if="visible.length" class="fox-stack" @dragover="onParentsDragOver" @dragleave="onDragLeave" @drop.prevent="onDrop">
+    <div
+      v-else-if="visible.length"
+      class="fox-stack"
+      :class="{ 'tc-list--reordering': reorderMode }"
+      @dragover="onParentsDragOver" @dragleave="onDragLeave" @drop.prevent="onDrop">
       <div
         v-for="(parent, pIdx) in visible"
         :key="parent.id"
@@ -342,6 +370,16 @@ function insertClass(list: string, index: number, length: number) {
                   <TestCaseStatusChip :status="parent.status" />
                   <TestCasePriorityChip :priority="parent.priority" />
                   <TestCaseBadges :test-case="parent" />
+                  <template v-if="canReorder">
+                    <v-spacer />
+                    <TestCaseMoveControls
+                      list="parents"
+                      :index="pIdx"
+                      :count="visible.length"
+                      :targets="parentTargets.filter((t) => t.index !== pIdx)"
+                      @move="moveParent(pIdx, $event)"
+                    />
+                  </template>
                 </div>
                 <h3 class="text-h6 mb-1">{{ parent.name }}</h3>
                 <dl class="tc-spec text-body-2">
@@ -375,7 +413,8 @@ function insertClass(list: string, index: number, length: number) {
                 </span>
               </div>
 
-              <div class="d-flex flex-wrap align-center ga-2">
+              <!-- card actions are hidden while reordering -->
+              <div v-if="!reorderMode" class="d-flex flex-wrap align-center ga-2">
                 <v-btn
                   v-if="parent.status === 'pending' && canHandOff"
                   color="info"
@@ -456,7 +495,16 @@ function insertClass(list: string, index: number, length: number) {
                         </div>
                         <div class="text-body-2 text-truncate">{{ sub.name }}</div>
                       </div>
-                      <div class="d-flex align-center ga-1 flex-shrink-0">
+                      <TestCaseMoveControls
+                        v-if="canReorder"
+                        compact
+                        :list="parent.id"
+                        :index="sIdx"
+                        :count="parent.subCases.length"
+                        :targets="subTargets.filter((t) => !(t.list === parent.id && t.index === sIdx))"
+                        @move="moveSub(parent.id, sIdx, $event)"
+                      />
+                      <div v-else-if="!reorderMode" class="d-flex align-center ga-1 flex-shrink-0">
                         <TestCaseStatusMenu :status="sub.status" size="x-small" @change="setStatus(sub, $event)" />
                         <v-btn
                           v-if="sub.reviewNeeded && canEdit"
@@ -500,12 +548,34 @@ function insertClass(list: string, index: number, length: number) {
         <v-btn v-else-if="canCreate" class="mt-3" color="primary" prepend-icon="tabler:plus" @click="emit('create')">สร้าง Test Case</v-btn>
       </FoxEmptyState>
     </v-card>
+
+    <!-- reorder mode: stays at the bottom of the screen until "เสร็จสิ้น" / Esc -->
+    <v-snackbar :model-value="reorderMode" :timeout="-1" location="bottom" class="tc-reorder-bar" max-width="760">
+      <div class="d-flex align-center ga-3">
+        <v-progress-circular v-if="busy" indeterminate size="22" width="2" />
+        <v-icon v-else icon="tabler:arrows-sort" />
+        <div>
+          <div class="text-subtitle-2">โหมดจัดเรียง{{ busy ? ' · กำลังบันทึกลำดับ' : '' }}</div>
+          <div class="text-caption">
+            ลากที่ <v-icon icon="tabler:grip-vertical" size="14" /> หรือใช้ปุ่มย้ายมุมขวาบนของการ์ด รหัสจะรันใหม่ทันที · กด Esc เพื่อออก
+          </div>
+        </div>
+      </div>
+      <template #actions>
+        <v-btn color="primary" variant="flat" prepend-icon="tabler:check" @click="reorderMode = false">เสร็จสิ้น</v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
 <style scoped>
 .tc-card {
   transition: opacity 0.15s, box-shadow 0.15s;
+}
+
+.tc-list--reordering {
+  /* room for the reorder bar at the bottom of the screen */
+  padding-bottom: 88px;
 }
 
 .tc-card--dragging {
