@@ -1,9 +1,10 @@
-import type { Option, TestCase, TestCaseOrder, TestCasePriority, TestCaseReorderResult, TestCaseStatus, Tone } from '@/types'
+import type { Option, Requirement, TestCase, TestCaseOrder, TestCasePriority, TestCaseReorderResult, TestCaseStatus, Tone } from '@/types'
 import { daysFromToday } from '@/utils/date'
 import { detachAuditCases, renameAuditCases } from './audit.service'
 import { detachDefectCases, renameDefectCases } from './defect.service'
 import { ApiError, respond } from './http'
 import { detachNotificationCases, renameNotificationCases } from './notification.service'
+import { requirementsForCase } from './requirement.service'
 import { detachRunCases, renameRunCases } from './run.service'
 import { STORAGE_KEYS, load, migrateOnce, save } from './storage.service'
 
@@ -87,6 +88,29 @@ export const isDueSoon = (tc: TestCase, days = 3): boolean => {
 
 /** Ping-pong: bounced between Failed and Ready for Test more than once */
 export const isHighChurn = (tc: TestCase): boolean => (tc.churnCount ?? 0) > 1
+
+/** fields that define what is tested; changing any of them makes a new version */
+const SPEC_FIELDS = ['name', 'requirement', 'requirementIds', 'testScenario', 'description', 'prerequisite', 'steps', 'expectedResults', 'expectedImages'] as const
+
+/** comparable form of a spec field: steps by text and order, empty lists equal to missing */
+function specValue(tc: Partial<TestCase>, field: (typeof SPEC_FIELDS)[number]): string {
+  const value =
+    field === 'steps'
+      ? tc.steps?.map((s) => [s.action.trim(), s.testData.trim(), s.expectedResult.trim()]).filter((s) => s.some(Boolean))
+      : typeof tc[field] === 'string' ? (tc[field] as string).trim() : tc[field]
+  return JSON.stringify(Array.isArray(value) && !value.length ? null : value ?? null)
+}
+
+/**
+ * Did the spec (what is tested) change? Status, due date, assignees and priority don't count:
+ * they are tracked in the audit trail, not as versions.
+ * Pass the requirements so a legacy case (linked by its text) compares with its effective links:
+ * saving those links explicitly is not a change.
+ */
+export function hasSpecChanges(old: TestCase, next: Partial<TestCase>, requirements: Requirement[] = []): boolean {
+  const base = old.requirementIds?.length ? old : { ...old, requirementIds: requirementsForCase(old, requirements).map((r) => r.id) }
+  return SPEC_FIELDS.some((f) => f in next && specValue(base, f) !== specValue(next, f))
+}
 
 const SEED_TEST_CASES: TestCase[] = [
   {

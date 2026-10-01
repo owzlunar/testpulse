@@ -3,12 +3,13 @@ import { ref } from 'vue'
 import confetti from 'canvas-confetti'
 import type { AuditChange, TestCase, TestCaseDraft, TestCaseInput, TestCaseNode, TestCaseReorderResult, TestCaseVersionRecord } from '@/types'
 import * as api from '@/services/test-case.service'
-import { statusOf } from '@/services/test-case.service'
+import { hasSpecChanges, statusOf } from '@/services/test-case.service'
 import { addDays, daysFromToday, todayISO } from '@/utils/date'
 import { useAuditStore } from './audit.store'
 import { useAuthStore } from './auth.store'
 import { useDefectStore } from './defect.store'
 import { useNotificationStore } from './notification.store'
+import { useRequirementStore } from './requirement.store'
 import { useRunStore } from './run.store'
 import { useSettingsStore } from './settings.store'
 
@@ -208,14 +209,24 @@ export const useTestCaseStore = defineStore('testCase', () => {
 
     const now = new Date().toISOString()
     const { changeSummary, bumpMajor, ...updates } = patch
+    // a version is a change to what is tested; status / due date / assignee changes stay in the audit trail
+    const specChanged = hasSpecChanges(old, updates, useRequirementStore().requirements)
+    // a pass only proves the spec it ran against: changing a passed case means it must be tested again
+    const passInvalidated = specChanged && old.status === 'passed' && (updates.status ?? old.status) === 'passed'
+    if (passInvalidated) updates.status = 'ready_for_test'
     const statusChanged = !!updates.status && updates.status !== old.status
-    const version = updates.version && updates.version !== old.version ? updates.version : nextVersion(old.version, bumpMajor)
+    const version =
+      updates.version && updates.version !== old.version ? updates.version
+      : specChanged || bumpMajor ? nextVersion(old.version, bumpMajor)
+      : old.version
+    const newVersion = version !== old.version
 
     const record: TestCaseVersionRecord = {
       version,
       updatedBy: auth.currentUser.name,
       timestamp: now,
-      changeSummary: changeSummary || (statusChanged ? `เปลี่ยนสถานะเป็น ${statusOf(updates.status!).label}` : 'แก้ไขข้อกำหนดหรือขั้นตอน'),
+      changeSummary:
+        (changeSummary || 'แก้ไขข้อกำหนดหรือขั้นตอน') + (passInvalidated ? ` (ผลผ่านของ ${old.version} ถูกยกเลิก ต้องทดสอบใหม่)` : ''),
       status: updates.status ?? old.status,
     }
 
@@ -230,7 +241,7 @@ export const useTestCaseStore = defineStore('testCase', () => {
       ...updates,
       churnCount: (old.churnCount ?? 0) + (bounced ? 1 : 0),
       version,
-      versionHistory: [...(old.versionHistory ?? []), record],
+      versionHistory: newVersion ? [...(old.versionHistory ?? []), record] : old.versionHistory,
       activeUser: presence(),
       updatedAt: now,
     })
@@ -252,7 +263,12 @@ export const useTestCaseStore = defineStore('testCase', () => {
       targetId: tc.id,
       projectId: tc.projectId,
       targetTitle: tc.name,
-      details: statusChanged ? `เปลี่ยนสถานะเป็น ${statusOf(tc.status).label}` : 'อัปเดตรายละเอียดของ Test Case',
+      details: [
+        newVersion && `${old.version} → ${tc.version}`,
+        passInvalidated ? 'แก้ไขข้อกำหนดหลังผ่านการทดสอบ สถานะกลับเป็นพร้อมให้ทดสอบ'
+        : statusChanged ? `เปลี่ยนสถานะเป็น ${statusOf(tc.status).label}`
+        : 'อัปเดตรายละเอียดของ Test Case',
+      ].filter(Boolean).join(' · '),
       changes,
     })
 
@@ -263,6 +279,14 @@ export const useTestCaseStore = defineStore('testCase', () => {
         notify.add({ ...base, type: 'MODIFIED', title: 'มีการแก้ไข Test Case', message: `${tc.id}: "${tc.name}" ได้รับการแก้ไข`, severity: 'info' })
     } else if (!alertOnStatusChange) {
       // status alerts turned off in settings
+    } else if (passInvalidated) {
+      notify.add({
+        ...base,
+        type: 'STATUS_CHANGED',
+        title: 'Test Case ต้องทดสอบใหม่',
+        message: `${tc.id}: "${tc.name}" ถูกแก้ไขเป็น ${tc.version} หลังผ่านการทดสอบ ผลเดิมถูกยกเลิก`,
+        severity: 'warning',
+      })
     } else if (tc.status === 'ready_for_test') {
       notify.add({
         ...base,
@@ -339,24 +363,14 @@ export const useTestCaseStore = defineStore('testCase', () => {
     testCases.value = testCases.value.filter((tc) => tc.projectId !== projectId)
   }
 
-  /** Reschedule with a mandatory reason; bumps the version and writes the audit trail */
+  /** Reschedule with a mandatory reason; writes the audit trail */
   async function extendDueDate(id: string, newDate: string, reason: string, projectId?: string): Promise<TestCase | null> {
     const old = getById(id, projectId)
     if (!old) return null
 
     const oldDate = old.expiryDate || '-'
-    const now = new Date().toISOString()
-    const version = nextVersion(old.version)
-    const tc = await api.updateTestCase({
-      ...old,
-      expiryDate: newDate,
-      version,
-      versionHistory: [
-        ...(old.versionHistory ?? []),
-        { version, updatedBy: auth.currentUser.name, timestamp: now, changeSummary: `ขยายกำหนดส่งจาก ${oldDate} เป็น ${newDate}`, status: old.status, reason },
-      ],
-      updatedAt: now,
-    })
+    // a new due date doesn't change what is tested: no new version (the audit entry keeps the reason)
+    const tc = await api.updateTestCase({ ...old, expiryDate: newDate, updatedAt: new Date().toISOString() })
     replaceLocal(tc)
 
     audit.record({

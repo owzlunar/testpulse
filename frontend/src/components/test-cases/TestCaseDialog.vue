@@ -7,7 +7,7 @@ import TestCaseAuditList from './TestCaseAuditList.vue'
 import TestCaseVersionTimeline from './TestCaseVersionTimeline.vue'
 import { useTestCasePermissions } from '@/composables/useTestCasePermissions'
 import { requirementsForCase } from '@/services/requirement.service'
-import { PRIORITIES, ROOT_CAUSES, STATUSES } from '@/services/test-case.service'
+import { PRIORITIES, ROOT_CAUSES, STATUSES, hasSpecChanges } from '@/services/test-case.service'
 import { useAuthStore } from '@/stores/auth.store'
 import { useProjectStore } from '@/stores/project.store'
 import { useRequirementStore } from '@/stores/requirement.store'
@@ -208,6 +208,10 @@ async function submit() {
   })
 }
 
+// --- versioning (mirrors the store: a version = a change to what is tested) ------------
+const specChanged = computed(() => !!props.testCase && hasSpecChanges(props.testCase, form, requirementStore.requirements))
+const invalidatesPass = computed(() => !readonly.value && specChanged.value && props.testCase?.status === 'passed' && form.status === 'passed')
+
 const rules = { required }
 </script>
 
@@ -332,6 +336,9 @@ const rules = { required }
                   <v-col cols="12">
                     <v-divider class="mb-2" />
                     <span class="text-overline text-muted">การปรับเวอร์ชัน</span>
+                    <p class="text-caption text-muted">
+                      {{ specChanged ? `บันทึกแล้วจะขึ้นเวอร์ชันใหม่ต่อจาก ${testCase?.version}` : 'ยังไม่ได้แก้ข้อกำหนดหรือขั้นตอน เวอร์ชันจะไม่เปลี่ยน (สถานะ กำหนดส่ง และผู้รับผิดชอบบันทึกใน Audit)' }}
+                    </p>
                   </v-col>
                   <v-col cols="12" sm="8">
                     <label class="fox-label" for="tc-changelog">สรุปการแก้ไข (Changelog)</label>
@@ -473,6 +480,9 @@ const rules = { required }
       </v-card-text>
 
       <v-divider />
+      <v-alert v-if="invalidatesPass" type="warning" variant="tonal" density="compact" icon="tabler:refresh-alert" class="mx-4 mt-4" rounded="lg">
+        เคสนี้ผ่านการทดสอบแล้ว เมื่อบันทึกการแก้ไขข้อกำหนด ผลผ่านของ {{ testCase?.version }} จะถูกยกเลิก และสถานะกลับเป็น "พร้อมให้ทดสอบ"
+      </v-alert>
       <div class="d-flex flex-wrap align-center ga-3 fox-card-body py-4">
         <span class="text-body-2 text-muted">{{ readonly ? 'บทบาทของคุณดูได้อย่างเดียว' : 'ช่องที่มี * จำเป็นต้องกรอก' }}</span>
         <v-spacer />
