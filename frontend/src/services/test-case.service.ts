@@ -636,30 +636,39 @@ export const createTestCases = (projectId: string, inputs: TestCaseInput[], acto
     let next = list.filter((x) => x.projectId === projectId && !x.parentId).reduce((max, x) => Math.max(max, x.numericId || 100), 100) + 1
     const created: TestCase[] = []
     for (const input of inputs) {
-      const { changeSummary: _summary, bumpMajor: _major, ...data } = input
+      // the server owns these: a new case (also a clone or an import) always starts fresh at v1.0
+      const {
+        changeSummary: _summary,
+        bumpMajor: _major,
+        version: _version,
+        versionHistory: _history,
+        archivedAt: _archivedAt,
+        archivedBy: _archivedBy,
+        reviewNeeded: _review,
+        churnCount: _churn,
+        ...data
+      } = input
       const numericId = data.id ? data.numericId : next
       const id = data.id?.trim() || `TC-${next}`
       if (!data.id) next++
       if ([...list, ...created].some((x) => sameCase(x, projectId, id))) throw new ApiError(`รหัส ${id} มีอยู่แล้วในโปรเจกต์นี้`, 409)
-      const version = data.version || 'v1.0'
+      const version = 'v1.0'
       created.push({
         ...data,
         id,
         numericId,
         projectId,
         version,
-        versionHistory: data.versionHistory?.length
-          ? data.versionHistory
-          : [
-              {
-                version,
-                updatedBy: actor.name,
-                timestamp: now,
-                changeSummary: 'สร้าง Test Case ครั้งแรก',
-                status: data.status,
-                snapshot: specOf(data),
-              },
-            ],
+        versionHistory: [
+          {
+            version,
+            updatedBy: actor.name,
+            timestamp: now,
+            changeSummary: 'สร้าง Test Case ครั้งแรก',
+            status: data.status,
+            snapshot: specOf(data),
+          },
+        ],
         activeUser: presenceOf(actor),
         createdAt: now,
         updatedAt: now,
@@ -669,6 +678,9 @@ export const createTestCases = (projectId: string, inputs: TestCaseInput[], acto
     save(STORAGE_KEYS.testCases, [...list, ...created])
     return created
   })
+
+/** server-side: every stored case (seeds the demo data on first use) */
+export const storedCases = (): TestCase[] => testCases()
 
 /** server-side: the stored case, if any */
 export const storedCase = (projectId: string, id: string): TestCase | undefined => testCases().find((x) => sameCase(x, projectId, id))

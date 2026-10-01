@@ -1,6 +1,6 @@
-import type { Project, Team, TeamInput } from '@/types'
+import type { Team, TeamInput } from '@/types'
 import { ApiError, newId, respond } from './http'
-import { assertCan } from './project.service'
+import { assertCan, storedProjects } from './project.service'
 import { STORAGE_KEYS, load, save } from './storage.service'
 
 // Teams (Admin only). A project lists the teams that may open it; a user can be in several teams.
@@ -69,7 +69,7 @@ export const deleteTeam = (id: string) =>
       STORAGE_KEYS.teams,
       list.filter((t) => t.id !== id),
     )
-    const projects = load<Project[]>(STORAGE_KEYS.projects, [])
+    const projects = storedProjects()
     const changed = projects.filter((p) => p.teamIds?.includes(id))
     changed.forEach((p) => (p.teamIds = p.teamIds!.filter((t) => t !== id)))
     if (changed.length) save(STORAGE_KEYS.projects, projects)

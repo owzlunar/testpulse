@@ -1,6 +1,7 @@
-import type { Option, PermissionKey, Role, RoleDiscipline, RoleInput, Tone, User } from '@/types'
+import type { Option, PermissionKey, Role, RoleDiscipline, RoleInput, Tone } from '@/types'
 import { ApiError, newId, respond } from './http'
 import { assertCan } from './project.service'
+import { storedUsers } from './user.service'
 import { STORAGE_KEYS, load, migrateOnce, save } from './storage.service'
 
 // Role groups and the permission catalog. Users without a role see only the dashboard and settings;
@@ -249,7 +250,7 @@ export const deleteRole = (id: string, moveTo: string | null) =>
     if (!role) throw new ApiError('ไม่พบ Role', 404)
     if (role.builtIn) throw new ApiError(`ลบ Role ${role.name} ไม่ได้`, 409)
     if (moveTo && (moveTo === id || !list.some((r) => r.id === moveTo))) throw new ApiError('Role ปลายทางไม่ถูกต้อง', 422)
-    const users = load<User[]>(STORAGE_KEYS.users, [])
+    const users = storedUsers()
     const moved = users.filter((u) => u.roleId === id)
     moved.forEach((u) => (u.roleId = moveTo))
     save(STORAGE_KEYS.users, users)

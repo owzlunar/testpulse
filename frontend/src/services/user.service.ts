@@ -54,6 +54,9 @@ export const MOCK_USERS: User[] = [
 /** users saved before roles were editable had a fixed `role`: map it to the matching built-in role once */
 const LEGACY_ROLES: Record<string, string> = { ADMIN: 'role-admin', DEV: 'role-dev', QA: 'role-qa-tester' }
 
+/** server-side: every stored user (seeds the demo data on first use) */
+export const storedUsers = (): User[] => users()
+
 function users(): User[] {
   migrateOnce('user-roles-v1', () => {
     const list = load<(User & { role?: string })[]>(STORAGE_KEYS.users, MOCK_USERS)

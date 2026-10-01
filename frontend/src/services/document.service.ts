@@ -1,5 +1,4 @@
 import type {
-  Defect,
   DocCase,
   DocumentRecord,
   DocumentRequest,
@@ -8,21 +7,17 @@ import type {
   DocumentTemplate,
   DocumentType,
   Option,
-  Project,
-  Requirement,
   Signatory,
-  TestCase,
-  TestRun,
   UatDecision,
 } from '@/types'
 import { todayISO } from '@/utils/date'
-import { isOpenDefect } from './defect.service'
+import { defectsOf, isOpenDefect } from './defect.service'
 import { ApiError, newId, respond } from './http'
-import { casesForRequirement, coverageStatus, requirementText } from './requirement.service'
-import { resultOf } from './run.service'
-import { assertCan, inAccessibleProjects, sessionCan } from './project.service'
+import { casesForRequirement, coverageStatus, requirementText, requirementsOf } from './requirement.service'
+import { resultOf, runsOf } from './run.service'
+import { assertCan, inAccessibleProjects, sessionCan, storedProjects } from './project.service'
 import { STORAGE_KEYS, load, save } from './storage.service'
-import { isOverdue, statusOf } from './test-case.service'
+import { isOverdue, statusOf, storedCases } from './test-case.service'
 
 export const DOCUMENT_TYPES: (Option<DocumentType> & { description: string; code: string })[] = [
   {
@@ -114,15 +109,16 @@ export function formatDocNumber(pattern: string, type: DocumentType, key: string
 const outcomeOf = (status: string): DocCase['outcome'] => (status === 'passed' || status === 'failed' || status === 'blocked' ? status : 'not_run')
 
 function buildSnapshot(req: DocumentRequest): DocumentSnapshot {
-  const project = load<Project[]>(STORAGE_KEYS.projects, []).find((p) => p.id === req.projectId)
+  // read through each owner's loader: a bare load(key, []) would store [] over data not seeded yet
+  const project = storedProjects().find((p) => p.id === req.projectId)
   if (!project) throw new ApiError('ไม่พบโปรเจกต์', 404)
-  const projectCases = load<TestCase[]>(STORAGE_KEYS.testCases, []).filter((c) => c.projectId === req.projectId)
+  const projectCases = storedCases().filter((c) => c.projectId === req.projectId)
   // archived cases are out of scope (lists, coverage); a run still shows the ones it executed
   const allCases = projectCases.filter((c) => !c.archivedAt)
-  const run = req.options.runId ? load<TestRun[]>(STORAGE_KEYS.testRuns, []).find((r) => r.id === req.options.runId) : undefined
+  const run = req.options.runId ? runsOf(req.projectId).find((r) => r.id === req.options.runId) : undefined
   if (req.options.runId && !run) throw new ApiError('ไม่พบรอบการทดสอบที่เลือก', 404)
-  const defects = load<Defect[]>(STORAGE_KEYS.defects, []).filter((d) => d.projectId === req.projectId)
-  const requirements = load<Requirement[]>(STORAGE_KEYS.requirements, []).filter((r) => r.projectId === req.projectId)
+  const defects = defectsOf(req.projectId)
+  const requirements = requirementsOf(req.projectId)
 
   const sortId = (a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id, undefined, { numeric: true })
   let cases: DocCase[]

@@ -16,7 +16,7 @@ import { addDays, todayISO } from '@/utils/date'
 import { ApiError, newId, respond } from './http'
 import { assertCan, inAccessibleProjects, sessionCan } from './project.service'
 import { STORAGE_KEYS, load, save } from './storage.service'
-import { patchStoredCase, storedCase } from './test-case.service'
+import { patchStoredCase, storedCase, storedCases } from './test-case.service'
 
 export const RUN_TYPES: Option<RunType>[] = [
   { value: 'smoke', label: 'Smoke', hint: 'ตรวจฟังก์ชันหลักหลัง Deploy', tone: 'info', icon: 'tabler:flame' },
@@ -77,7 +77,7 @@ export const resultFor = (tc: TestCase, assignee?: string): RunResult => ({
 
 // --- seed: two rounds on the demo project, built from the seeded cases ---------------------
 function seedRuns(): TestRun[] {
-  const cases = load<TestCase[]>(STORAGE_KEYS.testCases, []).filter((c) => c.projectId === 'proj-1')
+  const cases = storedCases().filter((c) => c.projectId === 'proj-1')
   if (!cases.length) return []
   const exec = (r: RunResult, status: ResultStatus, by: string, at: string, actual = '', failAt = -1): RunResult => ({
     ...r,

@@ -16,8 +16,8 @@ export class ApiError extends Error {
   }
 }
 
-/** simulated round-trip time (ms) */
-export const LATENCY = { min: 150, max: 450 }
+/** simulated round-trip time (ms); none in unit tests */
+export const LATENCY = import.meta.env.MODE === 'test' ? { min: 0, max: 0 } : { min: 150, max: 450 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 

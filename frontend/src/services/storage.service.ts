@@ -29,7 +29,8 @@ export function load<T>(key: StorageKey, seed: T): T {
   const raw = localStorage.getItem(key)
   if (raw === null) {
     save(key, seed)
-    return seed
+    // a copy: callers modify what they load, and must never modify the seed constants
+    return JSON.parse(JSON.stringify(seed)) as T
   }
   try {
     return JSON.parse(raw) as T

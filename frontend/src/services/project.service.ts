@@ -2,8 +2,9 @@ import type { MilestoneType, Option, Project, ProjectInput, ProjectStatus, Permi
 import { ApiError, newId, respond } from './http'
 import { permissionOf, roleById } from './role.service'
 import { teams } from './team.service'
+import { storedCases } from './test-case.service'
 import { sessionUser } from './user.service'
-import { STORAGE_KEYS, load, save, update } from './storage.service'
+import { STORAGE_KEYS, load, save } from './storage.service'
 
 export const PROJECT_STATUSES: Option<ProjectStatus>[] = [
   { value: 'active', label: 'Active', hint: 'กำลังดำเนินการ', tone: 'success', icon: 'tabler:player-play' },
@@ -84,6 +85,9 @@ const SEED_PROJECTS: Project[] = [
 
 // --- API ------------------------------------------------------------------------
 /** re-applies demo fields that older saved data may be missing */
+/** server-side: every stored project (seeds the demo data on first use) */
+export const storedProjects = (): Project[] => projects()
+
 function projects(): Project[] {
   const list = load(STORAGE_KEYS.projects, SEED_PROJECTS)
   const seed = SEED_PROJECTS[0]
@@ -190,7 +194,10 @@ export const deleteProject = (id: string) =>
       STORAGE_KEYS.projects,
       projects().filter((p) => p.id !== id),
     )
-    update(STORAGE_KEYS.testCases, [] as { projectId: string }[], (cases) => cases.filter((c) => c.projectId !== id))
+    save(
+      STORAGE_KEYS.testCases,
+      storedCases().filter((c) => c.projectId !== id),
+    )
   })
 
 /** last project the user worked on (client preference, not an API call) */
