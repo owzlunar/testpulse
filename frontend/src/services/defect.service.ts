@@ -1,7 +1,7 @@
 import type { Defect, DefectComment, DefectInput, DefectSeverity, DefectStatus, Option } from '@/types'
 import { addDays, todayISO } from '@/utils/date'
 import { ApiError, respond } from './http'
-import { inAccessibleProjects } from './project.service'
+import { assertCan, inAccessibleProjects, sessionCan } from './project.service'
 import { STORAGE_KEYS, load, save } from './storage.service'
 
 export const SEVERITIES: Option<DefectSeverity>[] = [
@@ -86,13 +86,17 @@ export function detachDefectCases(projectId: string, caseIds: string[]) {
 export const defectsOf = (projectId: string): Defect[] => defects().filter((d) => d.projectId === projectId)
 
 /** GET /defects (of the projects the signed-in user may open) */
-export const fetchDefects = () => respond(() => inAccessibleProjects(defects()))
+export const fetchDefects = () => respond(() => (sessionCan('defect.view') ? inAccessibleProjects(defects()) : []))
 
 /** POST /projects/:projectId/defects · PUT /defects/:id */
 export const saveDefect = (input: DefectInput, reportedBy: string) =>
   respond(() => {
     const list = defects()
     const now = new Date().toISOString()
+    // closing / rejecting is a verdict (defect.resolve); reporting and progress updates are defect.report
+    const before = input.id ? list.find((d) => d.id === input.id) : undefined
+    const resolving = (input.status === 'closed' || input.status === 'rejected') && input.status !== before?.status
+    assertCan(resolving ? 'defect.resolve' : 'defect.report', before?.projectId ?? input.projectId)
     if (input.id) {
       const i = list.findIndex((d) => d.id === input.id)
       if (i < 0) throw new ApiError('ไม่พบ Defect', 404)
@@ -114,6 +118,7 @@ export const addDefectComment = (id: string, comment: DefectComment) =>
     const list = defects()
     const d = list.find((x) => x.id === id)
     if (!d) throw new ApiError('ไม่พบ Defect', 404)
+    assertCan('defect.report', d.projectId)
     d.comments.push(comment)
     d.updatedAt = comment.at
     save(STORAGE_KEYS.defects, list)

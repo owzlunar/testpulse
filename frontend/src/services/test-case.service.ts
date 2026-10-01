@@ -1,5 +1,5 @@
 import type {
-  ActiveUserPresence, Actor, Option, Requirement, TestCase, TestCaseImpact, TestCaseInput, TestCaseOrder, TestCaseSpec, TestCasePriority, TestCaseReorderResult,
+  ActiveUserPresence, Actor, Option, PermissionKey, Requirement, TestCase, TestCaseImpact, TestCaseInput, TestCaseOrder, TestCaseSpec, TestCasePriority, TestCaseReorderResult,
   TestCaseStatus, TestCaseUpdateResult, TestCaseVersionRecord, Tone,
 } from '@/types'
 import { daysFromToday } from '@/utils/date'
@@ -9,7 +9,7 @@ import { ApiError, respond } from './http'
 import { detachNotificationCases, renameNotificationCases } from './notification.service'
 import { casesForRequirement, requirementsForCase, requirementsOf } from './requirement.service'
 import { detachRunCases, renameRunCases, runsOf } from './run.service'
-import { inAccessibleProjects } from './project.service'
+import { assertCan, inAccessibleProjects, sessionCan } from './project.service'
 import { STORAGE_KEYS, load, migrateOnce, save } from './storage.service'
 
 // Dev <-> QA lifecycle: Pending Dev -> Ready for Test -> (QA) -> Passed | Failed -> back to Dev
@@ -595,7 +595,7 @@ function testCases(): TestCase[] {
 const sameCase = (a: TestCase, projectId: string, id: string) => a.projectId === projectId && a.id === id
 
 /** GET /test-cases (of the projects the signed-in user may open) */
-export const fetchTestCases = () => respond(() => inAccessibleProjects(testCases()))
+export const fetchTestCases = () => respond(() => (sessionCan('case.view') ? inAccessibleProjects(testCases()) : []))
 
 /**
  * POST /projects/:projectId/test-cases (accepts several for import / AI drafts)
@@ -604,6 +604,7 @@ export const fetchTestCases = () => respond(() => inAccessibleProjects(testCases
  */
 export const createTestCases = (projectId: string, inputs: TestCaseInput[], actor: Actor) =>
   respond(() => {
+    assertCan('case.edit', projectId)
     const list = testCases()
     const now = new Date().toISOString()
     let next = list.filter((x) => x.projectId === projectId && !x.parentId).reduce((max, x) => Math.max(max, x.numericId || 100), 100) + 1
@@ -654,7 +655,24 @@ export function patchStoredCase(projectId: string, id: string, patch: Partial<Te
 
 /** PATCH /projects/:projectId/test-cases/:id (the server versions the case: see applyCasePatch) */
 export const updateTestCase = (projectId: string, id: string, patch: Partial<TestCaseInput>, actor: Actor) =>
-  respond(() => patchStoredCase(projectId, id, patch, actor))
+  respond(() => {
+    assertCan(patchPermissions(patch, storedCase(projectId, id)), projectId)
+    return patchStoredCase(projectId, id, patch, actor)
+  })
+
+/**
+ * what a patch needs: Dev hand-off (ready_for_test) needs case.handoff, verdicts need run.execute,
+ * sending back to pending either of them; any other field is an edit (case.edit)
+ */
+function patchPermissions(patch: Partial<TestCaseInput>, old?: TestCase): PermissionKey[] {
+  const { status, changeSummary: _s, bumpMajor: _b, ...rest } = patch
+  const edits = Object.keys(rest).some((k) => JSON.stringify(rest[k as keyof typeof rest]) !== JSON.stringify(old?.[k as keyof TestCase]))
+  if (edits) return ['case.edit']
+  if (!status || status === old?.status) return ['case.edit']
+  if (status === 'ready_for_test') return ['case.handoff']
+  if (status === 'pending') return ['case.handoff', 'run.execute']
+  return ['run.execute']
+}
 
 /**
  * POST /projects/:projectId/test-cases/:id/versions/:version/restore
@@ -663,6 +681,7 @@ export const updateTestCase = (projectId: string, id: string, patch: Partial<Tes
  */
 export const restoreVersion = (projectId: string, id: string, version: string, actor: Actor) =>
   respond(() => {
+    assertCan('case.restoreVersion', projectId)
     const tc = storedCase(projectId, id)
     if (!tc) throw new ApiError(`ไม่พบ ${id}`, 404)
     const snapshot = tc.versionHistory?.find((r) => r.version === version)?.snapshot
@@ -693,6 +712,7 @@ export function flagCasesForReview(req: Requirement, reason: string): TestCase[]
 /** POST /projects/:projectId/test-cases/:id/review (reviewed against the changed requirement: nothing to change) */
 export const markReviewed = (projectId: string, id: string, actor: Actor) =>
   respond(() => {
+    assertCan('case.edit', projectId)
     const list = testCases()
     const tc = list.find((x) => sameCase(x, projectId, id))
     if (!tc) throw new ApiError(`ไม่พบ ${id}`, 404)
@@ -707,6 +727,7 @@ export const markReviewed = (projectId: string, id: string, actor: Actor) =>
 /** PATCH /projects/:projectId/test-cases/:id/due-date (reason required; a due date is not part of the spec: no new version) */
 export const extendDueDate = (projectId: string, id: string, newDate: string, reason: string, actor: Actor) =>
   respond(() => {
+    assertCan(['case.edit', 'case.handoff'], projectId)
     if (!reason.trim()) throw new ApiError('ต้องระบุเหตุผลในการขยายเวลา', 422)
     if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) throw new ApiError('วันที่ไม่ถูกต้อง', 422)
     const list = testCases()
@@ -730,6 +751,7 @@ const withSubs = (list: TestCase[], projectId: string, id: string) =>
  */
 export const archiveTestCase = (projectId: string, id: string, actor: Actor) =>
   respond(() => {
+    assertCan('case.archive', projectId)
     const list = testCases()
     const target = list.find((x) => sameCase(x, projectId, id))
     if (!target) throw new ApiError(`ไม่พบ ${id}`, 404)
@@ -744,6 +766,7 @@ export const archiveTestCase = (projectId: string, id: string, actor: Actor) =>
 /** POST /projects/:projectId/test-cases/:id/restore (with the sub-cases archived together with it) */
 export const restoreTestCase = (projectId: string, id: string) =>
   respond(() => {
+    assertCan('case.archive', projectId)
     const list = testCases()
     const target = list.find((x) => sameCase(x, projectId, id))
     if (!target) throw new ApiError(`ไม่พบ ${id}`, 404)
@@ -762,6 +785,7 @@ export const restoreTestCase = (projectId: string, id: string) =>
 /** GET /projects/:projectId/test-cases/:id/impact (what archiving or deleting it, with its sub-cases, touches) */
 export const caseImpact = (projectId: string, id: string) =>
   respond<TestCaseImpact>(() => {
+    assertCan('case.view', projectId)
     const list = testCases()
     const cases = withSubs(list, projectId, id)
     if (!cases.length) throw new ApiError(`ไม่พบ ${id}`, 404)
@@ -789,6 +813,7 @@ export const caseImpact = (projectId: string, id: string) =>
  */
 export const deleteTestCase = (projectId: string, id: string) =>
   respond(() => {
+    assertCan('case.delete', projectId)
     const list = testCases()
     const target = list.find((x) => sameCase(x, projectId, id))
     if (!target) throw new ApiError(`ไม่พบ ${id}`, 404)
@@ -811,6 +836,7 @@ export const deleteTestCase = (projectId: string, id: string) =>
  */
 export const reorderTestCases = (projectId: string, order: TestCaseOrder[]) =>
   respond<TestCaseReorderResult>(() => {
+    assertCan('case.reorder', projectId)
     const list = testCases()
     const mine = list.filter((x) => x.projectId === projectId)
     const taken = new Set<string>()

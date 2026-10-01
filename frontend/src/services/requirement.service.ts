@@ -1,6 +1,6 @@
 import type { CoverageStatus, Option, Requirement, RequirementChangeResult, RequirementInput, RequirementStatus, RequirementType, TestCase } from '@/types'
 import { ApiError, newId, respond } from './http'
-import { inAccessibleProjects } from './project.service'
+import { assertCan, inAccessibleProjects, sessionCan } from './project.service'
 import { STORAGE_KEYS, load, save } from './storage.service'
 import { flagCasesForReview } from './test-case.service'
 
@@ -96,7 +96,7 @@ const requirements = () => load(STORAGE_KEYS.requirements, SEED_REQUIREMENTS)
 export const requirementsOf = (projectId: string): Requirement[] => requirements().filter((r) => r.projectId === projectId)
 
 /** GET /requirements (of the projects the signed-in user may open) */
-export const fetchRequirements = () => respond(() => inAccessibleProjects(requirements()))
+export const fetchRequirements = () => respond(() => (sessionCan('requirement.view') ? inAccessibleProjects(requirements()) : []))
 
 /** what a requirement says; a change here means the linked cases must be reviewed (type / priority / status don't) */
 const MEANING_FIELDS: { field: 'title' | 'description' | 'acceptanceCriteria'; label: string }[] = [
@@ -111,6 +111,7 @@ const MEANING_FIELDS: { field: 'title' | 'description' | 'acceptanceCriteria'; l
  */
 export const saveRequirement = (input: RequirementInput) =>
   respond<RequirementChangeResult>(() => {
+    assertCan('requirement.edit', input.projectId)
     const list = requirements()
     const now = new Date().toISOString()
     if (list.some((r) => r.projectId === input.projectId && r.code === input.code && r.id !== input.id)) {
@@ -137,6 +138,7 @@ export const deleteRequirement = (id: string) =>
     const list = requirements()
     const target = list.find((r) => r.id === id)
     if (!target) throw new ApiError('ไม่พบ Requirement', 404)
+    assertCan('requirement.delete', target.projectId)
     save(STORAGE_KEYS.requirements, list.filter((r) => r.id !== id))
     return { flaggedCases: flagCasesForReview(target, `${target.code} ถูกลบ`) }
   })

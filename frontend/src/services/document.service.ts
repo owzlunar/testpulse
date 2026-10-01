@@ -7,7 +7,7 @@ import { isOpenDefect } from './defect.service'
 import { ApiError, newId, respond } from './http'
 import { casesForRequirement, coverageStatus, requirementText } from './requirement.service'
 import { resultOf } from './run.service'
-import { inAccessibleProjects } from './project.service'
+import { assertCan, inAccessibleProjects, sessionCan } from './project.service'
 import { STORAGE_KEYS, load, save } from './storage.service'
 import { isOverdue, statusOf } from './test-case.service'
 
@@ -152,11 +152,12 @@ const write = (list: DocumentRecord[], doc: DocumentRecord) => {
 }
 
 /** GET /documents */
-export const fetchDocuments = () => respond(() => inAccessibleProjects(documents()))
+export const fetchDocuments = () => respond(() => (sessionCan('document.view') ? inAccessibleProjects(documents()) : []))
 
 /** POST /documents (the server collects the data and freezes it in `snapshot`) */
 export const generateDocument = (req: DocumentRequest, createdBy: string) =>
   respond(() => {
+    assertCan('document.create', req.projectId)
     const now = new Date().toISOString()
     const snapshot = buildSnapshot(req)
     // Release gatekeeper: a release with open risks can't be fully accepted
@@ -174,6 +175,7 @@ export const regenerateDocument = (id: string) =>
   respond(() => {
     const list = documents()
     const doc = find(list, id)
+    assertCan('document.create', doc.projectId)
     Object.assign(doc, {
       snapshot: buildSnapshot(doc),
       version: doc.version + 1,
@@ -187,7 +189,9 @@ export const regenerateDocument = (id: string) =>
 export const updateDocument = (id: string, patch: Partial<Pick<DocumentRecord, 'title' | 'docNumber' | 'signatories' | 'uat' | 'status'>>) =>
   respond(() => {
     const list = documents()
-    return write(list, Object.assign(find(list, id), patch))
+    const doc = find(list, id)
+    assertCan('document.create', doc.projectId)
+    return write(list, Object.assign(doc, patch))
   })
 
 /** POST /documents/:id/signatures/:index  { decision, comment } */
@@ -195,6 +199,7 @@ export const signDocument = (id: string, index: number, decision: 'signed' | 're
   respond(() => {
     const list = documents()
     const doc = find(list, id)
+    assertCan('document.sign', doc.projectId)
     const signer: Signatory | undefined = doc.signatories[index]
     if (!signer) throw new ApiError('ไม่พบผู้ลงนาม', 404)
     Object.assign(signer, { status: decision, signedAt: new Date().toISOString(), comment })
@@ -206,6 +211,7 @@ export const signDocument = (id: string, index: number, decision: 'signed' | 're
 export const deleteDocument = (id: string) =>
   respond(() => {
     const list = documents()
+    assertCan('document.create', find(list, id).projectId)
     if (find(list, id).status === 'signed') throw new ApiError('เอกสารที่ลงนามแล้วลบไม่ได้', 409)
     save(STORAGE_KEYS.documents, list.filter((d) => d.id !== id))
   })
@@ -214,4 +220,9 @@ export const deleteDocument = (id: string) =>
 export const fetchDocumentTemplate = () => respond(() => ({ ...DEFAULT_TEMPLATE, ...load(STORAGE_KEYS.documentTemplate, DEFAULT_TEMPLATE) }))
 
 /** PUT /organization/document-template */
-export const saveDocumentTemplate = (tpl: DocumentTemplate) => respond(() => (save(STORAGE_KEYS.documentTemplate, tpl), tpl))
+export const saveDocumentTemplate = (tpl: DocumentTemplate) =>
+  respond(() => {
+    assertCan('document.create')
+    save(STORAGE_KEYS.documentTemplate, tpl)
+    return tpl
+  })

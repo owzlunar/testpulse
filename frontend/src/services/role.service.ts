@@ -1,5 +1,6 @@
 import type { Option, PermissionKey, Role, RoleDiscipline, RoleInput, Tone, User } from '@/types'
 import { ApiError, newId, respond } from './http'
+import { assertCan } from './project.service'
 import { STORAGE_KEYS, load, save } from './storage.service'
 
 // Role groups and the permission catalog. Users without a role see only the dashboard and settings;
@@ -166,6 +167,7 @@ export const fetchRoles = () => respond(roles)
  */
 export const saveRole = (input: RoleInput) =>
   respond(() => {
+    assertCan('admin')
     const list = roles()
     const name = input.name.trim()
     if (!name) throw new ApiError('ต้องระบุชื่อ Role', 422)
@@ -191,6 +193,7 @@ export const saveRole = (input: RoleInput) =>
  */
 export const deleteRole = (id: string, moveTo: string | null) =>
   respond(() => {
+    assertCan('admin')
     const list = roles()
     const role = list.find((r) => r.id === id)
     if (!role) throw new ApiError('ไม่พบ Role', 404)

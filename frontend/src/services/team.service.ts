@@ -1,5 +1,6 @@
 import type { Project, Team, TeamInput } from '@/types'
 import { ApiError, newId, respond } from './http'
+import { assertCan } from './project.service'
 import { STORAGE_KEYS, load, save } from './storage.service'
 
 // Teams (Admin only). A project lists the teams that may open it; a user can be in several teams.
@@ -36,6 +37,7 @@ export const fetchTeams = () => respond(teams)
 /** POST /teams · PUT /teams/:id (Admin only); names are unique */
 export const saveTeam = (input: TeamInput) =>
   respond(() => {
+    assertCan('admin')
     const list = teams()
     const name = input.name.trim()
     if (!name) throw new ApiError('ต้องระบุชื่อทีม', 422)
@@ -60,6 +62,7 @@ export const saveTeam = (input: TeamInput) =>
  */
 export const deleteTeam = (id: string) =>
   respond(() => {
+    assertCan('admin')
     const list = teams()
     if (!list.some((t) => t.id === id)) throw new ApiError('ไม่พบทีม', 404)
     save(STORAGE_KEYS.teams, list.filter((t) => t.id !== id))

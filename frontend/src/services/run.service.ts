@@ -3,7 +3,7 @@ import type {
 } from '@/types'
 import { addDays, todayISO } from '@/utils/date'
 import { ApiError, newId, respond } from './http'
-import { inAccessibleProjects } from './project.service'
+import { assertCan, inAccessibleProjects, sessionCan } from './project.service'
 import { STORAGE_KEYS, load, save } from './storage.service'
 import { patchStoredCase, storedCase } from './test-case.service'
 
@@ -123,11 +123,12 @@ export function detachRunCases(projectId: string, caseIds: string[]) {
 export const runsOf = (projectId: string): TestRun[] => runs().filter((r) => r.projectId === projectId)
 
 /** GET /test-runs (of the projects the signed-in user may open) */
-export const fetchRuns = () => respond(() => inAccessibleProjects(runs()))
+export const fetchRuns = () => respond(() => (sessionCan('run.view') ? inAccessibleProjects(runs()) : []))
 
 /** POST /projects/:projectId/test-runs (the server snapshots the selected cases) */
 export const createRun = (input: TestRunInput, cases: TestCase[], createdBy: string) =>
   respond(() => {
+    assertCan('run.create', input.projectId)
     const run: TestRun = {
       id: newId('run'), projectId: input.projectId, name: input.name, type: input.type, round: input.round,
       environment: input.environment, build: input.build, plannedStart: input.plannedStart, plannedEnd: input.plannedEnd,
@@ -142,7 +143,10 @@ export const createRun = (input: TestRunInput, cases: TestCase[], createdBy: str
 export const updateRun = (id: string, patch: Partial<Omit<TestRun, 'results'>>) =>
   respond(() => {
     const list = runs()
-    Object.assign(find(list, id), patch)
+    const run = find(list, id)
+    // closing a run is its own permission; other changes are planning
+    assertCan(patch.status === 'completed' && run.status !== 'completed' ? 'run.close' : 'run.create', run.projectId)
+    Object.assign(run, patch)
     save(STORAGE_KEYS.testRuns, list)
     return find(list, id)
   })
@@ -178,6 +182,7 @@ export const saveResult = (runId: string, result: RunResult, actor: Actor) =>
   respond<RunResultSaveResult>(() => {
     const list = runs()
     const run = find(list, runId)
+    assertCan('run.execute', run.projectId)
     if (run.status === 'completed') throw new ApiError('รอบนี้ปิดแล้ว แก้ไขผลไม่ได้', 409)
     const i = run.results.findIndex((r) => r.caseId === result.caseId)
     if (i < 0) throw new ApiError(`${result.caseId} ไม่อยู่ในรอบนี้`, 404)
@@ -204,4 +209,9 @@ export const saveResult = (runId: string, result: RunResult, actor: Actor) =>
   })
 
 /** DELETE /test-runs/:id */
-export const deleteRun = (id: string) => respond(() => save(STORAGE_KEYS.testRuns, runs().filter((r) => r.id !== id)))
+export const deleteRun = (id: string) =>
+  respond(() => {
+    const list = runs()
+    assertCan('run.create', find(list, id).projectId)
+    save(STORAGE_KEYS.testRuns, list.filter((r) => r.id !== id))
+  })

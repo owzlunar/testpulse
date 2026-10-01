@@ -1,6 +1,7 @@
 import type { User } from '@/types'
 import { ApiError, newId, respond } from './http'
 import { ADMIN_ROLE_ID } from './role.service'
+import { assertCan } from './project.service'
 import { STORAGE_KEYS, load, migrateOnce, save } from './storage.service'
 
 /** Default avatar for users added from the UI */
@@ -11,7 +12,7 @@ export const MOCK_USERS: User[] = [
     id: 'user-admin',
     name: 'ศุภชัย วัฒนา (Admin)',
     email: 'admin@testpulse.dev',
-    roleId: ADMIN_ROLE_ID,
+    roleId: 'role-admin', // ADMIN_ROLE_ID: a literal here, since services import each other (load order)
     title: 'System Administrator',
     avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
   },
@@ -51,7 +52,7 @@ export const MOCK_USERS: User[] = [
 
 // --- API ------------------------------------------------------------------------
 /** users saved before roles were editable had a fixed `role`: map it to the matching built-in role once */
-const LEGACY_ROLES: Record<string, string> = { ADMIN: ADMIN_ROLE_ID, DEV: 'role-dev', QA: 'role-qa-tester' }
+const LEGACY_ROLES: Record<string, string> = { ADMIN: 'role-admin', DEV: 'role-dev', QA: 'role-qa-tester' }
 
 function users(): User[] {
   migrateOnce('user-roles-v1', () => {
@@ -71,6 +72,8 @@ export const fetchUsers = () => respond(users)
 /** POST /users */
 export const createUser = (input: Omit<User, 'id'>) =>
   respond(() => {
+    // public sign-up can only create a user without a role; giving one is an Admin's job
+    if (input.roleId) assertCan('admin')
     const user: User = { ...input, id: newId('user') }
     save(STORAGE_KEYS.users, [...users(), user])
     return user
@@ -79,6 +82,7 @@ export const createUser = (input: Omit<User, 'id'>) =>
 /** PATCH /users/:id */
 export const updateUser = (id: string, patch: Partial<User>) =>
   respond(() => {
+    assertCan('admin')
     const list = users()
     const user = list.find((u) => u.id === id)
     if (!user) throw new ApiError('ไม่พบผู้ใช้', 404)
