@@ -362,16 +362,31 @@ export interface AuditTrailEntry {
 
 export type NotificationType = 'MODIFIED' | 'EXPIRING' | 'STATUS_CHANGED' | 'SYSTEM'
 
+/** Who a notification is for. Without one it goes to everyone who can open its project. */
+export interface NotificationAudience {
+  /** these people (e.g. the developer assigned to the case) */
+  userIds?: string[]
+  /** everyone whose role works on this side (e.g. all QA when nobody is assigned) */
+  disciplines?: RoleDiscipline[]
+}
+
 export interface NotificationItem {
   id: string
   type: NotificationType
   title: string
   message: string
   timestamp: string
+  /** read by the signed-in user (the server works it out from readBy) */
   read: boolean
   projectId?: string
   testCaseId?: string
   severity: 'info' | 'warning' | 'error' | 'success'
+  to?: NotificationAudience
+  /** who caused it: not notified of their own action unless named in `to.userIds` */
+  fromUserId?: string
+  /** read / removed per person */
+  readBy?: string[]
+  hiddenFor?: string[]
 }
 
 export interface ProjectStats {

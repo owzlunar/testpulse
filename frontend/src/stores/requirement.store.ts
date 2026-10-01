@@ -4,6 +4,7 @@ import type { Requirement, RequirementInput, TestCase } from '@/types'
 import * as api from '@/services/requirement.service'
 import { requirementText } from '@/services/requirement.service'
 import { useAuditStore } from './audit.store'
+import { useAuthStore } from './auth.store'
 import { useNotificationStore } from './notification.store'
 import { useProjectStore } from './project.store'
 import { useTestCaseStore } from './test-case.store'
@@ -43,6 +44,11 @@ export const useRequirementStore = defineStore('requirement', () => {
     return `REQ-${key}-${String(max + 1).padStart(2, '0')}`
   }
 
+  const qaOf = (cases: TestCase[]) => {
+    const ids = useAuthStore().userIdsByName(...cases.map((c) => c.assignedTo))
+    return ids.length ? { userIds: ids } : { disciplines: ['qa' as const] }
+  }
+
   /** show the cases the server flagged for review and tell the team */
   function applyFlags(code: string, projectId: string, flagged: TestCase[], what: string) {
     if (!flagged.length) return
@@ -52,6 +58,8 @@ export const useRequirementStore = defineStore('requirement', () => {
       title: `Requirement ${code} ${what}`,
       message: `Test Case ${flagged.length} รายการต้องทบทวน: ${flagged.map((c) => c.id).join(', ')}`,
       projectId,
+      // the QA assigned to those cases, or every QA when none is
+      to: qaOf(flagged),
       severity: 'warning',
     })
   }

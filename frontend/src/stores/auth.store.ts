@@ -75,6 +75,9 @@ export const useAuthStore = defineStore('auth', () => {
     })
   }
 
+  /** user ids for names stored on records (cases keep the assigned QA / developer by name) */
+  const userIdsByName = (...names: (string | undefined | null)[]) => users.value.filter((u) => names.includes(u.name)).map((u) => u.id)
+
   /** teams of a user (a user can be in several) */
   const teamsOf = (userId: string) => teams.value.filter((t) => t.memberIds.includes(userId))
 
@@ -163,6 +166,7 @@ export const useAuthStore = defineStore('auth', () => {
     currentUser,
     teamsOf,
     membersOf,
+    userIdsByName,
     switchUser,
     saveTeam,
     deleteTeam,

@@ -6,6 +6,7 @@ import { STATUSES } from '@/services/test-case.service'
 import { downloadMarkdownFile, generateProjectMarkdown } from '@/services/export.service'
 import { todayISO } from '@/utils/date'
 import { useAuditStore } from './audit.store'
+import { useAuthStore } from './auth.store'
 import { useNotificationStore } from './notification.store'
 import { useRequirementStore } from './requirement.store'
 import { useTestCaseStore } from './test-case.store'
@@ -140,7 +141,14 @@ export const useProjectStore = defineStore('project', () => {
       targetTitle: project.name,
       details: `ส่งออก Test Case ของ ${project.name} เป็น Obsidian Markdown (.md)`,
     })
-    notify.add({ type: 'SYSTEM', title: 'ส่งออกเอกสารสำเร็จ', message: `ดาวน์โหลด ${filename} แล้ว`, projectId: project.id, severity: 'success' })
+    notify.add({
+      type: 'SYSTEM',
+      title: 'ส่งออกเอกสารสำเร็จ',
+      message: `ดาวน์โหลด ${filename} แล้ว`,
+      projectId: project.id,
+      severity: 'success',
+      to: { userIds: [useAuthStore().currentUser.id] }, // a confirmation for the exporter only
+    })
     return filename
   }
 

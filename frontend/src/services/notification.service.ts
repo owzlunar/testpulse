@@ -1,6 +1,8 @@
-import type { NotificationItem, NotificationType, Option, Tone } from '@/types'
+import type { NotificationItem, NotificationType, Option, Role, Tone, User } from '@/types'
 import { respond } from './http'
-import { inAccessibleProjects, sessionCan } from './project.service'
+import { inAccessibleProjects } from './project.service'
+import { roleById } from './role.service'
+import { sessionUser } from './user.service'
 import { STORAGE_KEYS, load, update } from './storage.service'
 import { SEED_NOTIFICATIONS } from './seeds/notifications.seed'
 
@@ -38,21 +40,55 @@ export function detachNotificationCases(projectId: string, caseIds: string[]) {
   )
 }
 
-/** GET /notifications */
-export const fetchNotifications = () =>
-  respond(() => (sessionCan('notification.receive') ? inAccessibleProjects(load(STORAGE_KEYS.notifications, SEED_NOTIFICATIONS)) : []))
+/**
+ * Is this notification for the user? Their role must receive notifications; it is for everyone
+ * (who can open the project) without an audience, otherwise for the people / disciplines named.
+ * The sender does not get their own broadcast. Shared by the server (lists) and the client (live add).
+ */
+export function notificationIsFor(n: NotificationItem, user: User | null, role: Role | null): boolean {
+  if (!user || !role) return false
+  if (role.builtIn !== 'admin' && !role.permissions.includes('notification.receive')) return false
+  if (n.hiddenFor?.includes(user.id)) return false
+  if (n.to?.userIds?.includes(user.id)) return true
+  if (n.fromUserId === user.id) return false
+  if (!n.to) return true
+  return !!n.to.disciplines?.includes(role.discipline)
+}
 
-/** POST /notifications (on the real backend the server pushes these) */
-export const createNotification = (item: NotificationItem) => respond(() => void write((items) => [item, ...items]), 50)
+/** server-side: the notifications of the signed-in user, with `read` worked out for them */
+function mine(): NotificationItem[] {
+  const user = sessionUser()
+  const role = roleById(user?.roleId)
+  return inAccessibleProjects(load(STORAGE_KEYS.notifications, SEED_NOTIFICATIONS))
+    .filter((n) => notificationIsFor(n, user, role))
+    .map((n) => ({ ...n, read: !!user && !!n.readBy?.includes(user.id) }))
+}
 
-/** PATCH /notifications/:id/read */
-export const markNotificationRead = (id: string) => respond(() => void write((items) => items.forEach((n) => n.id === id && (n.read = true))), 100)
+/** server-side: change the given notifications for the signed-in user only */
+function forMe(ids: string[] | 'all', change: (n: NotificationItem, userId: string) => void) {
+  const user = sessionUser()
+  if (!user) return
+  const visible = new Set(mine().map((n) => n.id))
+  write((items) => items.forEach((n) => visible.has(n.id) && (ids === 'all' || ids.includes(n.id)) && change(n, user.id)))
+}
+
+const addTo = (list: string[] | undefined, userId: string) => [...new Set([...(list ?? []), userId])]
+
+/** GET /notifications (the signed-in user's, read state per person) */
+export const fetchNotifications = () => respond(mine)
+
+/** POST /notifications (on the real backend the server creates these itself) */
+export const createNotification = (item: NotificationItem) =>
+  respond(() => void write((items) => [{ ...item, read: false, readBy: [], hiddenFor: [] }, ...items]), 50)
+
+/** PATCH /notifications/:id/read (for the signed-in user only) */
+export const markNotificationRead = (id: string) => respond(() => forMe([id], (n, me) => (n.readBy = addTo(n.readBy, me))), 100)
 
 /** POST /notifications/read-all */
-export const markAllNotificationsRead = () => respond(() => void write((items) => items.forEach((n) => (n.read = true))))
+export const markAllNotificationsRead = () => respond(() => forMe('all', (n, me) => (n.readBy = addTo(n.readBy, me))))
 
-/** DELETE /notifications/:id */
-export const deleteNotification = (id: string) => respond(() => void write((items) => items.filter((n) => n.id !== id)), 100)
+/** DELETE /notifications/:id (removes it from the signed-in user's list; others keep it) */
+export const deleteNotification = (id: string) => respond(() => forMe([id], (n, me) => (n.hiddenFor = addTo(n.hiddenFor, me))), 100)
 
-/** DELETE /notifications */
-export const clearNotifications = () => respond(() => void write(() => []))
+/** DELETE /notifications (clears the signed-in user's list) */
+export const clearNotifications = () => respond(() => forMe('all', (n, me) => (n.hiddenFor = addTo(n.hiddenFor, me))))

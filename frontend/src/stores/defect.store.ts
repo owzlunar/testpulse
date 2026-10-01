@@ -41,6 +41,12 @@ export const useDefectStore = defineStore('defect', () => {
     else defects.value.unshift(d)
   }
 
+  /** the developer the defect is assigned to, or every developer when unassigned */
+  const assigneeOf = (name?: string) => {
+    const ids = auth.userIdsByName(name)
+    return ids.length ? { userIds: ids } : { disciplines: ['dev' as const] }
+  }
+
   async function save(input: DefectInput): Promise<Defect> {
     const saved = await api.saveDefect(input, auth.currentUser.name)
     replace(saved)
@@ -58,6 +64,7 @@ export const useDefectStore = defineStore('defect', () => {
         message: `${saved.title} · มอบหมาย ${saved.assignee || 'ทีม Dev'}`,
         projectId: saved.projectId,
         testCaseId: saved.caseId,
+        to: assigneeOf(saved.assignee),
         severity: saved.severity === 'critical' || saved.severity === 'major' ? 'error' : 'warning',
       })
     }

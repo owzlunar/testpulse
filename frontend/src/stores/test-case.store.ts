@@ -5,6 +5,8 @@ import type {
   Actor,
   AuditChange,
   CaseExpectation,
+  NotificationAudience,
+  RoleDiscipline,
   TestCase,
   TestCaseDraft,
   TestCaseInput,
@@ -58,6 +60,15 @@ export const useTestCaseStore = defineStore('testCase', () => {
   /** the signed-in user, sent with mutations (the real backend reads it from the session) */
   const actor = (): Actor => ({ id: auth.currentUser.id, name: auth.currentUser.name, avatar: auth.currentUser.avatar })
 
+  /**
+   * who hears about a case: its assigned QA and / or developer; when nobody on that side is assigned,
+   * everyone on that side (discipline). Project-wide news (new / archived cases) has no audience.
+   */
+  function audienceOf(tc: TestCase, sides: RoleDiscipline[] = ['qa', 'dev']): NotificationAudience {
+    const ids = auth.userIdsByName(sides.includes('qa') ? tc.assignedTo : undefined, sides.includes('dev') ? tc.assignedDev : undefined)
+    return ids.length ? { userIds: ids } : { disciplines: sides }
+  }
+
   // --- queries ---------------------------------------------------------------
   /** everything except archived cases (lists, stats, coverage, new runs, search) */
   const activeCases = computed(() => testCases.value.filter((tc) => !tc.archivedAt))
@@ -96,7 +107,7 @@ export const useTestCaseStore = defineStore('testCase', () => {
     if (notify.notifications.some((n) => n.type === 'EXPIRING' && !n.read && n.testCaseId === tc.id)) return
 
     const left = daysFromToday(tc.expiryDate)
-    const base = { type: 'EXPIRING' as const, projectId: tc.projectId, testCaseId: tc.id }
+    const base = { type: 'EXPIRING' as const, projectId: tc.projectId, testCaseId: tc.id, to: audienceOf(tc) }
 
     if (left >= 0 && left <= expiryDaysThreshold) {
       notify.add({
@@ -152,6 +163,7 @@ export const useTestCaseStore = defineStore('testCase', () => {
       notify.add({
         type: 'STATUS_CHANGED',
         title: 'มี Test Case ใหม่รอ Dev พัฒนา',
+        to: audienceOf(tc, ['dev']),
         message: `${tc.id}: "${tc.name}" ${tc.assignedDev ? `มอบหมายให้ ${tc.assignedDev}` : 'รอ Developer รับงาน'} เมื่อเสร็จให้กด "ส่งมอบพร้อมเทส"`,
         projectId: tc.projectId,
         testCaseId: tc.id,
@@ -254,7 +266,7 @@ export const useTestCaseStore = defineStore('testCase', () => {
       changes,
     })
 
-    const base = { projectId: tc.projectId, testCaseId: tc.id }
+    const base = { projectId: tc.projectId, testCaseId: tc.id, to: audienceOf(tc) }
     const { alertOnModification, alertOnStatusChange } = settingsStore.settings
     if (!statusChanged) {
       if (alertOnModification)
@@ -264,6 +276,7 @@ export const useTestCaseStore = defineStore('testCase', () => {
     } else if (passInvalidated) {
       notify.add({
         ...base,
+        to: audienceOf(tc, ['qa']),
         type: 'STATUS_CHANGED',
         title: 'Test Case ต้องทดสอบใหม่',
         message: `${tc.id}: "${tc.name}" ถูกแก้ไขเป็น ${tc.version} หลังผ่านการทดสอบ ผลเดิมถูกยกเลิก`,
@@ -272,6 +285,7 @@ export const useTestCaseStore = defineStore('testCase', () => {
     } else if (tc.status === 'ready_for_test') {
       notify.add({
         ...base,
+        to: audienceOf(tc, ['qa']),
         type: 'STATUS_CHANGED',
         title: 'Dev ส่งมอบงาน พร้อมให้ทดสอบ',
         message: `${tc.id}: "${tc.name}" ส่งมอบโดย ${auth.currentUser.name} รอ QA ตรวจสอบ`,
@@ -280,6 +294,7 @@ export const useTestCaseStore = defineStore('testCase', () => {
     } else if (tc.status === 'failed') {
       notify.add({
         ...base,
+        to: audienceOf(tc, ['dev']),
         type: 'STATUS_CHANGED',
         title: 'Test Case ไม่ผ่านการทดสอบ',
         message: `${tc.id}: "${tc.name}" ไม่ผ่าน แจ้งเตือน ${tc.assignedDev || 'ทีม Dev'} ให้ตรวจสอบและแก้ไข`,
@@ -442,6 +457,7 @@ export const useTestCaseStore = defineStore('testCase', () => {
     notify.add({
       type: 'MODIFIED',
       title: 'ขยายกำหนดส่งมอบ',
+      to: audienceOf(tc),
       message: `${tc.id}: เลื่อนเป็น ${newDate} โดย ${auth.currentUser.name} — ${reason}`,
       projectId: tc.projectId,
       testCaseId: tc.id,

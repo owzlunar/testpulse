@@ -67,6 +67,8 @@ export const useDocumentStore = defineStore('document', () => {
     notify.add({
       type: 'SYSTEM',
       title: 'ส่งเอกสารขอลงนามแล้ว',
+      // signatories who have an account, and the requester as a confirmation
+      to: { userIds: [...useAuthStore().userIdsByName(...doc.signatories.map((sg) => sg.name)), useAuthStore().currentUser.id] },
       message: `${doc.docNumber} · ${doc.signatories.map((s) => s.name || s.role).join(', ')}`,
       projectId: doc.projectId,
       severity: 'info',
