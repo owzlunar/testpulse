@@ -208,12 +208,22 @@ export interface TestCase {
   /** e.g. "v1.0", "v1.1" */
   version: string
   versionHistory?: TestCaseVersionRecord[]
+  /** a linked requirement changed or was deleted after the case was written; cleared by a spec edit or "reviewed" */
+  reviewNeeded?: TestCaseReviewFlag
   /** archived (soft-deleted): hidden from lists, stats, coverage and new runs; keeps its id and references */
   archivedAt?: string
   archivedBy?: string
   activeUser?: ActiveUserPresence | null
   createdAt: string
   updatedAt: string
+}
+
+export interface TestCaseReviewFlag {
+  /** codes of the requirements that changed */
+  requirementCodes: string[]
+  /** latest change, e.g. "REQ-PAY-01 แก้ไข: ชื่อ, เกณฑ์การยอมรับ" */
+  reason: string
+  since: string
 }
 
 /** A parent case with its sub-cases */
@@ -351,6 +361,12 @@ export type RequirementType = 'functional' | 'non_functional' | 'business_rule'
 export type RequirementStatus = 'draft' | 'approved' | 'changed' | 'deprecated'
 /** derived from the linked cases */
 export type CoverageStatus = 'not_covered' | 'not_run' | 'in_progress' | 'failed' | 'passed'
+
+/** Saving / deleting a requirement: the cases the server flagged for review */
+export interface RequirementChangeResult {
+  requirement?: Requirement
+  flaggedCases: TestCase[]
+}
 
 export interface Requirement {
   id: string

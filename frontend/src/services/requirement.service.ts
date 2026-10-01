@@ -1,6 +1,7 @@
-import type { CoverageStatus, Option, Requirement, RequirementInput, RequirementStatus, RequirementType, TestCase } from '@/types'
+import type { CoverageStatus, Option, Requirement, RequirementChangeResult, RequirementInput, RequirementStatus, RequirementType, TestCase } from '@/types'
 import { ApiError, newId, respond } from './http'
 import { STORAGE_KEYS, load, save } from './storage.service'
+import { flagCasesForReview } from './test-case.service'
 
 export const REQUIREMENT_TYPES: Option<RequirementType>[] = [
   { value: 'functional', label: 'Functional', hint: 'ความสามารถของระบบ', tone: 'primary', icon: 'tabler:puzzle' },
@@ -96,9 +97,19 @@ export const requirementsOf = (projectId: string): Requirement[] => requirements
 /** GET /requirements */
 export const fetchRequirements = () => respond(requirements)
 
-/** POST /projects/:projectId/requirements · PUT /requirements/:id */
+/** what a requirement says; a change here means the linked cases must be reviewed (type / priority / status don't) */
+const MEANING_FIELDS: { field: 'title' | 'description' | 'acceptanceCriteria'; label: string }[] = [
+  { field: 'title', label: 'ชื่อ' },
+  { field: 'description', label: 'รายละเอียด' },
+  { field: 'acceptanceCriteria', label: 'เกณฑ์การยอมรับ' },
+]
+
+/**
+ * POST /projects/:projectId/requirements · PUT /requirements/:id
+ * When the meaning of an existing requirement changes, the server flags its linked cases for review.
+ */
 export const saveRequirement = (input: RequirementInput) =>
-  respond(() => {
+  respond<RequirementChangeResult>(() => {
     const list = requirements()
     const now = new Date().toISOString()
     if (list.some((r) => r.projectId === input.projectId && r.code === input.code && r.id !== input.id)) {
@@ -107,14 +118,24 @@ export const saveRequirement = (input: RequirementInput) =>
     if (input.id) {
       const i = list.findIndex((r) => r.id === input.id)
       if (i < 0) throw new ApiError('ไม่พบ Requirement', 404)
-      list[i] = { ...list[i], ...input, id: input.id, updatedAt: now }
+      const before = list[i]
+      list[i] = { ...before, ...input, id: input.id, updatedAt: now }
       save(STORAGE_KEYS.requirements, list)
-      return list[i]
+      const changed = MEANING_FIELDS.filter((m) => JSON.stringify(before[m.field]) !== JSON.stringify(list[i][m.field])).map((m) => m.label)
+      const flaggedCases = changed.length ? flagCasesForReview(list[i], `${list[i].code} แก้ไข: ${changed.join(', ')}`) : []
+      return { requirement: list[i], flaggedCases }
     }
     const created: Requirement = { ...input, id: newId('req'), createdAt: now, updatedAt: now }
     save(STORAGE_KEYS.requirements, [...list, created])
-    return created
+    return { requirement: created, flaggedCases: [] }
   })
 
-/** DELETE /requirements/:id */
-export const deleteRequirement = (id: string) => respond(() => save(STORAGE_KEYS.requirements, requirements().filter((r) => r.id !== id)))
+/** DELETE /requirements/:id (its linked cases are flagged for review: they lost what they test) */
+export const deleteRequirement = (id: string) =>
+  respond<RequirementChangeResult>(() => {
+    const list = requirements()
+    const target = list.find((r) => r.id === id)
+    if (!target) throw new ApiError('ไม่พบ Requirement', 404)
+    save(STORAGE_KEYS.requirements, list.filter((r) => r.id !== id))
+    return { flaggedCases: flagCasesForReview(target, `${target.code} ถูกลบ`) }
+  })

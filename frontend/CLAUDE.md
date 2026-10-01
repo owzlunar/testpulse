@@ -59,6 +59,7 @@ src
 - Test case ids restart per project (TC-101…): look cases up with `getById(id, projectId)`. Reordering renumbers ids; the service re-keys runs, defects, notifications and audit entries.
 - Removing a case means archiving it (`archivedAt`): `casesOf` / `activeCases` exclude archived cases (lists, stats, coverage, new runs, documents); `getById` still finds them (read-only). Permanent delete is only allowed from the archive and detaches references. Confirm both with `TestCaseRemoveDialog` (shows the impact).
 - A case's requirement is its linked `requirementIds`; show it with `requirementStore.textFor(tc)`. The free-text `requirement` is an optional note (required only when nothing is linked).
+- Changing what a requirement says (title, description, acceptance criteria) or deleting it flags its active linked cases (`reviewNeeded`); a spec edit or "ทบทวนแล้ว" (`markReviewed`) clears it. Each new version keeps a spec `snapshot` (no images); compare with `specDiff`, restore with `restoreVersion`.
 - Images: always pass uploads through `utils/image.ts` `compressImage()` (paste / drop / file).
 
 ## Exceptions to the colour rule

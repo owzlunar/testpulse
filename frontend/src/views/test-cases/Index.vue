@@ -160,6 +160,10 @@ function onRemove() {
   )
 }
 
+function onReviewed(tc: TestCase) {
+  run(() => store.markReviewed(tc.id, tc.projectId), () => notify(`${tc.id}: บันทึกว่าทบทวนแล้ว`))
+}
+
 function onRestore(tc: TestCase) {
   run(() => store.restore(tc.id, tc.projectId), () => notify(`กู้คืน ${tc.id} แล้ว`))
 }
@@ -242,6 +246,7 @@ watch(
       @edit="openEdit"
       @archive="askRemove($event, 'archive')"
       @restore="onRestore"
+      @reviewed="onReviewed"
       @purge="askRemove($event, 'delete')"
       @history="openHistory"
       @extend="openExtend"

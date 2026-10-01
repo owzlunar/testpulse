@@ -4,7 +4,9 @@ import type { Requirement, RequirementInput, TestCase } from '@/types'
 import * as api from '@/services/requirement.service'
 import { requirementText } from '@/services/requirement.service'
 import { useAuditStore } from './audit.store'
+import { useNotificationStore } from './notification.store'
 import { useProjectStore } from './project.store'
+import { useTestCaseStore } from './test-case.store'
 
 // Loaded on demand by the pages that need it (Requirements, case form, documents)
 export const useRequirementStore = defineStore('requirement', () => {
@@ -36,8 +38,23 @@ export const useRequirementStore = defineStore('requirement', () => {
     return `REQ-${key}-${String(max + 1).padStart(2, '0')}`
   }
 
+  /** show the cases the server flagged for review and tell the team */
+  function applyFlags(code: string, projectId: string, flagged: TestCase[], what: string) {
+    if (!flagged.length) return
+    useTestCaseStore().replaceMany(flagged)
+    useNotificationStore().add({
+      type: 'MODIFIED',
+      title: `Requirement ${code} ${what}`,
+      message: `Test Case ${flagged.length} รายการต้องทบทวน: ${flagged.map((c) => c.id).join(', ')}`,
+      projectId,
+      severity: 'warning',
+    })
+  }
+
   async function save(input: RequirementInput): Promise<Requirement> {
-    const saved = await api.saveRequirement(input)
+    const { requirement, flaggedCases } = await api.saveRequirement(input)
+    const saved = requirement!
+    applyFlags(saved.code, saved.projectId, flaggedCases, 'ถูกแก้ไข')
     const i = requirements.value.findIndex((r) => r.id === saved.id)
     if (i >= 0) requirements.value[i] = saved
     else requirements.value.push(saved)
@@ -53,8 +70,9 @@ export const useRequirementStore = defineStore('requirement', () => {
 
   async function remove(id: string) {
     const target = requirements.value.find((r) => r.id === id)
-    await api.deleteRequirement(id)
+    const { flaggedCases } = await api.deleteRequirement(id)
     requirements.value = requirements.value.filter((r) => r.id !== id)
+    if (target) applyFlags(target.code, target.projectId, flaggedCases, 'ถูกลบ')
     if (target) audit.record({ action: 'DELETE', targetType: 'PROJECT', targetId: target.code, targetTitle: target.title, details: `ลบ Requirement ${target.code}` })
   }
 

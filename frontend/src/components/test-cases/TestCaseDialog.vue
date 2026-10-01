@@ -248,6 +248,12 @@ const rules = { required }
           <v-window v-model="tab">
             <!-- SPEC -->
             <v-window-item value="spec" eager>
+              <v-alert v-if="testCase?.reviewNeeded" type="warning" variant="tonal" density="compact" icon="tabler:alert-circle" class="mb-4">
+                {{ testCase.reviewNeeded.reason }} หลังเขียนเคสนี้ ตรวจข้อกำหนดและขั้นตอนให้ตรงกับ Requirement
+                <template v-if="!readonly">
+                  บันทึกการแก้ไขแล้วสถานะนี้จะหายไป ถ้าไม่ต้องแก้ ให้เลือก "ทบทวนแล้ว" จากเมนูของเคส
+                </template>
+              </v-alert>
               <v-row dense class="fox-form-grid">
                 <v-col v-if="!isEdit || form.parentId" cols="12" sm="6">
                   <label class="fox-label" for="tc-parent">เคสหลัก (Parent)</label>

@@ -25,6 +25,7 @@ const emit = defineEmits<{
   create: []
   edit: [tc: TestCase]
   archive: [tc: TestCase]
+  reviewed: [tc: TestCase]
   restore: [tc: TestCase]
   purge: [tc: TestCase]
   'add-subcase': [parentId: string]
@@ -44,7 +45,7 @@ const { canCreate, canEdit, canDelete, canHandOff } = useTestCasePermissions()
 const view = ref<'active' | 'archive'>('active')
 
 // --- filters -----------------------------------------------------------------
-type StatusFilter = TestCaseStatus | 'OVERDUE' | 'PING_PONG'
+type StatusFilter = TestCaseStatus | 'OVERDUE' | 'PING_PONG' | 'NEEDS_REVIEW'
 const search = ref('')
 const status = ref<StatusFilter | null>(null)
 const priority = ref<TestCasePriority | null>(null)
@@ -52,6 +53,7 @@ const priority = ref<TestCasePriority | null>(null)
 const statusFilters = [
   { value: 'OVERDUE', label: 'เลยกำหนด (Overdue)', icon: 'tabler:clock-exclamation', tone: 'error' },
   { value: 'PING_PONG', label: 'แก้ซ้ำ > 1 รอบ', icon: 'tabler:flame', tone: 'caution' },
+  { value: 'NEEDS_REVIEW', label: 'ต้องทบทวน (Requirement เปลี่ยน)', icon: 'tabler:alert-circle', tone: 'warning' },
   ...STATUSES,
 ]
 
@@ -60,7 +62,8 @@ function matches(tc: TestCase): boolean {
   if (q && !`${tc.id} ${tc.name} ${requirementStore.textFor(tc)} ${tc.testScenario}`.toLowerCase().includes(q)) return false
   if (status.value === 'OVERDUE' && !isOverdue(tc)) return false
   if (status.value === 'PING_PONG' && !isHighChurn(tc)) return false
-  if (status.value && status.value !== 'OVERDUE' && status.value !== 'PING_PONG' && tc.status !== status.value) return false
+  if (status.value === 'NEEDS_REVIEW' && !tc.reviewNeeded) return false
+  if (status.value && !['OVERDUE', 'PING_PONG', 'NEEDS_REVIEW'].includes(status.value) && tc.status !== status.value) return false
   if (priority.value && tc.priority !== priority.value) return false
   return true
 }
@@ -390,7 +393,14 @@ function insertClass(list: string, index: number, length: number) {
                     <v-btn v-bind="menu" icon="tabler:dots-vertical" variant="text" size="small" :aria-label="`ตัวเลือก ${parent.id}`" />
                   </template>
                   <v-list>
-                    <v-list-item prepend-icon="tabler:history" title="ประวัติและ Audit" @click="emit('history', parent)" />
+                    <v-list-item
+                  v-if="parent.reviewNeeded && canEdit"
+                  prepend-icon="tabler:circle-check"
+                  title="ทบทวนแล้ว ไม่ต้องแก้ไข"
+                  base-color="warning"
+                  @click="emit('reviewed', parent)"
+                />
+                <v-list-item prepend-icon="tabler:history" title="ประวัติและ Audit" @click="emit('history', parent)" />
                     <v-list-item prepend-icon="tabler:calendar-time" title="ขอขยายเวลา" @click="emit('extend', parent)" />
                     <template v-if="canCreate">
                       <v-list-item prepend-icon="tabler:copy" title="ทำสำเนา (Clone)" @click="emit('clone', parent)" />
@@ -448,6 +458,16 @@ function insertClass(list: string, index: number, length: number) {
                       </div>
                       <div class="d-flex align-center ga-1 flex-shrink-0">
                         <TestCaseStatusMenu :status="sub.status" size="x-small" @change="setStatus(sub, $event)" />
+                        <v-btn
+                          v-if="sub.reviewNeeded && canEdit"
+                          icon="tabler:circle-check"
+                          variant="text"
+                          size="x-small"
+                          color="warning"
+                          :title="`ทบทวน ${sub.id} แล้ว ไม่ต้องแก้ไข`"
+                          :aria-label="`ทบทวน ${sub.id} แล้ว ไม่ต้องแก้ไข`"
+                          @click="emit('reviewed', sub)"
+                        />
                         <v-btn icon="tabler:history" variant="text" size="x-small" :aria-label="`ประวัติ ${sub.id}`" @click="emit('history', sub)" />
                         <v-btn icon="tabler:pencil" variant="text" size="x-small" color="primary" :aria-label="`เปิด ${sub.id}`" @click="emit('edit', sub)" />
                         <v-btn

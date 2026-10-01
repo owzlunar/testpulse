@@ -345,6 +345,21 @@ export const useTestCaseStore = defineStore('testCase', () => {
     testCases.value = testCases.value.filter((tc) => tc.projectId !== projectId)
   }
 
+  /** reviewed against the changed requirement: nothing to change in the case */
+  async function markReviewed(id: string, projectId: string) {
+    const { testCase: tc, cleared } = await api.markReviewed(projectId, id, actor())
+    replaceLocal(tc)
+    audit.record({
+      action: 'UPDATE',
+      targetType: 'TEST_CASE',
+      targetId: tc.id,
+      projectId: tc.projectId,
+      targetTitle: tc.name,
+      details: `ทบทวนตาม ${cleared.requirementCodes.join(', ')} แล้ว ไม่ต้องแก้ไขเคส`,
+    })
+    return tc
+  }
+
   /** bring back the spec of an earlier version as a new version (rules in the service) */
   async function restoreVersion(id: string, projectId: string, version: string) {
     return applyUpdate(await api.restoreVersion(projectId, id, version, actor()))
@@ -416,6 +431,6 @@ export const useTestCaseStore = defineStore('testCase', () => {
   return {
     testCases, activeCases,
     load, fromDraft, createMany, applyUpdate, replaceLocal, casesOf, treeOf, getById, nextId,
-    create, update, restoreVersion, archive, restore, remove, impactOf, archivedOf, removeProjectCases, extendDueDate, reorder, scanAllExpiries,
+    create, update, markReviewed, replaceMany, restoreVersion, archive, restore, remove, impactOf, archivedOf, removeProjectCases, extendDueDate, reorder, scanAllExpiries,
   }
 })

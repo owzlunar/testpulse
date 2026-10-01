@@ -207,6 +207,8 @@ export function applyCasePatch(old: TestCase, patch: Partial<TestCaseInput>, act
     version,
     versionHistory: newVersion ? [...(old.versionHistory ?? []), record] : old.versionHistory,
     activeUser: presenceOf(actor),
+    // editing the spec is the review a changed requirement asks for
+    reviewNeeded: specChanged ? undefined : old.reviewNeeded,
     createdAt: old.createdAt,
     updatedAt: now,
   }
@@ -669,6 +671,36 @@ export const restoreVersion = (projectId: string, id: string, version: string, a
     // keep the links the old text resolved to, rather than dropping explicit links
     const spec = specOf(withEffectiveLinks(snapshot, projectId, requirements))
     return patchStoredCase(projectId, id, { ...spec, changeSummary: `กู้คืนเนื้อหาจาก ${version}` }, actor)
+  })
+
+/**
+ * server-side: flag the active cases linked to a requirement that changed (or was deleted)
+ * so QA reviews them. Returns the flagged cases.
+ */
+export function flagCasesForReview(req: Requirement, reason: string): TestCase[] {
+  const list = testCases()
+  const since = new Date().toISOString()
+  const flagged = casesForRequirement(req, list.filter((x) => !x.archivedAt))
+  flagged.forEach((tc) => {
+    const codes = new Set([...(tc.reviewNeeded?.requirementCodes ?? []), req.code])
+    tc.reviewNeeded = { requirementCodes: [...codes], reason, since }
+  })
+  if (flagged.length) save(STORAGE_KEYS.testCases, list)
+  return flagged
+}
+
+/** POST /projects/:projectId/test-cases/:id/review (reviewed against the changed requirement: nothing to change) */
+export const markReviewed = (projectId: string, id: string, actor: Actor) =>
+  respond(() => {
+    const list = testCases()
+    const tc = list.find((x) => sameCase(x, projectId, id))
+    if (!tc) throw new ApiError(`ไม่พบ ${id}`, 404)
+    if (!tc.reviewNeeded) throw new ApiError(`${id} ไม่มีรายการที่ต้องทบทวน`, 409)
+    const cleared = tc.reviewNeeded
+    delete tc.reviewNeeded
+    Object.assign(tc, { activeUser: presenceOf(actor), updatedAt: new Date().toISOString() })
+    save(STORAGE_KEYS.testCases, list)
+    return { testCase: tc, cleared }
   })
 
 /** PATCH /projects/:projectId/test-cases/:id/due-date (reason required; a due date is not part of the spec: no new version) */
