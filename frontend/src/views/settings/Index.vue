@@ -60,6 +60,17 @@ function reset() {
         </v-card>
 
         <v-card class="fox-card-body">
+          <FoxCardHeader title="การแสดงผล" subtitle="การจัดวางหน้าจอ" />
+          <div class="mt-4">
+            <v-switch v-model="settings.stickyPageHeader" label="ตรึงหัวหน้าเพจไว้ด้านบนเมื่อเลื่อนหน้าจอ" hide-details />
+            <p class="text-caption text-muted">
+              ใช้กับหน้าที่ยาว (Test Cases, Requirements, Defects, Audit Logs) หัวข้อและปุ่มจะย่อลงเมื่อเกาะด้านบน
+              ทำงานบนจอกว้างตั้งแต่ 960px
+            </p>
+          </div>
+        </v-card>
+
+        <v-card class="fox-card-body">
           <FoxCardHeader title="ส่งออก Obsidian (.md)" subtitle="รูปแบบไฟล์ Markdown ที่ส่งออก" />
           <div class="d-flex flex-column mt-4">
             <v-checkbox v-model="settings.obsidianFrontmatter" label="ใส่ YAML Frontmatter (tags, metadata, สถิติ)" />

@@ -126,7 +126,7 @@ function exportRtm() {
 </script>
 
 <template>
-  <FoxPageHeader title="Requirements" :breadcrumbs="[{ title: 'Requirements' }]">
+  <FoxPageHeader sticky title="Requirements" :breadcrumbs="[{ title: 'Requirements' }]">
     <template #actions>
       <v-btn variant="outlined" prepend-icon="tabler:file-spreadsheet" @click="exportRtm">ส่งออก RTM</v-btn>
       <v-btn v-if="canCreate" color="primary" prepend-icon="tabler:plus" @click="openCreate">เพิ่ม Requirement</v-btn>

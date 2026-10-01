@@ -10,6 +10,8 @@ export interface AppSettings {
   obsidianFrontmatter: boolean
   obsidianCallouts: boolean
   obsidianWikilinks: boolean
+  /** long pages keep a compact page header under the app bar while scrolling (md and up) */
+  stickyPageHeader: boolean
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -20,6 +22,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   obsidianFrontmatter: true,
   obsidianCallouts: true,
   obsidianWikilinks: true,
+  stickyPageHeader: true,
 }
 
 /** GET /me/settings */

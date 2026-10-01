@@ -59,7 +59,7 @@ const roleOptions = computed(() => [...new Set([...ROLES.map((r) => r.value), ..
 </script>
 
 <template>
-  <FoxPageHeader title="Audit Logs" :breadcrumbs="[{ title: 'ผู้ดูแลระบบ' }, { title: 'Audit Logs' }]">
+  <FoxPageHeader sticky title="Audit Logs" :breadcrumbs="[{ title: 'ผู้ดูแลระบบ' }, { title: 'Audit Logs' }]">
     <template #actions>
       <v-chip color="primary" variant="tonal" class="fox-num">ทั้งหมด {{ sortedLogs.length }} รายการ</v-chip>
     </template>

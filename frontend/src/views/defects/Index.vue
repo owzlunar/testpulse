@@ -113,7 +113,7 @@ watch([() => route.query.id, loaded], ([id, isLoaded]) => {
 </script>
 
 <template>
-  <FoxPageHeader title="Defects" :breadcrumbs="[{ title: 'Defects' }]">
+  <FoxPageHeader sticky title="Defects" :breadcrumbs="[{ title: 'Defects' }]">
     <template #actions>
       <v-btn color="error" prepend-icon="tabler:bug" @click="openCreate">รายงาน Defect</v-btn>
     </template>
