@@ -34,7 +34,12 @@ watch(open, (isOpen) => {
   const src = props.role ?? props.preset
   Object.assign(form, empty(), src ? JSON.parse(JSON.stringify(src)) : {})
   if (!props.role) {
-    delete form.id
+    // a copy is a new, ordinary role: never the built-in Admin, whatever it was copied from
+    const copy = form as RoleInput & Partial<Pick<Role, 'builtIn' | 'createdAt' | 'updatedAt'>>
+    delete copy.id
+    delete copy.builtIn
+    delete copy.createdAt
+    delete copy.updatedAt
     if (props.preset) form.name = `${props.preset.name} (สำเนา)`
   }
 }, { immediate: true })

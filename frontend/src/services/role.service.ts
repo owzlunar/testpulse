@@ -1,7 +1,7 @@
 import type { Option, PermissionKey, Role, RoleDiscipline, RoleInput, Tone, User } from '@/types'
 import { ApiError, newId, respond } from './http'
 import { assertCan } from './project.service'
-import { STORAGE_KEYS, load, save } from './storage.service'
+import { STORAGE_KEYS, load, migrateOnce, save } from './storage.service'
 
 // Role groups and the permission catalog. Users without a role see only the dashboard and settings;
 // managing users, roles, teams and projects belongs to the built-in Admin role and is not grantable.
@@ -153,7 +153,16 @@ export const DEFAULT_ROLES: Role[] = [
 ]
 
 // --- API ------------------------------------------------------------------------
-const roles = () => load(STORAGE_KEYS.roles, DEFAULT_ROLES)
+function roles(): Role[] {
+  // roles copied from Admin before copies were sanitised carried builtIn: 'admin' (= Admin powers):
+  // only the real Admin role keeps it; the copy keeps its permissions as an ordinary role
+  migrateOnce('roles-single-admin-v1', () => {
+    const list = load(STORAGE_KEYS.roles, DEFAULT_ROLES)
+    list.forEach((r) => r.id !== ADMIN_ROLE_ID && delete r.builtIn)
+    save(STORAGE_KEYS.roles, list)
+  })
+  return load(STORAGE_KEYS.roles, DEFAULT_ROLES)
+}
 
 /** server-side: the stored role of a user (null: no role) */
 export const roleById = (id: string | null | undefined): Role | null => (id ? roles().find((r) => r.id === id) ?? null : null)
@@ -169,19 +178,21 @@ export const saveRole = (input: RoleInput) =>
   respond(() => {
     assertCan('admin')
     const list = roles()
-    const name = input.name.trim()
+    // builtIn is the server's to decide: there is exactly one Admin role, and no request can make another
+    const { builtIn: _ignored, ...fields } = input as RoleInput & { builtIn?: Role['builtIn'] }
+    const name = fields.name.trim()
     if (!name) throw new ApiError('ต้องระบุชื่อ Role', 422)
     if (list.some((r) => r.id !== input.id && r.name.toLowerCase() === name.toLowerCase())) throw new ApiError(`มี Role ชื่อ "${name}" อยู่แล้ว`, 409)
-    const permissions = ALL_PERMISSIONS.filter((k) => input.permissions.includes(k))
+    const permissions = ALL_PERMISSIONS.filter((k) => fields.permissions.includes(k))
     const now = new Date().toISOString()
     if (input.id) {
       const role = list.find((r) => r.id === input.id)
       if (!role) throw new ApiError('ไม่พบ Role', 404)
-      Object.assign(role, { ...input, name, permissions: role.builtIn ? ALL_PERMISSIONS : permissions, updatedAt: now })
+      Object.assign(role, { ...fields, name, permissions: role.builtIn ? ALL_PERMISSIONS : permissions, updatedAt: now })
       save(STORAGE_KEYS.roles, list)
       return role
     }
-    const created: Role = { ...input, id: newId('role'), name, permissions, createdAt: now, updatedAt: now }
+    const created: Role = { ...fields, id: newId('role'), name, permissions, createdAt: now, updatedAt: now }
     save(STORAGE_KEYS.roles, [...list, created])
     return created
   })
