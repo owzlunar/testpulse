@@ -37,7 +37,16 @@ if (secretsOnly >= 0) {
     'ENCRYPTION_CURRENT_KEY_ID=v1',
   ]
   // logins of the services the deployment uses, filled in by hand
-  const logins = ['# service logins, as needed', 'MINIO_ACCESS_KEY=', 'MINIO_SECRET_KEY=', 'SMTP_USER=', 'SMTP_PASSWORD=']
+  const logins = [
+    '# connections and logins, as needed',
+    'MONGODB_URI=',
+    'MINIO_ACCESS_KEY=',
+    'MINIO_SECRET_KEY=',
+    'SMTP_USER=',
+    'SMTP_PASSWORD=',
+    '# first start on an empty database (remove after the first sign-in)',
+    'INITIAL_ADMIN_PASSWORD=',
+  ]
   writeFileSync(target, [...lines, ...Object.entries(secrets).map(([k, v]) => `${k}=${v}`), ...logins, ''].join('\n'), { mode: 0o600 })
   console.log(`${target} created with new secrets (add the MinIO / SMTP logins it needs)`)
   process.exit(0)

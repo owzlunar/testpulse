@@ -14,12 +14,18 @@ BASE_URL=http://localhost:5173
 CORS_ORIGINS=
 TRUST_PROXY=1
 BODY_LIMIT=1mb
+# The first Admin, created by the first migration (`npm run migrate`, the container does it on start)
+# when the database has no Admin. Remove the password after the first sign-in.
+INITIAL_ADMIN_EMAIL=
+INITIAL_ADMIN_NAME=ผู้ดูแลระบบ
+INITIAL_ADMIN_PASSWORD=
+
 # requests per user/IP per 15 min (whole API) · sign-in / register / refresh / invite per IP per minute
 RATE_LIMIT_GLOBAL=1000
 RATE_LIMIT_AUTH=20
 
 # MongoDB 6+ replica set (transactions)
-MONGODB_URI=mongodb://127.0.0.1:27017/testpulse?replicaSet=rs0
+MONGODB_URI=mongodb://user:pass@127.0.0.1:27017/testpulse?authSource=admin&replicaSet=rs0&directConnection=true
 MAX_PAGE_SIZE=100
 # 0 = keep audit entries forever
 AUDIT_RETENTION_DAYS=0

@@ -71,6 +71,15 @@ export const userService = {
     return (await userRepository.updateById(id, patch))!
   },
 
+  /** someone can sign in as Admin */
+  hasActiveAdmin: async (): Promise<boolean> => (await userRepository.countActiveWithRole(ADMIN_ROLE_ID)) > 0,
+
+  /** the first Admin (migration): active right away with the given password */
+  async createAdmin(fields: Pick<UserFields, 'name' | 'email'>, passwordHash: string): Promise<User> {
+    await assertEmailFree(fields.email)
+    return userRepository.create({ ...fields, avatar: DEFAULT_AVATAR, roleId: ADMIN_ROLE_ID, status: 'active', passwordHash })
+  },
+
   /** sets the password and makes an invited account active */
   async setPassword(id: string, passwordHash: string): Promise<User> {
     const user = await userRepository.updateById(id, { passwordHash, status: 'active' })

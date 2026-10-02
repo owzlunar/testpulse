@@ -13,7 +13,8 @@ src
 |--- contract      types.ts: generated copy of frontend/src/types (npm run contract:sync), never edited here
 |--- app-modules.ts  the modules this API runs, in start-up order
 |--- index.ts      composition root (starts the server)
-|--- cli           seed, db-indexes, rotate-keys: built into dist/cli, run with node in the image
+|--- migrations    data migrations, listed in order in index.ts (core/database/migrations.ts runs them; the first one creates the first Admin from INITIAL_ADMIN_*)
+|--- cli           seed, db-indexes, migrate, preflight, rotate-keys: built into dist/cli, run with node in the image
 scripts            dev-only tools: make:module, contract, env:init
 tests              global setup (in-memory replica set), helpers, cross-module tests (access matrix)
 ```
@@ -36,7 +37,8 @@ tests              global setup (in-memory replica set), helpers, cross-module t
 - Imports: `#core/...`, `#modules/<name>/index.js`, `#contract/types.js` (package.json "imports"; the `source` condition points them at `src/` for tsx / Vitest / tsc); relative only inside a module. Always with the `.js` extension.
 - Express 5 forwards rejected promises: controllers are plain `async` functions, no try/catch wrappers.
 - Server-side logic the web app's mock does today (id generation, renumbering, snapshots, gatekeeper validation, re-keying references, notification audiences) moves into the module's service, with the same rules and messages.
-- Tests: HTTP tests per module in `__tests__` against the real in-memory MongoDB (`useTestDatabase()`, `buildApp()`, `client(app).as(userId)`, `seedDemo()`); add 401 / 403 cases to `tests/integration/access-matrix.test.ts` lists when a route is public or Admin-only.
+- Data that must change once per database (existing records, bootstrap data) goes in a migration: `src/migrations/<yyyymmdd>-<nn>-<module>-<what>.ts`, added at the end of `src/migrations/index.ts`; no down migrations. Indexes are not migrations (`db:indexes` builds them from the schemas).
+- Tests: HTTP tests per module in `__tests__` against a real MongoDB (the database in `.env.test`, else in-memory) (`useTestDatabase()`, `buildApp()`, `client(app).as(userId)`, `seedDemo()`); add 401 / 403 cases to `tests/integration/access-matrix.test.ts` lists when a route is public or Admin-only.
 
 ## Workflow
 

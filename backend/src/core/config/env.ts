@@ -90,6 +90,13 @@ const schema = Joi.object({
   CORS_ORIGINS: Joi.string().allow('').default(''),
   TRUST_PROXY: Joi.alternatives().try(Joi.boolean(), Joi.number(), Joi.string()).default(1),
   BODY_LIMIT: Joi.string().default('1mb'),
+  /**
+   * the first Admin, created by the first migration when the database has none (first start only;
+   * remove the password from the environment afterwards and change it in the app)
+   */
+  INITIAL_ADMIN_EMAIL: Joi.string().email({ tlds: false }).allow('').optional(),
+  INITIAL_ADMIN_NAME: Joi.string().max(120).default('ผู้ดูแลระบบ'),
+  INITIAL_ADMIN_PASSWORD: Joi.string().min(8).max(128).allow('').optional(),
   /** requests per user (or IP) per 15 minutes, whole API */
   RATE_LIMIT_GLOBAL: Joi.number().integer().min(1).default(1000),
   /** sign-in / register / refresh / invite requests per IP per minute */
@@ -127,6 +134,10 @@ if (isProduction) {
     throw new Error('Refusing to start in production with the example encryption key or blind index salt')
   }
   if (env.MAIL_DRIVER !== 'smtp') throw new Error('Refusing to start in production without MAIL_DRIVER=smtp (invites would never arrive)')
+  const initialPassword = (env.INITIAL_ADMIN_PASSWORD as string | undefined) ?? ''
+  if (initialPassword && (initialPassword.length < 12 || /^(password|admin|testpulse)\d*$/i.test(initialPassword))) {
+    throw new Error('INITIAL_ADMIN_PASSWORD is too weak for production: at least 12 characters, not a common word')
+  }
 }
 
 export const config = Object.freeze({
@@ -195,6 +206,11 @@ export const config = Object.freeze({
   trustProxy: env.TRUST_PROXY as boolean | number | string,
   bodyLimit: env.BODY_LIMIT as string,
   rateLimit: { global: env.RATE_LIMIT_GLOBAL as number, auth: env.RATE_LIMIT_AUTH as number },
+  initialAdmin: {
+    email: ((env.INITIAL_ADMIN_EMAIL as string | undefined) || null)?.toLowerCase() ?? null,
+    name: env.INITIAL_ADMIN_NAME as string,
+    password: (env.INITIAL_ADMIN_PASSWORD as string | undefined) || null,
+  },
 })
 
 export type Config = typeof config

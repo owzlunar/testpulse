@@ -19,7 +19,8 @@
 
 - supervisor รัน nginx และ API ส่วน API, ขั้นตรวจระบบ และ nginx workers รันเป็น user `testpulse` (ไม่ใช่ root)
 - ตอนเริ่ม container จะตรวจ MongoDB, ที่เก็บไฟล์ (MinIO หรือโฟลเดอร์ local), SMTP และโฟลเดอร์ log ก่อน ถ้าส่วนไหนเชื่อมต่อไม่ได้ container จะไม่ start และจะเขียนสาเหตุไว้ใน `docker logs testpulse`
-- จากนั้นสร้าง index ของฐานข้อมูล (ปิดได้ด้วย `RUN_DB_INDEXES=false`) แล้วจึงเปิดให้ใช้งาน
+- จากนั้นสร้าง index และรัน migration ที่ค้าง แล้วจึงเปิดให้ใช้งาน (ปิดได้ด้วย `RUN_DB_INDEXES=false` / `RUN_MIGRATIONS=false`)
+- ถ้าฐานยังไม่มี Admin จะสร้างคนแรกจาก `INITIAL_ADMIN_EMAIL` และ `INITIAL_ADMIN_PASSWORD` ถ้าไม่ได้ตั้งไว้ container จะไม่ start เพราะถ้าขึ้นมาก็จะไม่มีใครเข้าระบบได้
 - ถ้า API หรือ nginx ล้มซ้ำ 3 ครั้ง container จะหยุดตัวเองเพื่อให้ Docker หรือ orchestrator เริ่มใหม่
 
 ### รันในเครื่อง
@@ -27,7 +28,8 @@
 ```bash
 # ครั้งแรก: สร้าง secret (JWT keypair, encryption key, blind index salt) เก็บไว้ที่ docker/secrets.env (ไม่เข้า git)
 npm --prefix backend run env:init -- --secrets-only ../docker/secrets.env
-# แล้วเพิ่มรหัสของบริการในไฟล์เดียวกันตามที่ใช้: MINIO_ACCESS_KEY, MINIO_SECRET_KEY, SMTP_USER, SMTP_PASSWORD
+# แล้วกรอกในไฟล์เดียวกัน: MONGODB_URI (มีรหัสผ่านของฐาน), MINIO_ACCESS_KEY, MINIO_SECRET_KEY, SMTP_USER, SMTP_PASSWORD
+# และสำหรับการ start ครั้งแรกบนฐานว่าง: INITIAL_ADMIN_PASSWORD (ลบออกหลัง login ครั้งแรก)
 
 # เมลทดสอบ (Mailpit): SMTP :1025 และกล่องจดหมาย http://localhost:8025
 docker run -d --name mailpit --restart unless-stopped -p 1025:1025 -p 8025:8025 axllent/mailpit
@@ -45,14 +47,15 @@ docker logs -f testpulse
 | ตัวแปร | ค่าเริ่มต้นใน compose | หมายเหตุ |
 | --- | --- | --- |
 | `BASE_URL` | `http://localhost:8080` | URL ที่ผู้ใช้เปิด รวม sub path ถ้ามี เช่น `https://mydomain/testpulse` ใช้กับลิงก์เชิญ, CORS, path ของ cookie และ URL ไฟล์ |
-| `MONGODB_URI` | replica set บน host `:20001` | MongoDB 6+ แบบ replica set |
+| `MONGODB_URI` | (ใน `docker/secrets.env`) | MongoDB 6+ แบบ replica set เก็บใน secrets เพราะมี username/password อยู่ใน URI |
+| `INITIAL_ADMIN_EMAIL` / `INITIAL_ADMIN_NAME` | (ว่าง) / `ผู้ดูแลระบบ` | Admin คนแรกบนฐานว่าง รหัสผ่าน (`INITIAL_ADMIN_PASSWORD`) อยู่ใน `docker/secrets.env` ใน production ต้องยาวอย่างน้อย 12 ตัว |
 | `STORAGE_DRIVER` | `local` | `local` (เก็บที่โฟลเดอร์ `docker-data/uploads` ของ host) หรือ `minio` |
 | `MINIO_ENDPOINT` / `MINIO_PORT` / `MINIO_USE_SSL` / `MINIO_BUCKET` | MinIO บน host `:9001` | ใช้เมื่อ `STORAGE_DRIVER=minio` (bucket จะถูกสร้างให้ถ้ายังไม่มี) ส่วน `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` ใส่ใน `docker/secrets.env` |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE` / `MAIL_FROM` | Mailpit บน host `:1025` | ใช้ส่งอีเมลเชิญผู้ใช้ ถ้า server ต้อง login ให้ใส่ `SMTP_USER` / `SMTP_PASSWORD` ใน `docker/secrets.env` |
 | `COOKIE_SECURE` | `false` | ตั้ง `true` เมื่อเปิดผ่าน https |
 | `TRUST_PROXY` | `loopback` | ถ้ามี reverse proxy ข้างหน้า ให้เพิ่ม address ของ proxy ด้วย (เช่น `loopback, 10.0.0.0/8`) เพื่อให้ IP ใน log และ rate limit ถูกต้อง |
 | `LOG_LEVEL` / `LOG_RETENTION_DAYS` | `info` / `14` | ระดับ log ที่ console และจำนวนวันที่เก็บไฟล์ log |
-| `RUN_DB_INDEXES` | `true` | ตั้ง `false` ถ้าขั้น deploy อื่นสร้าง index ให้แล้ว |
+| `RUN_DB_INDEXES` / `RUN_MIGRATIONS` | `true` | ตั้ง `false` ถ้าขั้น deploy อื่นทำให้แล้ว |
 
 ค่าอื่นทั้งหมดอยู่ใน `backend/env-example`
 

@@ -8,6 +8,8 @@ import { roleService } from './role.service.js'
 export { ADMIN_ROLE_ID, ALL_PERMISSIONS } from './role.permissions.js'
 export const roles = {
   findById: roleService.findById,
+  /** the built-in Admin role exists and has every permission (migrations, start-up) */
+  ensureAdminRole: roleService.ensureAdminRole,
 }
 
 export const roleModule: AppModule = {

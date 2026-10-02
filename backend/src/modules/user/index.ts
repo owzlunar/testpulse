@@ -18,6 +18,8 @@ export const accounts = {
   register: userService.register,
   setPassword: userService.setPassword,
   existingIds: (ids: string[]) => userRepository.existingIds(ids),
+  hasActiveAdmin: userService.hasActiveAdmin,
+  createAdmin: userService.createAdmin,
 }
 
 export const userModule: AppModule = {

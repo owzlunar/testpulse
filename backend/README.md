@@ -14,7 +14,16 @@ npm run env:init     # สร้าง .env พร้อม secret ใหม่ 
 # แก้ .env: MONGODB_URI, STORAGE_DRIVER / MINIO_*, MAIL_*
 npm run db:indexes   # สร้าง index ทุก collection
 npm run seed         # ข้อมูลตัวอย่าง (id เดียวกับ mock ของ frontend) รหัสผ่านทุกคน: password123
+npm run migrate      # migration ที่ยังไม่ได้รัน (หลัง seed จะมี Admin แล้ว จึงไม่ต้องตั้ง INITIAL_ADMIN_*)
 npm run dev          # http://localhost:4000/api/v1
+```
+
+ถ้าไม่ใช้ข้อมูลตัวอย่าง ให้ตั้ง `INITIAL_ADMIN_EMAIL` และ `INITIAL_ADMIN_PASSWORD` แล้วรัน `npm run migrate` ระบบจะสร้าง Admin คนแรกด้วยรหัสนั้น (เฉพาะเมื่อฐานยังไม่มี Admin) หลัง login ครั้งแรกให้เปลี่ยนรหัสผ่านและลบ `INITIAL_ADMIN_PASSWORD` ออก
+
+**ฐานข้อมูลสำหรับ test:** ถ้ามีไฟล์ `.env.test` (ไม่เข้า git) ที่ตั้ง `TEST_MONGODB_URI` ไว้ test จะใช้ฐานนั้นและรันทีละไฟล์ ข้อมูลในฐานนั้นจะถูกล้างทุกครั้ง และชื่อฐานต้องมีคำว่า `test` ถ้าไม่มีไฟล์นี้ (เช่นใน CI) test จะใช้ MongoDB ใน memory
+
+```bash
+echo 'TEST_MONGODB_URI=mongodb://user:pass@localhost:27017/testpulse-test?authSource=admin&replicaSet=rs0&directConnection=true' > .env.test
 ```
 
 ตรวจสถานะ: `GET /health/live` (process ยังทำงาน) และ `GET /health/ready` (เชื่อม MongoDB ได้)
@@ -30,10 +39,11 @@ npm run dev          # http://localhost:4000/api/v1
 | `npm run dev`                              | รันพร้อม reload เมื่อแก้ไฟล์                                           |
 | `npm run build` / `npm start`              | build เป็น `dist/` แล้วรันแบบ production                               |
 | `npm run check`                            | ตรวจ contract, type, lint, format และรัน test ทั้งหมด (รันก่อน commit) |
-| `npm test` / `npm run test:coverage`       | test บน MongoDB จริง (in-memory replica set)                           |
+| `npm test` / `npm run test:coverage`       | test บน MongoDB จริง (ฐานใน `.env.test` หรือ in-memory replica set)    |
 | `npm run contract:sync` / `contract:check` | คัดลอก / ตรวจ type จาก `frontend/src/types`                            |
 | `npm run seed`                             | ใส่ข้อมูลตัวอย่าง (ไม่รันใน production)                                |
 | `npm run db:indexes`                       | สร้าง index ตาม schema (`--drop-stale` ลบ index ที่ไม่ใช้แล้ว)         |
+| `npm run migrate` / `migrate:status`       | รัน migration ที่ค้างอยู่ / ดูว่ารันอะไรไปแล้ว                         |
 | `npm run keys:rotate`                      | เข้ารหัสฟิลด์ใหม่ด้วยกุญแจปัจจุบัน (ดูหัวข้อความปลอดภัย)               |
 | `npm run make:module -- <ชื่อ>`            | สร้าง module ใหม่ตามแบบมาตรฐาน                                         |
 | `npm run env:init`                         | สร้าง `.env` จาก `env-example` พร้อม secret ใหม่                       |
@@ -61,7 +71,8 @@ src/
 │   └── <ชื่อ>/              model · repository · service · validation · controller · routes · seed · index.ts · __tests__
 ├── contract/types.ts        สำเนา type จาก frontend (ห้ามแก้ที่นี่)
 ├── app-modules.ts           รายการ module ที่เปิดใช้
-├── cli/                     seed, db-indexes, rotate-keys (build เป็น dist/cli ใช้ใน Docker image ได้)
+├── migrations/              migration ข้อมูล เรียงตามลำดับใน index.ts (ตัวแรกสร้าง Admin คนแรก)
+├── cli/                     seed, db-indexes, migrate, preflight, rotate-keys (build เป็น dist/cli ใช้ใน Docker image ได้)
 └── index.ts                 composition root
 ```
 

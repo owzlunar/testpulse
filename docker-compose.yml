@@ -5,7 +5,8 @@
 # `docker logs testpulse`. Override any value from the shell or a .env file next to this one,
 # e.g. STORAGE_DRIVER=minio docker compose up -d
 #
-# Secrets (JWT keypair, ENCRYPTION_KEY_*, BLIND_INDEX_SALT, MinIO keys, SMTP login) come from
+# Secrets (MONGODB_URI with its login, JWT keypair, ENCRYPTION_KEY_*, BLIND_INDEX_SALT, MinIO keys,
+# SMTP login, INITIAL_ADMIN_PASSWORD) come from
 # docker/secrets.env (git-ignored), created with:
 #   npm --prefix backend run env:init -- --secrets-only ../docker/secrets.env
 # Keep it: data is encrypted with these keys (use the same ones as any other API on the same database).
@@ -30,8 +31,12 @@ services:
       # plain http on localhost; true behind https
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
 
-      # MongoDB 6+ replica set
-      MONGODB_URI: ${MONGODB_URI:-mongodb://host.docker.internal:20001/testpulse?directConnection=true&replicaSet=dbrs}
+      # MongoDB 6+ replica set: MONGODB_URI carries the login, so it is in docker/secrets.env, e.g.
+      #   MONGODB_URI=mongodb://user:pass@host.docker.internal:27017/testpulse?authSource=admin&replicaSet=rs0&directConnection=true
+
+      # first start on an empty database: the first Admin (INITIAL_ADMIN_PASSWORD is in docker/secrets.env)
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-}
+      INITIAL_ADMIN_NAME: ${INITIAL_ADMIN_NAME:-ผู้ดูแลระบบ}
 
       # uploads: local (the host folder below) or minio
       STORAGE_DRIVER: ${STORAGE_DRIVER:-local}

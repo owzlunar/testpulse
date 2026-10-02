@@ -35,6 +35,11 @@ class UserRepository extends BaseRepository<UserDoc, User> {
     return UserModel.countDocuments({ roleId })
   }
 
+  /** users of the role who can sign in (not waiting for an invite) */
+  countActiveWithRole(roleId: string): Promise<number> {
+    return UserModel.countDocuments({ roleId, status: 'active' })
+  }
+
   private async toApiListAsync(query: Promise<{ toJSON(): unknown }[]>): Promise<User[]> {
     return this.toApiList(await query)
   }
