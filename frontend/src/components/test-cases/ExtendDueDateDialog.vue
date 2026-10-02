@@ -3,11 +3,11 @@ import { computed, ref, watch } from 'vue'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import type { VForm } from 'vuetify/components'
-import { EXTEND_REASONS, isOverdue, overdueDays } from '@/services/test-case.service'
 import { useTestCaseStore } from '@/stores/test-case.store'
 import type { TestCase } from '@/types'
 import { addDays, formatDateTH, todayISO } from '@/utils/date'
 import { required } from '@/utils/validators'
+import { EXTEND_REASONS, isOverdue, overdueDays } from '@/domain/test-case'
 
 // Reschedule a due date: reason category + note are mandatory and go to the audit trail
 const open = defineModel<boolean>({ default: false })

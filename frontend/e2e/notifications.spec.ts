@@ -33,7 +33,7 @@ test('reading a notification marks it read for that person only', async ({ page 
   /** what the API answers to the signed-in user for one notification */
   const readFor = (id: string) =>
     page.evaluate(async (nid) => {
-      const path = '/src/services/notification.service.ts' // served by the dev server
+      const path = '/src/api/mock/notification.ts' // served by the dev server
       const api = (await import(/* @vite-ignore */ path)) as { fetchNotifications: () => Promise<{ id: string; read: boolean }[]> }
       return (await api.fetchNotifications()).find((n) => n.id === nid)?.read
     }, id)

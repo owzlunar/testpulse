@@ -1,12 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { errorMessage } from '@/services/http'
 import { useAuditStore } from './audit.store'
 import { useAuthStore } from './auth.store'
 import { useNotificationStore } from './notification.store'
 import { useProjectStore } from './project.store'
 import { useSettingsStore } from './settings.store'
 import { useTestCaseStore } from './test-case.store'
+import { errorMessage } from '@/api/errors'
 
 // App start-up (initial API calls) and the global error toast
 export const useAppStore = defineStore('app', () => {

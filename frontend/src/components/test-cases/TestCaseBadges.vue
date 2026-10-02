@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { isHighChurn, isOverdue, overdueDays } from '@/services/test-case.service'
 import type { TestCase } from '@/types'
+import { isHighChurn, isOverdue, overdueDays } from '@/domain/test-case'
 
 // SLA / bottleneck flags: overdue, ping-pong churn, requirement changed, root cause
 defineProps<{ testCase: TestCase }>()

@@ -4,11 +4,11 @@ import { storeToRefs } from 'pinia'
 import FoxPageHeader from '@/components/ui/FoxPageHeader.vue'
 import FoxEmptyState from '@/components/ui/FoxEmptyState.vue'
 import FoxTablePagination from '@/components/ui/FoxTablePagination.vue'
-import { AUDIT_ACTIONS, auditActionOf } from '@/services/audit.service'
 import { useAuthStore } from '@/stores/auth.store'
 import { useAuditStore } from '@/stores/audit.store'
 import type { AuditAction } from '@/types'
 import { formatDateTime } from '@/utils/date'
+import { AUDIT_ACTIONS, auditActionOf } from '@/domain/audit'
 
 const { sortedLogs } = storeToRefs(useAuditStore())
 

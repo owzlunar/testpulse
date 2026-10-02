@@ -24,7 +24,7 @@ Design reference: Fox admin dashboard (`../../fox`, light + dark, blue primary).
 8. Forms: label above the field using `<label class="fox-label">`, fields use the defaults (outlined, comfortable).
 9. Sidebar: `<v-navigation-drawer class="fox-nav">`.
 10. Calendar events use `tone` (`primary|secondary|info|success|warning|caution|error`), not custom colors.
-11. Status / priority / role / project-status / milestone / audit-action colors and icons come from the `Option` lists in `services/*.service.ts` (`statusOf`, `priorityOf`, `roleOf`, ...). Never write a `switch (status)` color map in a component.
+11. Status / priority / role / project-status / milestone / audit-action colors and icons come from the `Option` lists in `domain/*.ts` (`statusOf`, `priorityOf`, `roleOf`, ...). Never write a `switch (status)` color map in a component.
 12. Gate actions by permission, never by role name: `auth.can('module.action')` (`useTestCasePermissions()` for test-case actions), `permission` / `adminOnly` on items in `router/navigation.ts`. Permission keys and their labels live in `PERMISSION_GROUPS` (`role.service.ts`); managing users, roles, teams and projects is `auth.isAdmin`. People pickers use the role's discipline (`auth.usersIn('qa' | 'dev')`).
 
 ## Structures
@@ -46,24 +46,33 @@ src
 ## Conventions
 
 - TypeScript everywhere. Components use `<script setup lang="ts">` with type-based `defineProps` / `defineEmits`. Shared types go in `src/types`.
-- Services: `xxx.service.ts` (e.g. `test-case.service.ts`). Stores: `xxx.store.ts` (Pinia setup stores, e.g. `calendar.store.ts`). Multi-word names are kebab-case.
+- API modules and domain helpers are named after the module (`api/mock/test-case.ts`, `domain/test-case.ts`). Stores: `xxx.store.ts` (Pinia setup stores, e.g. `calendar.store.ts`). Multi-word names are kebab-case.
 - Components use stores directly (`useProjectStore()` + `storeToRefs`); no thin wrapper composables.
 - Generic theme components: `components/ui/Fox*.vue`. Domain components: `components/<module>/<Domain>*.vue` (e.g. `test-cases/TestCaseDialog.vue`).
 - Long list pages use `<FoxPageHeader sticky>`: it sticks under the app bar (`--fox-appbar-height`) and turns compact (title `text-h5`, small buttons via `v-defaults-provider`); users can turn it off in Settings. Don't make page content its own scroll container.
 - Views: no `View`/`Page` suffix, grouped by module folder: `views/auth/Login.vue`. A module's first page is `Index.vue` (`views/test-cases/Index.vue`).
 - `npm run build` runs `vue-tsc` first; it must pass.
 
-## Mock API (no backend yet)
+## API: contract, mock, domain
 
-- `services/*.service.ts` **is the API contract**. Every async function there goes through `respond()` in `services/http.ts` (latency + deep copy) and has a JSDoc line naming its endpoint, e.g. `/** PUT /projects/:projectId/test-cases/:id */`. To connect the backend, replace the function body with a `fetch`; stores and pages don't change.
-- `services/storage.service.ts` is the mock database (LocalStorage). Only services touch it. Server-side logic (snapshot building, ID generation, gatekeeper validation) lives in the service too, as the backend will do it. Sync helpers named "server-side" (e.g. `renameRunCases`) are part of that logic, not endpoints.
+```
+src/api/contract/<module>.ts  the API contract: one interface per module, a JSDoc line per function naming its endpoint
+src/api/mock/<module>.ts      the mock server (LocalStorage): implements the contract, plus the server-side rules
+src/api/real/<module>.ts      calls the backend (fetch), same contract
+src/api/index.ts              picks mock or real per module; the only API stores and components import (`projectApi`, …)
+src/domain/<module>.ts        helpers the UI uses: Option lists, status / priority lookups, pure calculations
+```
+
+- Stores call `xApi` from `@/api` (`import { projectApi as api } from '@/api'`); components import helpers from `@/domain/...`. Nothing outside `src/api` imports `api/mock` or `api/real`, and `domain/` never imports either (ESLint rule).
+- A new endpoint: add it to the contract interface first (with its JSDoc endpoint line), then to both implementations; `satisfies Contract.XApi` makes vue-tsc fail when one is missing.
+- `api/mock/storage.ts` is the mock database (LocalStorage). Only the mock touches it. Server-side logic (snapshot building, ID generation, gatekeeper validation) lives in the mock too, as the backend does it. Sync helpers named "server-side" (e.g. `renameRunCases`) are part of that logic, not endpoints.
 - One-off fixes to stored demo data go through `migrateOnce()`; never re-apply them on every load.
 - Permissions are checked in the service too: start every mutation with `assertCan(key | keys | 'admin', projectId)`, filter list endpoints with `sessionCan(view key)` + `inAccessibleProjects()`. The UI checks (`auth.can`, router `meta.permission`) only hide what the server would refuse. The signed-in user is `sessionUser()`; switching user reloads the app (`auth.switchUser`).
 - Test case changes go through the store, which sends `expectOf(id)` and reloads on a 409 'stale' (`guardStale`); new case endpoints that act on one case take an optional `expected: CaseExpectation`.
-- Server rules have unit tests next to the service (`src/services/*.spec.ts`, `npm run test`); add one when you add or change a rule. `npm run check` = type-check, lint, format, unit tests.
+- The mock's server rules have unit tests next to it (`src/api/mock/*.spec.ts`, `npm run test`); add one when you add or change a rule. `npm run check` = type-check, lint, format, unit tests.
 - A new notification states who it is for: `to: audienceOf(tc, ['qa' | 'dev'])` in the test case store (assigned people, else that discipline), `{ userIds: [me] }` for confirmations; leave `to` out only for project-wide news.
-- Services import each other (e.g. role ↔ project ↔ user): use other services' exports inside functions only, never in top-level constants.
-- Business rules live in the service, not the store: case versioning / pass invalidation / churn (`applyCasePatch`), id assignment (`createTestCases`), run verdict -> case status (`saveResult` + `caseSyncBlock`). Mutations take an `Actor` (the backend reads it from the session). Stores call the endpoint, then update local state and record audit / alerts from the result (`testCaseStore.applyUpdate`).
+- Mock modules import each other (e.g. role ↔ project ↔ user): use other modules' exports inside functions only, never in top-level constants.
+- Business rules live in the mock server (and the backend), not the store: case versioning / pass invalidation / churn (`applyCasePatch`), id assignment (`createTestCases`), run verdict -> case status (`saveResult` + `caseSyncBlock`). Mutations take an `Actor` (the backend reads it from the session). Stores call the endpoint, then update local state and record audit / alerts from the result (`testCaseStore.applyUpdate`).
 - Test cases load one project at a time (`testCaseStore.ensureProject(id)`; selecting a project does it; `projectStore.currentCasesLoaded`). Anything about other projects uses `project.caseStats` from `fetchProjects` or a server endpoint (e.g. `searchTestCases`), never all cases in memory. Long lists page their items.
 - Stores: shell data is loaded once by `app.store.bootstrap()`; module data (requirements, runs, defects, documents) is loaded lazily with `ensureLoaded()` and pages show `FoxPageSkeleton` until `loaded`.
 - Mutations are `async` and throw `ApiError`. Call them through `useAsyncAction()` (`busy` for button/dialog loading, errors go to the global toast in `App.vue`).
@@ -76,7 +85,7 @@ src
 
 ## Exceptions to the colour rule
 
-- Exported files (`export.service.ts`: Obsidian Markdown, Word `.doc`) carry their own fixed styles. App UI never does.
+- Exported files (`domain/export.ts`: Obsidian Markdown, Word `.doc`) carry their own fixed styles. App UI never does.
 - `DocumentPaper.vue` renders inside `class="v-theme--light"` so a document always looks like paper, even in dark mode.
 
 ## Workflow

@@ -9,12 +9,12 @@ import FoxConfirmDialog from '@/components/ui/FoxConfirmDialog.vue'
 import DocumentPaper from '@/components/documents/DocumentPaper.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useSnackbar } from '@/composables/useSnackbar'
-import { documentStatusOf, documentTypeOf, uatDecisionOf } from '@/services/document.service'
-import { downloadWordDocument } from '@/services/export.service'
 import { useAuthStore } from '@/stores/auth.store'
 import { useDocumentStore } from '@/stores/document.store'
 import { useProjectStore } from '@/stores/project.store'
 import { formatDateTime, formatRelative } from '@/utils/date'
+import { documentStatusOf, documentTypeOf, uatDecisionOf } from '@/domain/document'
+import { downloadWordDocument } from '@/domain/export'
 
 const auth = useAuthStore()
 

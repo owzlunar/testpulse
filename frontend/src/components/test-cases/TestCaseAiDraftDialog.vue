@@ -3,11 +3,12 @@ import { computed, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import FoxEmptyState from '@/components/ui/FoxEmptyState.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { draftKindOf, draftTestCases, type DraftOptions } from '@/services/ai.service'
-import { PRIORITIES } from '@/services/test-case.service'
 import { useProjectStore } from '@/stores/project.store'
 import { useTestCaseStore } from '@/stores/test-case.store'
 import type { TestCaseDraft } from '@/types'
+import { aiApi } from '@/api'
+import { draftKindOf, type DraftOptions } from '@/domain/ai'
+import { PRIORITIES } from '@/domain/test-case'
 
 // Requirement in -> reviewed drafts out. Nothing is saved until QA picks the drafts to keep.
 const open = defineModel<boolean>({ default: false })
@@ -46,7 +47,7 @@ const knownRequirements = computed(() => [...new Set(currentCases.value.map((c) 
 
 function generate() {
   generating.run(
-    () => draftTestCases(requirementText.value, options),
+    () => aiApi.draftTestCases(requirementText.value, options),
     (result) => {
       drafts.value = result.map((d) => ({ ...d, requirementIds: props.requirementIds, keep: true }))
       expanded.value = []

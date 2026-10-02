@@ -1,15 +1,16 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { DocumentRecord, DocumentRequest, DocumentTemplate } from '@/types'
-import * as api from '@/services/document.service'
 import { useAuditStore } from './audit.store'
 import { useAuthStore } from './auth.store'
 import { useNotificationStore } from './notification.store'
 import { useProjectStore } from './project.store'
+import { documentApi as api } from '@/api'
+import { DEFAULT_TEMPLATE, documentTypeOf } from '@/domain/document'
 
 export const useDocumentStore = defineStore('document', () => {
   const documents = ref<DocumentRecord[]>([])
-  const template = ref<DocumentTemplate>({ ...api.DEFAULT_TEMPLATE })
+  const template = ref<DocumentTemplate>({ ...DEFAULT_TEMPLATE })
   const loaded = ref(false)
   const projectStore = useProjectStore()
   const audit = useAuditStore()
@@ -51,7 +52,7 @@ export const useDocumentStore = defineStore('document', () => {
 
   async function generate(req: DocumentRequest) {
     const doc = replace(await api.generateDocument(req, auth.currentUser.name))
-    log(doc, `สร้างเอกสาร ${doc.docNumber} (${api.documentTypeOf(doc.type).label})`)
+    log(doc, `สร้างเอกสาร ${doc.docNumber} (${documentTypeOf(doc.type).label})`)
     return doc
   }
 

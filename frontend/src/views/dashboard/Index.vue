@@ -15,15 +15,15 @@ import ProjectDialog from '@/components/projects/ProjectDialog.vue'
 import TodoCard from '@/components/layout/TodoCard.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useSnackbar } from '@/composables/useSnackbar'
-import { auditActionOf } from '@/services/audit.service'
-import { PROJECT_STATUSES } from '@/services/project.service'
-import { STATUSES } from '@/services/test-case.service'
 import { useAuditStore } from '@/stores/audit.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { useProjectStore } from '@/stores/project.store'
 import type { Project, ProjectInput, ProjectStatus, TimelineItem } from '@/types'
 import { formatTime } from '@/utils/date'
 import { firstName, formatPercent } from '@/utils/format'
+import { auditActionOf } from '@/domain/audit'
+import { PROJECT_STATUSES } from '@/domain/project'
+import { STATUSES } from '@/domain/test-case'
 
 const route = useRoute()
 const router = useRouter()

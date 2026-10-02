@@ -14,14 +14,14 @@ import TestCasePriorityChip from '@/components/test-cases/TestCasePriorityChip.v
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useSnackbar } from '@/composables/useSnackbar'
 import { useTestCasePermissions } from '@/composables/useTestCasePermissions'
-import { defectStatusOf } from '@/services/defect.service'
-import { RESULT_STATUSES, deriveResult, resultOf, runCounts, runStatusOf, runTypeOf } from '@/services/run.service'
 import { useAuthStore } from '@/stores/auth.store'
 import { useDefectStore } from '@/stores/defect.store'
 import { useRunStore } from '@/stores/run.store'
 import { useTestCaseStore } from '@/stores/test-case.store'
 import type { DefectInput, DefectSeverity, ResultStatus, RunResult, TestCasePriority } from '@/types'
 import { formatDateTime } from '@/utils/date'
+import { defectStatusOf } from '@/domain/defect'
+import { RESULT_STATUSES, deriveResult, resultOf, runCounts, runStatusOf, runTypeOf } from '@/domain/run'
 
 const route = useRoute()
 const runStore = useRunStore()

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { requirementText } from '@/services/requirement.service'
-import { SPEC_FIELD_LABELS, specDiff } from '@/services/test-case.service'
 import { useRequirementStore } from '@/stores/requirement.store'
 import type { TestCase, TestCaseSpec, TestCaseVersionRecord, TestStep } from '@/types'
 import { formatDateTime } from '@/utils/date'
+import { requirementText } from '@/domain/requirement'
+import { SPEC_FIELD_LABELS, specDiff } from '@/domain/test-case'
 
 // One version's spec compared with the current case; optionally restores it (the host runs the restore)
 const open = defineModel<boolean>({ default: false })

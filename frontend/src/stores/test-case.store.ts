@@ -14,9 +14,6 @@ import type {
   TestCaseReorderResult,
   TestCaseUpdateResult,
 } from '@/types'
-import { ApiError } from '@/services/http'
-import * as api from '@/services/test-case.service'
-import { statusOf } from '@/services/test-case.service'
 import { addDays, daysFromToday, todayISO } from '@/utils/date'
 import { useAuditStore } from './audit.store'
 import { useAuthStore } from './auth.store'
@@ -24,6 +21,9 @@ import { useDefectStore } from './defect.store'
 import { useNotificationStore } from './notification.store'
 import { useRunStore } from './run.store'
 import { useSettingsStore } from './settings.store'
+import { testCaseApi as api } from '@/api'
+import { ApiError } from '@/api/errors'
+import { statusOf } from '@/domain/test-case'
 
 export const useTestCaseStore = defineStore('testCase', () => {
   const testCases = ref<TestCase[]>([])

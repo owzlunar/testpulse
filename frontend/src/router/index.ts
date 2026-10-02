@@ -1,9 +1,9 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { installLeaveGuard } from '@/composables/useUnsavedChanges'
-import { ApiError } from '@/services/http'
 import { useAppStore } from '@/stores/app.store'
 import { useAuthStore } from '@/stores/auth.store'
 import type { PermissionKey } from '@/types'
+import { ApiError } from '@/api/errors'
 
 declare module 'vue-router' {
   interface RouteMeta {

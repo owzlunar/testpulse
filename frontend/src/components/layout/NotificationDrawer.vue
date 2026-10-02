@@ -3,12 +3,12 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import FoxEmptyState from '@/components/ui/FoxEmptyState.vue'
-import { NOTIFICATION_TYPES, notificationTypeOf } from '@/services/notification.service'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useNotificationStore } from '@/stores/notification.store'
 import { useProjectStore } from '@/stores/project.store'
 import type { NotificationItem, NotificationType } from '@/types'
 import { formatRelative } from '@/utils/date'
+import { NOTIFICATION_TYPES, notificationTypeOf } from '@/domain/notification'
 
 // Notification center (right overlay drawer)
 const router = useRouter()

@@ -3,10 +3,11 @@ import { reactive, ref, watch } from 'vue'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import type { VForm } from 'vuetify/components'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { TEMPLATE_CATEGORIES, createTemplate } from '@/services/template.service'
 import { useAuthStore } from '@/stores/auth.store'
 import type { TestCase } from '@/types'
 import { required } from '@/utils/validators'
+import { templateApi } from '@/api'
+import { TEMPLATE_CATEGORIES } from '@/domain/template'
 
 // Turn an existing case into a reusable team template
 const open = defineModel<boolean>({ default: false })
@@ -34,7 +35,7 @@ async function submit() {
   if (!result?.valid || !tc) return
   await run(
     () =>
-      createTemplate({
+      templateApi.createTemplate({
         name: form.name,
         category: form.category,
         description: form.description,

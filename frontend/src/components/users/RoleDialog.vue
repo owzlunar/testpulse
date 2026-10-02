@@ -3,9 +3,9 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import type { VForm } from 'vuetify/components'
 import RolePermissionEditor from './RolePermissionEditor.vue'
-import { DISCIPLINES, ROLE_ICONS, ROLE_TONES } from '@/services/role.service'
 import type { Role, RoleInput } from '@/types'
 import { required } from '@/utils/validators'
+import { DISCIPLINES, ROLE_ICONS, ROLE_TONES } from '@/domain/role'
 
 // Create / edit / duplicate a role group: name, discipline, look and permissions by module
 const open = defineModel<boolean>({ default: false })

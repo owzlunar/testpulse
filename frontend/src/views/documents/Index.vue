@@ -9,11 +9,11 @@ import FoxConfirmDialog from '@/components/ui/FoxConfirmDialog.vue'
 import DocumentWizardDialog from '@/components/documents/DocumentWizardDialog.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useSnackbar } from '@/composables/useSnackbar'
-import { DOCUMENT_STATUSES, DOCUMENT_TYPES, documentStatusOf, documentTypeOf } from '@/services/document.service'
 import { useAuthStore } from '@/stores/auth.store'
 import { useDocumentStore } from '@/stores/document.store'
 import type { DocumentRecord, DocumentStatus, DocumentType } from '@/types'
 import { formatRelative } from '@/utils/date'
+import { DOCUMENT_STATUSES, DOCUMENT_TYPES, documentStatusOf, documentTypeOf } from '@/domain/document'
 
 const auth = useAuthStore()
 

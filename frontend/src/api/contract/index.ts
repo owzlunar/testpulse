@@ -1,0 +1,18 @@
+// The API contract: one interface per module, each function with the endpoint it calls (JSDoc).
+// The real implementation (src/api/real) calls these endpoints; the mock (src/api/mock) imitates them;
+// the backend implements them with the same shapes (src/types).
+export type { AuthApi } from './auth'
+export type { UserApi } from './user'
+export type { RoleApi } from './role'
+export type { TeamApi } from './team'
+export type { ProjectApi } from './project'
+export type { SettingsApi } from './settings'
+export type { AuditApi } from './audit'
+export type { TestCaseApi } from './test-case'
+export type { RequirementApi } from './requirement'
+export type { RunApi } from './run'
+export type { DefectApi } from './defect'
+export type { DocumentApi } from './document'
+export type { NotificationApi } from './notification'
+export type { TemplateApi } from './template'
+export type { AiApi } from './ai'

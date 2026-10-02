@@ -4,8 +4,9 @@ import FoxEmptyState from '@/components/ui/FoxEmptyState.vue'
 import FoxConfirmDialog from '@/components/ui/FoxConfirmDialog.vue'
 import TestCasePriorityChip from './TestCasePriorityChip.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { TEMPLATE_CATEGORIES, deleteTemplate, fetchTemplates, markTemplateUsed } from '@/services/template.service'
 import type { TestCaseTemplate } from '@/types'
+import { templateApi } from '@/api'
+import { TEMPLATE_CATEGORIES } from '@/domain/template'
 
 // Pick a reusable test pattern; the parent opens the case form pre-filled with it
 const open = defineModel<boolean>({ default: false })
@@ -24,7 +25,7 @@ watch(
     if (!isOpen) return
     selected.value = null
     loading.value = true
-    await run(async () => (templates.value = await fetchTemplates()))
+    await run(async () => (templates.value = await templateApi.fetchTemplates()))
     loading.value = false
   },
   { immediate: true },
@@ -39,7 +40,7 @@ const filtered = computed(() => {
 })
 
 function use(t: TestCaseTemplate) {
-  markTemplateUsed(t.id).catch(() => {})
+  templateApi.markTemplateUsed(t.id).catch(() => {})
   emit('pick', t)
   open.value = false
 }
@@ -54,7 +55,7 @@ function onDelete() {
   const t = deleting.value
   if (!t) return
   run(
-    () => deleteTemplate(t.id),
+    () => templateApi.deleteTemplate(t.id),
     () => {
       templates.value = templates.value.filter((x) => x.id !== t.id)
       if (selected.value?.id === t.id) selected.value = null

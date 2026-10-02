@@ -9,9 +9,9 @@ import UserAvatar from '@/components/users/UserAvatar.vue'
 import UserDialog from '@/components/users/UserDialog.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useSnackbar } from '@/composables/useSnackbar'
-import { ADMIN_ROLE_ID } from '@/services/role.service'
 import { useAuthStore } from '@/stores/auth.store'
 import type { User } from '@/types'
+import { ADMIN_ROLE_ID } from '@/domain/role'
 
 const auth = useAuthStore()
 const { users, currentUser, roles, roleOptions } = storeToRefs(auth)

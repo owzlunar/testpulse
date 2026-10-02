@@ -4,11 +4,11 @@ import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { storeToRefs } from 'pinia'
 import type { VForm } from 'vuetify/components'
 import FoxImageUpload from '@/components/ui/FoxImageUpload.vue'
-import { DEFECT_STATUSES, SEVERITIES } from '@/services/defect.service'
 import { useAuthStore } from '@/stores/auth.store'
 import { useProjectStore } from '@/stores/project.store'
 import type { Defect, DefectInput } from '@/types'
 import { required } from '@/utils/validators'
+import { DEFECT_STATUSES, SEVERITIES } from '@/domain/defect'
 
 const open = defineModel<boolean>({ default: false })
 const props = withDefaults(

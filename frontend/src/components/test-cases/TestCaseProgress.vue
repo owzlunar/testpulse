@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ProjectStats } from '@/types'
-import { STATUSES } from '@/services/test-case.service'
 import { formatPercent } from '@/utils/format'
+import { STATUSES } from '@/domain/test-case'
 
 // Stacked bar: one segment per status, in lifecycle order
 const props = withDefaults(defineProps<{ stats: ProjectStats; height?: number; legend?: boolean }>(), {

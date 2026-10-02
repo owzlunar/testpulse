@@ -1,18 +1,19 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { Option, PermissionKey, Project, Role, RoleDiscipline, RoleInput, Team, TeamInput, User } from '@/types'
-import * as api from '@/services/user.service'
-import * as roleApi from '@/services/role.service'
-import * as teamApi from '@/services/team.service'
-import { NO_ROLE } from '@/services/role.service'
+import { authApi, roleApi, teamApi, userApi } from '@/api'
 import { useAuditStore } from './audit.store'
+import { NO_ROLE } from '@/domain/role'
+
+/** stands in until the session has loaded */
+const SIGNED_OUT: User = { id: '', name: '', email: '', roleId: null, avatar: '' }
 
 // Session (mock login / user switching), users, their role groups and teams
 export const useAuthStore = defineStore('auth', () => {
   const users = ref<User[]>([])
   const roles = ref<Role[]>([])
   const teams = ref<Team[]>([])
-  const currentUser = ref<User>(api.MOCK_USERS[0])
+  const currentUser = ref<User>(SIGNED_OUT)
 
   const roleById = (id: string | null | undefined) => (id ? (roles.value.find((r) => r.id === id) ?? null) : null)
   /** null: a new user without a role (sees only the dashboard and settings) */
@@ -22,7 +23,12 @@ export const useAuthStore = defineStore('auth', () => {
   const hasRole = computed(() => !!currentRole.value)
 
   async function load() {
-    const [list, roleList, teamList, session] = await Promise.all([api.fetchUsers(), roleApi.fetchRoles(), teamApi.fetchTeams(), api.fetchSession()])
+    const [list, roleList, teamList, session] = await Promise.all([
+      userApi.fetchUsers(),
+      roleApi.fetchRoles(),
+      teamApi.fetchTeams(),
+      authApi.fetchSession(),
+    ])
     users.value = list
     roles.value = roleList
     teams.value = teamList
@@ -49,7 +55,7 @@ export const useAuthStore = defineStore('auth', () => {
   const usersIn = (discipline: RoleDiscipline) => users.value.filter((u) => roleById(u.roleId)?.discipline === discipline)
 
   async function loginAs(user: User) {
-    currentUser.value = await api.login(user.id)
+    currentUser.value = await authApi.login(user.id)
   }
 
   /**
@@ -86,7 +92,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function updateUserRole(userId: string, roleId: string | null) {
     const before = users.value.find((u) => u.id === userId)
-    const saved = await api.updateUser(userId, { roleId })
+    const saved = await userApi.updateUser(userId, { roleId })
     users.value = users.value.map((u) => (u.id === userId ? saved : u))
     if (currentUser.value.id === userId) currentUser.value = saved
     audit().record({
@@ -99,7 +105,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function addUser(input: Omit<User, 'id'>): Promise<User> {
-    const user = await api.createUser(input)
+    const user = await userApi.createUser(input)
     users.value.push(user)
     return user
   }

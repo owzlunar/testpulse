@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { TestCasePriority } from '@/types'
-import { priorityOf } from '@/services/test-case.service'
+import { priorityOf } from '@/domain/test-case'
 
 // Dot + label (lighter than a chip so it doesn't compete with the status chip)
 const props = defineProps<{ priority: TestCasePriority }>()

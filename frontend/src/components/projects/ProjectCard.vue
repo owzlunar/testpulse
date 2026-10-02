@@ -2,11 +2,11 @@
 import { computed } from 'vue'
 import ProjectAvatar from './ProjectAvatar.vue'
 import TestCaseProgress from '@/components/test-cases/TestCaseProgress.vue'
-import { projectStatusOf } from '@/services/project.service'
 import { useAuthStore } from '@/stores/auth.store'
 import { useProjectStore } from '@/stores/project.store'
 import type { Project } from '@/types'
 import { daysFromToday, formatDateTH } from '@/utils/date'
+import { projectStatusOf } from '@/domain/project'
 
 const props = defineProps<{ project: Project; selected: boolean }>()
 defineEmits<{ select: [id: string]; open: [id: string]; edit: [project: Project]; delete: [project: Project]; export: [id: string] }>()

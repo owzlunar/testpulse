@@ -9,11 +9,11 @@ import FoxDonutChart from '@/components/charts/FoxDonutChart.vue'
 import FoxChartLegend from '@/components/charts/FoxChartLegend.vue'
 import TestCaseProgress from '@/components/test-cases/TestCaseProgress.vue'
 import { useSnackbar } from '@/composables/useSnackbar'
-import { PRIORITIES, STATUSES, isHighChurn, isOverdue } from '@/services/test-case.service'
 import { useProjectStore } from '@/stores/project.store'
 import type { Tone } from '@/types'
 import { formatPercent } from '@/utils/format'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { PRIORITIES, STATUSES, isHighChurn, isOverdue } from '@/domain/test-case'
 
 const projectStore = useProjectStore()
 const { currentProject, currentCases: cases, currentStats: stats } = storeToRefs(projectStore)

@@ -3,9 +3,9 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import ProjectAvatar from '@/components/projects/ProjectAvatar.vue'
-import { projectStatusOf } from '@/services/project.service'
 import { useAuthStore } from '@/stores/auth.store'
 import { useProjectStore } from '@/stores/project.store'
+import { projectStatusOf } from '@/domain/project'
 
 // Google Cloud Console style project picker in the app bar
 const router = useRouter()

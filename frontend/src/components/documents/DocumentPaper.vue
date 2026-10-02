@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { coverageOf } from '@/services/requirement.service'
-import { defectStatusOf, severityOf } from '@/services/defect.service'
-import { UAT_DECISIONS, documentStatusOf, documentTypeOf } from '@/services/document.service'
-import { priorityOf } from '@/services/test-case.service'
-import { resultOf, runTypeOf } from '@/services/run.service'
 import type { DocumentRecord, DocumentTemplate } from '@/types'
 import { formatDateTH, formatDateTime } from '@/utils/date'
 import { formatPercent } from '@/utils/format'
+import { defectStatusOf, severityOf } from '@/domain/defect'
+import { UAT_DECISIONS, documentStatusOf, documentTypeOf } from '@/domain/document'
+import { coverageOf } from '@/domain/requirement'
+import { resultOf, runTypeOf } from '@/domain/run'
+import { priorityOf } from '@/domain/test-case'
 
 // A4 rendering of a generated document. The same markup is used for print/PDF and the Word download.
 const props = defineProps<{ doc: DocumentRecord; template: DocumentTemplate }>()

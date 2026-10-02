@@ -13,6 +13,12 @@ import TestCasePriorityChip from '@/components/test-cases/TestCasePriorityChip.v
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useSnackbar } from '@/composables/useSnackbar'
 import { useTestCasePermissions } from '@/composables/useTestCasePermissions'
+import { useAuthStore } from '@/stores/auth.store'
+import { useProjectStore } from '@/stores/project.store'
+import { useRequirementStore } from '@/stores/requirement.store'
+import type { CoverageStatus, Requirement, RequirementInput, RequirementStatus, Tone } from '@/types'
+import { formatPercent } from '@/utils/format'
+import { downloadText, toCsv } from '@/utils/table'
 import {
   COVERAGE,
   REQUIREMENT_STATUSES,
@@ -21,14 +27,8 @@ import {
   coverageStatus,
   requirementStatusOf,
   requirementTypeOf,
-} from '@/services/requirement.service'
-import { statusOf } from '@/services/test-case.service'
-import { useAuthStore } from '@/stores/auth.store'
-import { useProjectStore } from '@/stores/project.store'
-import { useRequirementStore } from '@/stores/requirement.store'
-import type { CoverageStatus, Requirement, RequirementInput, RequirementStatus, Tone } from '@/types'
-import { formatPercent } from '@/utils/format'
-import { downloadText, toCsv } from '@/utils/table'
+} from '@/domain/requirement'
+import { statusOf } from '@/domain/test-case'
 
 const router = useRouter()
 const store = useRequirementStore()

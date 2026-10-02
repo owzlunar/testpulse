@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { PERMISSION_GROUPS } from '@/services/role.service'
 import type { PermissionKey } from '@/types'
+import { PERMISSION_GROUPS } from '@/domain/role'
 
 // A role's permissions grouped by module (collapsible, "all" per module). Used by the role page and RoleDialog.
 const model = defineModel<PermissionKey[]>({ required: true })

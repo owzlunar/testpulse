@@ -1,7 +1,7 @@
-import { login } from '@/services/user.service'
+import { login } from '@/api/mock/user'
 import type { Actor } from '@/types'
 
-/** seed users (services/user.service.ts) */
+/** seed users (src/api/mock/seeds/users.seed.ts) */
 export const USERS = {
   admin: 'user-admin',
   qaLead: 'user-qa-1', // QA Lead, team Payment

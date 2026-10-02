@@ -6,12 +6,12 @@ import TestCaseStatusChip from './TestCaseStatusChip.vue'
 import TestCaseStatusMenu from './TestCaseStatusMenu.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useTestCasePermissions } from '@/composables/useTestCasePermissions'
-import { isDueSoon, isOverdue } from '@/services/test-case.service'
 import { useRequirementStore } from '@/stores/requirement.store'
 import { useTestCaseStore } from '@/stores/test-case.store'
 import type { TestCase, TestCaseStatus } from '@/types'
 import { formatDateTH } from '@/utils/date'
 import { firstName } from '@/utils/format'
+import { isDueSoon, isOverdue } from '@/domain/test-case'
 
 // Body of a parent case card in TestCaseList: summary, meta and actions.
 // Slots: `grip` (drag handle) and `move` (move buttons), both only in reorder mode.

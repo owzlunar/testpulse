@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { AuditTrailEntry } from '@/types'
-import { createAuditLog, fetchAuditLogs } from '@/services/audit.service'
-import { newId } from '@/services/http'
 import { useAuthStore } from './auth.store'
+import { auditApi } from '@/api'
+import { newId } from '@/utils/ids'
 
 export type AuditInput = Pick<
   AuditTrailEntry,
@@ -18,7 +18,7 @@ export const useAuditStore = defineStore('audit', () => {
   const sortedLogs = computed(() => [...logs.value].sort((a, b) => b.timestamp.localeCompare(a.timestamp)))
 
   async function load() {
-    logs.value = await fetchAuditLogs()
+    logs.value = await auditApi.fetchAuditLogs()
   }
 
   /** shown immediately; written in the background (the real backend records these server-side) */
@@ -33,7 +33,7 @@ export const useAuditStore = defineStore('audit', () => {
       userRole: auth.roleOf(user).label,
     }
     logs.value.unshift(entry)
-    createAuditLog(entry).catch(() => {})
+    auditApi.createAuditLog(entry).catch(() => {})
     return entry
   }
 

@@ -1,0 +1,65 @@
+import type { Requirement, RequirementChangeResult, RequirementInput } from '@/types'
+import { ApiError } from '@/api/errors'
+import { newId } from '@/utils/ids'
+import { respond } from './http'
+import { assertCan, inAccessibleProjects, sessionCan } from './project'
+import { SEED_REQUIREMENTS } from './seeds/requirements.seed'
+import { STORAGE_KEYS, load, save } from './storage'
+import { flagCasesForReview } from './test-case'
+
+// --- API ------------------------------------------------------------------------
+const requirements = () => load(STORAGE_KEYS.requirements, SEED_REQUIREMENTS)
+
+/** server-side: the stored requirements of a project */
+export const requirementsOf = (projectId: string): Requirement[] => requirements().filter((r) => r.projectId === projectId)
+
+/** GET /requirements (of the projects the signed-in user may open) */
+export const fetchRequirements = () => respond(() => (sessionCan('requirement.view') ? inAccessibleProjects(requirements()) : []))
+
+/** what a requirement says; a change here means the linked cases must be reviewed (type / priority / status don't) */
+const MEANING_FIELDS: { field: 'title' | 'description' | 'acceptanceCriteria'; label: string }[] = [
+  { field: 'title', label: 'ชื่อ' },
+  { field: 'description', label: 'รายละเอียด' },
+  { field: 'acceptanceCriteria', label: 'เกณฑ์การยอมรับ' },
+]
+
+/**
+ * POST /projects/:projectId/requirements · PUT /requirements/:id
+ * When the meaning of an existing requirement changes, the server flags its linked cases for review.
+ */
+export const saveRequirement = (input: RequirementInput) =>
+  respond<RequirementChangeResult>(() => {
+    assertCan('requirement.edit', input.projectId)
+    const list = requirements()
+    const now = new Date().toISOString()
+    if (list.some((r) => r.projectId === input.projectId && r.code === input.code && r.id !== input.id)) {
+      throw new ApiError(`รหัส ${input.code} มีอยู่แล้ว`, 409)
+    }
+    if (input.id) {
+      const i = list.findIndex((r) => r.id === input.id)
+      if (i < 0) throw new ApiError('ไม่พบ Requirement', 404)
+      const before = list[i]
+      list[i] = { ...before, ...input, id: input.id, updatedAt: now }
+      save(STORAGE_KEYS.requirements, list)
+      const changed = MEANING_FIELDS.filter((m) => JSON.stringify(before[m.field]) !== JSON.stringify(list[i][m.field])).map((m) => m.label)
+      const flaggedCases = changed.length ? flagCasesForReview(list[i], `${list[i].code} แก้ไข: ${changed.join(', ')}`) : []
+      return { requirement: list[i], flaggedCases }
+    }
+    const created: Requirement = { ...input, id: newId('req'), createdAt: now, updatedAt: now }
+    save(STORAGE_KEYS.requirements, [...list, created])
+    return { requirement: created, flaggedCases: [] }
+  })
+
+/** DELETE /requirements/:id (its linked cases are flagged for review: they lost what they test) */
+export const deleteRequirement = (id: string) =>
+  respond<RequirementChangeResult>(() => {
+    const list = requirements()
+    const target = list.find((r) => r.id === id)
+    if (!target) throw new ApiError('ไม่พบ Requirement', 404)
+    assertCan('requirement.delete', target.projectId)
+    save(
+      STORAGE_KEYS.requirements,
+      list.filter((r) => r.id !== id),
+    )
+    return { flaggedCases: flagCasesForReview(target, `${target.code} ถูกลบ`) }
+  })

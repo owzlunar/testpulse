@@ -1,10 +1,10 @@
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import type { CalendarEvent, ProjectMilestone, TestCase } from '@/types'
-import { milestoneTypeOf } from '@/services/project.service'
-import { isHighChurn, isOverdue, statusOf } from '@/services/test-case.service'
 import { todayISO } from '@/utils/date'
 import { useProjectStore } from './project.store'
+import { milestoneTypeOf } from '@/domain/project'
+import { isHighChurn, isOverdue, statusOf } from '@/domain/test-case'
 
 export type QuickFilter = 'ALL' | 'PING_PONG' | 'OVERDUE' | 'FAILED' | 'PENDING' | 'READY' | 'PASSED'
 

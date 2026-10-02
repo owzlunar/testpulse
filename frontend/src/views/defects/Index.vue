@@ -10,12 +10,12 @@ import FoxTablePagination from '@/components/ui/FoxTablePagination.vue'
 import DefectDialog from '@/components/defects/DefectDialog.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useSnackbar } from '@/composables/useSnackbar'
-import { DEFECT_STATUSES, SEVERITIES, defectStatusOf, isOpenDefect, severityOf } from '@/services/defect.service'
 import { useAuthStore } from '@/stores/auth.store'
 import { useDefectStore } from '@/stores/defect.store'
 import type { Defect, DefectInput, DefectSeverity, DefectStatus, Tone } from '@/types'
 import { formatDateTime, formatRelative } from '@/utils/date'
 import { firstName } from '@/utils/format'
+import { DEFECT_STATUSES, SEVERITIES, defectStatusOf, isOpenDefect, severityOf } from '@/domain/defect'
 
 const auth = useAuthStore()
 

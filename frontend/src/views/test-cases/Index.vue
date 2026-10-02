@@ -19,11 +19,11 @@ import TestCaseRemoveDialog from '@/components/test-cases/TestCaseRemoveDialog.v
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useSnackbar } from '@/composables/useSnackbar'
 import { useTestCasePermissions } from '@/composables/useTestCasePermissions'
-import { isHighChurn, isOverdue } from '@/services/test-case.service'
 import { useProjectStore } from '@/stores/project.store'
 import { useRequirementStore } from '@/stores/requirement.store'
 import { useTestCaseStore } from '@/stores/test-case.store'
 import type { TestCase, TestCaseInput, TestCaseTemplate } from '@/types'
+import { isHighChurn, isOverdue } from '@/domain/test-case'
 
 const route = useRoute()
 const router = useRouter()

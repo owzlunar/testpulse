@@ -4,10 +4,10 @@ import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { storeToRefs } from 'pinia'
 import type { VForm } from 'vuetify/components'
 import UserAvatar from '@/components/users/UserAvatar.vue'
-import { ROLE_TONES } from '@/services/role.service'
 import { useAuthStore } from '@/stores/auth.store'
 import type { Team, TeamInput } from '@/types'
 import { required } from '@/utils/validators'
+import { ROLE_TONES } from '@/domain/role'
 
 // Create / edit a team: name, colour and members (a user can be in several teams)
 const open = defineModel<boolean>({ default: false })

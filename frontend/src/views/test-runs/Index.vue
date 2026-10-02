@@ -12,11 +12,11 @@ import TestRunDialog from '@/components/test-runs/TestRunDialog.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useSnackbar } from '@/composables/useSnackbar'
 import { useTestCasePermissions } from '@/composables/useTestCasePermissions'
-import { RUN_STATUSES, runCounts, runStatusOf, runTypeOf } from '@/services/run.service'
 import { useAuthStore } from '@/stores/auth.store'
 import { useRunStore } from '@/stores/run.store'
 import type { RunStatus, TestRun, TestRunInput, Tone } from '@/types'
 import { formatDateTH } from '@/utils/date'
+import { RUN_STATUSES, runCounts, runStatusOf, runTypeOf } from '@/domain/run'
 
 const router = useRouter()
 const store = useRunStore()

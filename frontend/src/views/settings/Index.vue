@@ -8,10 +8,10 @@ import UserAvatar from '@/components/users/UserAvatar.vue'
 import DocumentTemplateForm from '@/components/documents/DocumentTemplateForm.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useSnackbar } from '@/composables/useSnackbar'
-import { resetDemoData } from '@/services/storage.service'
 import { useAuthStore } from '@/stores/auth.store'
 import { useDocumentStore } from '@/stores/document.store'
 import { useSettingsStore } from '@/stores/settings.store'
+import { demoData } from '@/api'
 
 const auth = useAuthStore()
 const { currentUser, users } = storeToRefs(auth)
@@ -41,7 +41,7 @@ if (canEditTemplate.value) run(() => documentStore.ensureLoaded())
 
 const confirmReset = ref(false)
 function reset() {
-  resetDemoData()
+  demoData?.reset()
   window.location.reload()
 }
 </script>

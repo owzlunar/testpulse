@@ -10,11 +10,11 @@ import { useCalendarStore, type CalendarItem, type QuickFilter } from '@/stores/
 import { useLayoutStore } from '@/stores/layout.store'
 import { useProjectStore } from '@/stores/project.store'
 import { useSnackbar } from '@/composables/useSnackbar'
-import { milestoneTypeOf } from '@/services/project.service'
-import { isHighChurn, isOverdue, statusOf } from '@/services/test-case.service'
 import type { CalendarEventChange, Tone } from '@/types'
 import { formatDateTH } from '@/utils/date'
 import { firstName, formatPercent } from '@/utils/format'
+import { milestoneTypeOf } from '@/domain/project'
+import { isHighChurn, isOverdue, statusOf } from '@/domain/test-case'
 
 const calendar = useCalendarStore()
 const { quickFilter, devFilter, rootCauseFilter, extend } = storeToRefs(calendar)

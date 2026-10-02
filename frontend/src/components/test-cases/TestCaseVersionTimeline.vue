@@ -4,10 +4,10 @@ import FoxTimeline from '@/components/ui/FoxTimeline.vue'
 import FoxEmptyState from '@/components/ui/FoxEmptyState.vue'
 import TestCaseVersionDialog from './TestCaseVersionDialog.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { statusOf } from '@/services/test-case.service'
 import { useTestCaseStore } from '@/stores/test-case.store'
 import type { TestCase, TestCaseVersionRecord, TimelineItem } from '@/types'
 import { formatDateTime } from '@/utils/date'
+import { statusOf } from '@/domain/test-case'
 
 // Version history (newest first): version | status dot | summary, author, reason.
 // With `testCase`, each saved version can be compared with the current one (and restored when `canRestore`).

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { TestCaseStatus } from '@/types'
-import { statusOf } from '@/services/test-case.service'
+import { statusOf } from '@/domain/test-case'
 
 const props = withDefaults(defineProps<{ status: TestCaseStatus; size?: 'x-small' | 'small' | 'default'; variant?: 'flat' | 'tonal' }>(), {
   size: 'small',

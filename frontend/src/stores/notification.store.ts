@@ -1,10 +1,10 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { NotificationItem } from '@/types'
-import { newId } from '@/services/http'
-import * as api from '@/services/notification.service'
-import { notificationIsFor } from '@/services/notification.service'
 import { useAuthStore } from './auth.store'
+import { notificationApi as api } from '@/api'
+import { notificationIsFor } from '@/domain/notification'
+import { newId } from '@/utils/ids'
 
 export type NotificationInput = Omit<NotificationItem, 'id' | 'timestamp' | 'read'>
 

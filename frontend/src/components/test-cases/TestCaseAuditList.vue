@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import FoxEmptyState from '@/components/ui/FoxEmptyState.vue'
-import { auditActionOf } from '@/services/audit.service'
 import { useAuditStore } from '@/stores/audit.store'
 import { formatDateTime } from '@/utils/date'
+import { auditActionOf } from '@/domain/audit'
 
 // Audit trail entries of one test case
 const props = defineProps<{ caseId: string; projectId: string }>()

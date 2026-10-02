@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RESULT_STATUSES, runCounts } from '@/services/run.service'
 import type { TestRun } from '@/types'
 import { formatPercent } from '@/utils/format'
+import { RESULT_STATUSES, runCounts } from '@/domain/run'
 
 // Stacked bar of the run's results (Pass / Fail / Blocked / Skip / not yet run)
 const props = withDefaults(defineProps<{ run: TestRun; height?: number; legend?: boolean }>(), { height: 8, legend: true })

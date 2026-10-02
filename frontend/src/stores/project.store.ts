@@ -1,8 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { Project, ProjectInput, ProjectStats } from '@/types'
-import * as api from '@/services/project.service'
-import { downloadMarkdownFile, generateProjectMarkdown } from '@/services/export.service'
 import { todayISO } from '@/utils/date'
 import { useAppStore } from './app.store'
 import { useAuditStore } from './audit.store'
@@ -10,9 +8,13 @@ import { useAuthStore } from './auth.store'
 import { useNotificationStore } from './notification.store'
 import { useRequirementStore } from './requirement.store'
 import { useTestCaseStore } from './test-case.store'
+import { projectApi as api } from '@/api'
+import { caseStatsOf } from '@/domain/project'
+import { loadSelectedProjectId, saveSelectedProjectId } from '@/utils/preferences'
+import { downloadMarkdownFile, generateProjectMarkdown } from '@/domain/export'
 
 /** case counts of a list of cases (the rule is the server's: caseStatsOf in project.service) */
-export const statsOf = api.caseStatsOf
+export const statsOf = caseStatsOf
 
 export const useProjectStore = defineStore('project', () => {
   const projects = ref<Project[]>([])
@@ -24,7 +26,7 @@ export const useProjectStore = defineStore('project', () => {
 
   async function load() {
     projects.value = await api.fetchProjects()
-    const remembered = api.loadSelectedProjectId()
+    const remembered = loadSelectedProjectId()
     selectedProjectId.value = projects.value.some((p) => p.id === remembered) ? remembered! : (projects.value[0]?.id ?? '')
   }
 
@@ -58,7 +60,7 @@ export const useProjectStore = defineStore('project', () => {
 
   function select(projectId: string) {
     selectedProjectId.value = projectId
-    api.saveSelectedProjectId(projectId)
+    saveSelectedProjectId(projectId)
     testCaseStore.ensureProject(projectId).catch(useAppStore().showError)
   }
 

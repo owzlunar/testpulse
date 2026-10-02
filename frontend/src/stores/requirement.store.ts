@@ -1,13 +1,13 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { Requirement, RequirementInput, TestCase } from '@/types'
-import * as api from '@/services/requirement.service'
-import { requirementText } from '@/services/requirement.service'
 import { useAuditStore } from './audit.store'
 import { useAuthStore } from './auth.store'
 import { useNotificationStore } from './notification.store'
 import { useProjectStore } from './project.store'
 import { useTestCaseStore } from './test-case.store'
+import { requirementApi as api } from '@/api'
+import { requirementText } from '@/domain/requirement'
 
 // Loaded on demand by the pages that need it (Requirements, case form, documents)
 export const useRequirementStore = defineStore('requirement', () => {

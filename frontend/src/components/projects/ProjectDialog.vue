@@ -4,12 +4,12 @@ import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import type { VForm } from 'vuetify/components'
 import ProjectAvatar from './ProjectAvatar.vue'
 import { storeToRefs } from 'pinia'
-import { MILESTONE_TYPES, PROJECT_STATUSES } from '@/services/project.service'
 import { useAuthStore } from '@/stores/auth.store'
 import type { Project, ProjectInput, ProjectMilestone } from '@/types'
 import { addDays, todayISO } from '@/utils/date'
 import { compressImage } from '@/utils/image'
 import { required } from '@/utils/validators'
+import { MILESTONE_TYPES, PROJECT_STATUSES } from '@/domain/project'
 
 const open = defineModel<boolean>({ default: false })
 const props = withDefaults(defineProps<{ project?: Project | null; loading?: boolean }>(), { project: null, loading: false })

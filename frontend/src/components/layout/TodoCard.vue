@@ -3,15 +3,15 @@ import { computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import FoxCardHeader from '@/components/ui/FoxCardHeader.vue'
 import FoxEmptyState from '@/components/ui/FoxEmptyState.vue'
-import { isOpenDefect } from '@/services/defect.service'
-import { runCounts } from '@/services/run.service'
-import { isOverdue } from '@/services/test-case.service'
 import { useAuthStore } from '@/stores/auth.store'
 import { useDefectStore } from '@/stores/defect.store'
 import { useDocumentStore } from '@/stores/document.store'
 import { useProjectStore } from '@/stores/project.store'
 import { useRunStore } from '@/stores/run.store'
 import type { Tone } from '@/types'
+import { isOpenDefect } from '@/domain/defect'
+import { runCounts } from '@/domain/run'
+import { isOverdue } from '@/domain/test-case'
 
 // "What should I do next" for the current role, across cases, runs, defects and documents
 const auth = useAuthStore()

@@ -9,14 +9,14 @@ import TestCaseStatusChip from '@/components/test-cases/TestCaseStatusChip.vue'
 import TestCaseVersionTimeline from '@/components/test-cases/TestCaseVersionTimeline.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useTestCasePermissions } from '@/composables/useTestCasePermissions'
-import { milestoneTypeOf } from '@/services/project.service'
-import { ROOT_CAUSES, dwellOf, isOverdue, overdueDays } from '@/services/test-case.service'
 import { useCalendarStore } from '@/stores/calendar.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { useRequirementStore } from '@/stores/requirement.store'
 import { useTestCaseStore } from '@/stores/test-case.store'
 import type { TestCase } from '@/types'
 import { formatDateTH } from '@/utils/date'
+import { milestoneTypeOf } from '@/domain/project'
+import { ROOT_CAUSES, dwellOf, isOverdue, overdueDays } from '@/domain/test-case'
 
 const calendar = useCalendarStore()
 const {

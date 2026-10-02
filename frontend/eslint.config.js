@@ -15,5 +15,22 @@ export default defineConfigWithVueTs(
       'vue/multi-word-component-names': 'off',
     },
   },
+  // API boundaries: callers go through @/api (it picks mock or real); domain helpers know no API
+  {
+    files: ['src/**/*.{ts,vue}'],
+    ignores: ['src/api/**', 'src/**/*.spec.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: [{ regex: '^@/api/(mock|real)(/|$)', message: "import the API from '@/api' (it picks mock or real)" }] },
+      ],
+    },
+  },
+  {
+    files: ['src/domain/**/*.ts'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [{ regex: '^@/api(/|$)', message: 'domain helpers never call the API' }] }],
+    },
+  },
   skipFormatting,
 )

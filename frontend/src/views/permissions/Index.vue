@@ -12,9 +12,9 @@ import RolePermissionEditor from '@/components/users/RolePermissionEditor.vue'
 import RoleCompareTable from '@/components/users/RoleCompareTable.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useSnackbar } from '@/composables/useSnackbar'
-import { ALL_PERMISSIONS, DISCIPLINES } from '@/services/role.service'
 import { useAuthStore } from '@/stores/auth.store'
 import type { PermissionKey, Role, RoleInput } from '@/types'
+import { ALL_PERMISSIONS, DISCIPLINES } from '@/domain/role'
 
 // Role groups (Admin only). Tab "Role": the list on the left, the selected role's permissions on the
 // right (edited as a draft, saved explicitly). Tab "เปรียบเทียบสิทธิ์": read-only matrix of picked roles.

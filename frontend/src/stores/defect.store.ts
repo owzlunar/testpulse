@@ -1,11 +1,11 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { Defect, DefectInput, DefectStatus } from '@/types'
-import * as api from '@/services/defect.service'
 import { useAuditStore } from './audit.store'
 import { useAuthStore } from './auth.store'
 import { useNotificationStore } from './notification.store'
 import { useProjectStore } from './project.store'
+import { defectApi as api } from '@/api'
 
 export const useDefectStore = defineStore('defect', () => {
   const defects = ref<Defect[]>([])

@@ -4,10 +4,10 @@ import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import ProjectAvatar from '@/components/projects/ProjectAvatar.vue'
 import TestCaseStatusChip from '@/components/test-cases/TestCaseStatusChip.vue'
-import { searchTestCases } from '@/services/test-case.service'
 import { useProjectStore } from '@/stores/project.store'
 import { useRequirementStore } from '@/stores/requirement.store'
 import type { Project, TestCase } from '@/types'
+import { testCaseApi } from '@/api'
 
 // Universal search: projects (already loaded) and the test cases of every project (asked from the
 // server, since cases load one project at a time). Before typing it shows the current project's cases.
@@ -30,7 +30,7 @@ watch(query, (q) => {
     return
   }
   timer = setTimeout(async () => {
-    const result = await searchTestCases(text, 6).catch(() => ({ cases: [], total: 0 }))
+    const result = await testCaseApi.searchTestCases(text, 6).catch(() => ({ cases: [], total: 0 }))
     if ((query.value?.trim() ?? '') === text) found.value = result
   }, 250)
 })

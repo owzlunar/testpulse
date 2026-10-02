@@ -1,7 +1,7 @@
 import { computed } from 'vue'
 import type { TestCaseStatus } from '@/types'
-import { STATUSES } from '@/services/test-case.service'
 import { useAuthStore } from '@/stores/auth.store'
+import { STATUSES } from '@/domain/test-case'
 
 // What the current role may do with test cases (role permissions, see role.service.ts)
 export function useTestCasePermissions() {

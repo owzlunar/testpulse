@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import FoxEmptyState from '@/components/ui/FoxEmptyState.vue'
-import { PERMISSION_GROUPS } from '@/services/role.service'
 import type { PermissionKey, Role, User } from '@/types'
+import { PERMISSION_GROUPS } from '@/domain/role'
 
 // Read-only permission matrix for the roles picked (pinned header and first column, collapsible modules,
 // "differences only"). Editing happens on the role's own page: click a role name to open it.

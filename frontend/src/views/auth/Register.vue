@@ -2,10 +2,10 @@
 import { reactive, ref } from 'vue'
 import type { VForm } from 'vuetify/components'
 import AppLogo from '@/components/layout/AppLogo.vue'
-import { DEFAULT_AVATAR } from '@/services/user.service'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useAuthStore } from '@/stores/auth.store'
 import * as v from '@/utils/validators'
+import { DEFAULT_AVATAR } from '@/domain/user'
 
 const auth = useAuthStore()
 

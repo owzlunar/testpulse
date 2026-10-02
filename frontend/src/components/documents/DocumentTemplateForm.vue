@@ -2,10 +2,10 @@
 import { computed, reactive, ref, watch } from 'vue'
 import FoxCardHeader from '@/components/ui/FoxCardHeader.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { formatDocNumber } from '@/services/document.service'
 import { useDocumentStore } from '@/stores/document.store'
 import type { DocumentTemplate } from '@/types'
 import { compressImage } from '@/utils/image'
+import { formatDocNumber } from '@/domain/document'
 
 // Organisation branding and defaults applied to every generated document
 const emit = defineEmits<{ saved: [] }>()

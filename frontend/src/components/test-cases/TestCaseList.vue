@@ -9,10 +9,10 @@ import TestCaseSubRow from './TestCaseSubRow.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useDragAutoScroll } from '@/composables/useDragAutoScroll'
 import { useTestCasePermissions } from '@/composables/useTestCasePermissions'
-import { PRIORITIES, STATUSES, isHighChurn, isOverdue } from '@/services/test-case.service'
 import { useRequirementStore } from '@/stores/requirement.store'
 import { useTestCaseStore } from '@/stores/test-case.store'
 import type { MoveTarget, TestCase, TestCaseNode, TestCasePriority, TestCaseStatus } from '@/types'
+import { PRIORITIES, STATUSES, isHighChurn, isOverdue } from '@/domain/test-case'
 
 const props = defineProps<{
   projectId: string

@@ -3,10 +3,10 @@ import { reactive, ref, watch } from 'vue'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { storeToRefs } from 'pinia'
 import type { VForm } from 'vuetify/components'
-import { DEFAULT_AVATAR } from '@/services/user.service'
 import { useAuthStore } from '@/stores/auth.store'
 import type { User } from '@/types'
 import * as v from '@/utils/validators'
+import { DEFAULT_AVATAR } from '@/domain/user'
 
 const open = defineModel<boolean>({ default: false })
 withDefaults(defineProps<{ loading?: boolean }>(), { loading: false })

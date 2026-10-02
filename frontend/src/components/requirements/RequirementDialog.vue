@@ -2,10 +2,10 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import type { VForm } from 'vuetify/components'
-import { REQUIREMENT_STATUSES, REQUIREMENT_TYPES } from '@/services/requirement.service'
-import { PRIORITIES } from '@/services/test-case.service'
 import type { Requirement, RequirementInput } from '@/types'
 import { required } from '@/utils/validators'
+import { REQUIREMENT_STATUSES, REQUIREMENT_TYPES } from '@/domain/requirement'
+import { PRIORITIES } from '@/domain/test-case'
 
 const open = defineModel<boolean>({ default: false })
 const props = withDefaults(defineProps<{ requirement?: Requirement | null; projectId: string; nextCode: string; loading?: boolean }>(), {

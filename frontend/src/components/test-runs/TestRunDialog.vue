@@ -5,13 +5,13 @@ import { storeToRefs } from 'pinia'
 import type { VForm } from 'vuetify/components'
 import TestCaseStatusChip from '@/components/test-cases/TestCaseStatusChip.vue'
 import TestCasePriorityChip from '@/components/test-cases/TestCasePriorityChip.vue'
-import { RUN_TYPES } from '@/services/run.service'
 import { useAuthStore } from '@/stores/auth.store'
 import { useProjectStore } from '@/stores/project.store'
 import { useRunStore } from '@/stores/run.store'
 import type { TestRunInput } from '@/types'
 import { addDays, todayISO } from '@/utils/date'
 import { required } from '@/utils/validators'
+import { RUN_TYPES } from '@/domain/run'
 
 const open = defineModel<boolean>({ default: false })
 withDefaults(defineProps<{ loading?: boolean }>(), { loading: false })
