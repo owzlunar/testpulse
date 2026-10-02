@@ -1,4 +1,4 @@
-import { appModules } from '../src/app-modules.js'
+import { appModules } from '../app-modules.js'
 import { connectDatabase, disconnectDatabase } from '#core/config/db.js'
 import { logger } from '#core/config/logger.js'
 import { encryption } from '#core/crypto/encryption.js'

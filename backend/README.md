@@ -61,6 +61,7 @@ src/
 │   └── <ชื่อ>/              model · repository · service · validation · controller · routes · seed · index.ts · __tests__
 ├── contract/types.ts        สำเนา type จาก frontend (ห้ามแก้ที่นี่)
 ├── app-modules.ts           รายการ module ที่เปิดใช้
+├── cli/                     seed, db-indexes, rotate-keys (build เป็น dist/cli ใช้ใน Docker image ได้)
 └── index.ts                 composition root
 ```
 

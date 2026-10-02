@@ -3,7 +3,7 @@ import { config } from '../config/env.js'
 
 // AES-256-GCM field encryption with a key ring. Ciphertext: "enc:<keyId>:<iv>:<tag>:<data>" (hex),
 // so a value says which key encrypted it: after a rotation old values stay readable while new
-// writes use the current key (scripts/rotate-keys.ts re-encrypts the rest).
+// writes use the current key (src/cli/rotate-keys.ts re-encrypts the rest).
 
 const ALGORITHM = 'aes-256-gcm'
 const PREFIX = 'enc'

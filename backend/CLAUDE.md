@@ -13,7 +13,8 @@ src
 |--- contract      types.ts: generated copy of frontend/src/types (npm run contract:sync), never edited here
 |--- app-modules.ts  the modules this API runs, in start-up order
 |--- index.ts      composition root (starts the server)
-scripts            seed, db:indexes, keys:rotate, make:module, contract, env:init
+|--- cli           seed, db-indexes, rotate-keys: built into dist/cli, run with node in the image
+scripts            dev-only tools: make:module, contract, env:init
 tests              global setup (in-memory replica set), helpers, cross-module tests (access matrix)
 ```
 

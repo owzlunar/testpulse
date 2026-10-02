@@ -16,12 +16,13 @@ export default defineConfig({
       provider: 'v8',
       include: ['src/**/*.ts'],
       // not measured: tests, generated contract, seeds, and wiring that needs real infrastructure
-      // (process start / signals, the MongoDB connection string, the MinIO client)
+      // (process start / signals, the MongoDB connection string, the MinIO client, command-line tools)
       exclude: [
         'src/**/__tests__/**',
         'src/contract/**',
         'src/**/*.seed.ts',
         'src/index.ts',
+        'src/cli/**',
         'src/core/server.ts',
         'src/core/config/db.ts',
         'src/core/storage/minio.adapter.ts',
