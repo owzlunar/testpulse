@@ -66,6 +66,8 @@ const schema = Joi.object({
     .min(60)
     .default(15 * 60),
   REFRESH_TOKEN_TTL_DAYS: Joi.number().integer().min(1).default(14),
+  /** a just-rotated refresh token still works this long (lost responses, two tabs at once) */
+  REFRESH_REUSE_GRACE_SEC: Joi.number().integer().min(0).max(300).default(30),
   INVITE_TTL_HOURS: Joi.number().integer().min(1).default(72),
   /** the refresh cookie is sent over HTTPS only (default: on in production) */
   COOKIE_SECURE: Joi.boolean(),
@@ -178,6 +180,7 @@ export const config = Object.freeze({
     audience: env.JWT_AUDIENCE as string,
     accessTokenTtlSec: env.ACCESS_TOKEN_TTL_SEC as number,
     refreshTokenTtlDays: env.REFRESH_TOKEN_TTL_DAYS as number,
+    refreshReuseGraceSec: env.REFRESH_REUSE_GRACE_SEC as number,
     inviteTtlHours: env.INVITE_TTL_HOURS as number,
     cookieSecure: (env.COOKIE_SECURE ?? isProduction) as boolean,
   },

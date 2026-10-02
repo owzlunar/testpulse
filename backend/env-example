@@ -4,7 +4,7 @@
 
 # public URL of the web app (with the sub path when a reverse proxy serves it under one,
 # e.g. https://mydomain/testpulse): invite links, CORS origin, cookie and file paths
-BASE_URL=http://localhost:5173
+BASE_URL=http://localhost:3000
 # development only: the API's port (the container fixes its own)
 PORT=4000
 # refresh cookie over HTTPS only (true behind https)

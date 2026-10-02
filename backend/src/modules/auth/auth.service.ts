@@ -12,7 +12,9 @@ import { inviteMail } from './invite.mail.js'
 
 // Sign-in and sessions. A session = a short access token (sent as Bearer) + a refresh token in an
 // httpOnly cookie. Refresh tokens rotate on every use; presenting one that was already rotated means
-// it was stolen (or replayed): the whole sign-in (token family) is revoked.
+// it was stolen (or replayed): the whole sign-in (token family) is revoked, except within a few
+// seconds of its rotation (REFRESH_REUSE_GRACE_SEC): a browser that aborted the request (reload,
+// navigation) never got the new cookie, and two tabs may refresh at the same moment.
 
 /** what a route answers, plus the refresh token the controller puts in the cookie */
 export interface IssuedSession {
@@ -60,12 +62,19 @@ export const authService = {
   async refresh(refreshToken: string | undefined): Promise<IssuedSession> {
     const expired = ApiError.unauthorized('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่')
     if (!refreshToken) throw expired
-    const stored = await refreshTokenRepository.findByHash(hashToken(refreshToken))
+    const hash = hashToken(refreshToken)
+    const stored = await refreshTokenRepository.findByHash(hash)
     if (!stored || stored.expiresAt <= new Date()) throw expired
-    if (stored.revokedAt || !(await refreshTokenRepository.revoke(stored._id))) {
-      logger.warn(`[auth] refresh token reused for user ${stored.userId}: revoking its sign-in`)
-      await refreshTokenRepository.revokeFamily(stored.family)
-      throw expired
+    if (stored.revokedAt || !(await refreshTokenRepository.rotate(stored._id))) {
+      // already used: read it again (another request may have rotated it a moment ago)
+      const used = await refreshTokenRepository.findByHash(hash)
+      const graceMs = config.auth.refreshReuseGraceSec * 1000
+      const lostResponse = !!used?.rotatedAt && !used.familyRevokedAt && Date.now() - used.rotatedAt.getTime() < graceMs
+      if (!lostResponse) {
+        logger.warn(`[auth] refresh token reused for user ${stored.userId}: revoking its sign-in`)
+        await refreshTokenRepository.revokeFamily(stored.family)
+        throw expired
+      }
     }
     const user = await accounts.findById(stored.userId)
     if (!user || user.status === 'invited') throw expired
@@ -74,8 +83,9 @@ export const authService = {
 
   async logout(refreshToken: string | undefined): Promise<void> {
     if (!refreshToken) return
+    // signing out ends the whole sign-in, so a just-rotated token of it can't be revived either
     const stored = await refreshTokenRepository.findByHash(hashToken(refreshToken))
-    if (stored) await refreshTokenRepository.revoke(stored._id)
+    if (stored) await refreshTokenRepository.revokeFamily(stored.family)
   },
 
   /** public sign-up: an active account without a role (an Admin gives one later) */

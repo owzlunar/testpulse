@@ -1,4 +1,5 @@
 import type { Express } from 'express'
+import mongoose from 'mongoose'
 import request from 'supertest'
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { MemoryMailer, setMailer } from '#core/mail/mailer.js'
@@ -68,11 +69,35 @@ describe('refresh tokens', () => {
     expect(refreshCookieOf(res)).not.toBe(first)
   })
 
-  it('revoke the whole sign-in when a rotated token is used again (theft)', async () => {
+  it('revoke the whole sign-in when a rotated token is used again later (theft)', async () => {
     const first = refreshCookieOf(await login('admin@testpulse.dev', DEMO_PASSWORD))
     const second = refreshCookieOf(await refresh(first))
+    // past the grace period of the rotation
+    await mongoose.connection
+      .db!.collection('refresh_tokens')
+      .updateMany({ rotatedAt: { $ne: null } }, { $set: { rotatedAt: new Date(Date.now() - 60_000) } })
     expect((await refresh(first)).status).toBe(401) // replayed
     expect((await refresh(second)).status).toBe(401) // the legitimate one is revoked too
+  })
+
+  it('give a just-rotated token another chance: the browser lost the response (reload, navigation)', async () => {
+    const first = refreshCookieOf(await login('admin@testpulse.dev', DEMO_PASSWORD))
+    expect((await refresh(first)).status).toBe(200) // the cookie of this answer never reached the browser
+    const again = await refresh(first)
+    expect(again.status).toBe(200)
+    expect((await refresh(refreshCookieOf(again))).status).toBe(200) // and the sign-in goes on
+  })
+
+  it('let two tabs refresh with the same token at once', async () => {
+    const cookie = refreshCookieOf(await login('admin@testpulse.dev', DEMO_PASSWORD))
+    const [a, b] = await Promise.all([refresh(cookie), refresh(cookie)])
+    expect([a.status, b.status]).toEqual([200, 200])
+  })
+
+  it('never revive a token signed out with, even right away', async () => {
+    const cookie = refreshCookieOf(await login('admin@testpulse.dev', DEMO_PASSWORD))
+    await request(app).post(api('/auth/logout')).set('Cookie', cookie)
+    expect((await refresh(cookie)).status).toBe(401)
   })
 
   it('stop working after logout', async () => {

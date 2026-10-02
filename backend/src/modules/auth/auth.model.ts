@@ -11,6 +11,10 @@ export interface RefreshTokenDoc {
   family: string
   expiresAt: Date
   revokedAt?: Date
+  /** revoked because it was exchanged for a new token (not by sign-out or theft detection) */
+  rotatedAt?: Date
+  /** the whole sign-in was ended (sign-out, theft detection): no token of it works any more */
+  familyRevokedAt?: Date
   createdAt: Date
 }
 
@@ -22,6 +26,8 @@ const refreshTokenSchema = new Schema<RefreshTokenDoc>(
     family: { type: String, required: true, index: true },
     expiresAt: { type: Date, required: true, expires: 0 },
     revokedAt: { type: Date },
+    rotatedAt: { type: Date },
+    familyRevokedAt: { type: Date },
   },
   { timestamps: { createdAt: true, updatedAt: false }, collection: 'refresh_tokens' },
 )

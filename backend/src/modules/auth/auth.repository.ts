@@ -6,10 +6,18 @@ export const refreshTokenRepository = {
   create: (doc: Pick<RefreshTokenDoc, 'userId' | 'tokenHash' | 'family' | 'expiresAt'>, session?: ClientSession) =>
     new RefreshTokenModel(doc).save({ session }),
   findByHash: (tokenHash: string) => RefreshTokenModel.findOne({ tokenHash }).lean(),
-  /** marks it used; false when another request rotated it first */
-  revoke: async (id: string, session?: ClientSession) =>
-    (await RefreshTokenModel.updateOne({ _id: id, revokedAt: null }, { $set: { revokedAt: new Date() } }, { session })).modifiedCount === 1,
-  revokeFamily: (family: string) => RefreshTokenModel.updateMany({ family, revokedAt: null }, { $set: { revokedAt: new Date() } }),
+  /** exchanged for a new token; false when another request rotated it first */
+  rotate: async (id: string) => {
+    const now = new Date()
+    return (await RefreshTokenModel.updateOne({ _id: id, revokedAt: null }, { $set: { revokedAt: now, rotatedAt: now } })).modifiedCount === 1
+  },
+
+  /** ends the sign-in: every token of it, also the ones already rotated (no grace for them any more) */
+  revokeFamily: async (family: string) => {
+    const now = new Date()
+    await RefreshTokenModel.updateMany({ family, revokedAt: null }, { $set: { revokedAt: now } })
+    await RefreshTokenModel.updateMany({ family }, { $set: { familyRevokedAt: now } })
+  },
   revokeAllOf: (userId: string, session?: ClientSession) =>
     RefreshTokenModel.updateMany({ userId, revokedAt: null }, { $set: { revokedAt: new Date() } }, { session }),
   newFamily: () => newId('fam'),
