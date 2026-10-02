@@ -7,7 +7,7 @@ import { logger } from '../config/logger.js'
 // The lease expires (`ttlMs`) so a crashed instance never holds it forever; keep ttlMs above the
 // job's longest run.
 
-const owner = `${process.env.HOSTNAME ?? hostname()}:${process.pid}:${randomBytes(3).toString('hex')}`
+const instance = `${process.env.HOSTNAME ?? hostname()}:${process.pid}`
 let indexReady = false
 
 interface LockDoc {
@@ -28,11 +28,13 @@ export async function withLock<T>(name: string, ttlMs: number, fn: () => Promise
     indexReady = true
   }
 
+  // one owner token per acquisition: two runs on the same instance exclude each other too
+  const owner = `${instance}:${randomBytes(4).toString('hex')}`
   const now = new Date()
   let acquired = false
   try {
     const lock = await locks.findOneAndUpdate(
-      { _id: name, $or: [{ expiresAt: { $lt: now } }, { owner }] },
+      { _id: name, expiresAt: { $lt: now } },
       { $set: { owner, expiresAt: new Date(now.getTime() + ttlMs) } },
       { upsert: true, returnDocument: 'after' },
     )
