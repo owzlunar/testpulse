@@ -40,7 +40,9 @@
     "seed": "tsx --conditions=source src/cli/seed.ts",
     "db:indexes": "tsx --conditions=source src/cli/db-indexes.ts",
     "keys:rotate": "tsx --conditions=source src/cli/rotate-keys.ts",
-    "make:module": "tsx scripts/make-module.ts"
+    "make:module": "tsx scripts/make-module.ts",
+    "migrate": "tsx --conditions=source src/cli/migrate.ts up",
+    "migrate:status": "tsx --conditions=source src/cli/migrate.ts status"
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",
@@ -72,6 +74,7 @@
     "@types/nodemailer": "^8.0.2",
     "@types/supertest": "^7.2.1",
     "@vitest/coverage-v8": "^5.0.3",
+    "dotenv": "^18.0.5",
     "eslint": "^10.11.0",
     "mongodb-memory-server": "^11.3.0",
     "prettier": "^3.9.9",

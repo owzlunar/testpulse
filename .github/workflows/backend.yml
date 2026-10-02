@@ -28,7 +28,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ~/.cache/mongodb-binaries
-          key: mongodb-6.0.14-${{ runner.os }}
+          key: mongodb-8.0.4-${{ runner.os }}
       - run: npm run contract:check
       - run: npm run typecheck
       - run: npm run lint
