@@ -80,3 +80,14 @@ test('the role dialog shows every colour swatch in its colour, and icons as sepa
   await expect(icon).toHaveAttribute('aria-pressed', 'true')
 })
 
+test('the universal search lists the current project cases before typing, and every project once typed', async ({ page }) => {
+  await page.goto('/dashboard')
+  await page.getByLabel('ค้นหาทั้งระบบ').click()
+  const menu = page.locator('.v-overlay--active')
+  await expect(menu.locator('.v-list-subheader', { hasText: 'Test Cases' })).toBeVisible()
+  await expect(menu.locator('.v-list-item', { hasText: 'TC-101' }).first()).toBeVisible()
+  await expect(menu.locator('.v-list-subheader', { hasText: 'โปรเจกต์' })).toBeVisible()
+
+  await page.getByLabel('ค้นหาทั้งระบบ').fill('TC-201')
+  await expect(menu.locator('.v-list-item', { hasText: 'TC-201' }).first()).toBeVisible()
+})

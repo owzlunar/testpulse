@@ -10,10 +10,10 @@ import { useRequirementStore } from '@/stores/requirement.store'
 import type { Project, TestCase } from '@/types'
 
 // Universal search: projects (already loaded) and the test cases of every project (asked from the
-// server, since cases load one project at a time)
+// server, since cases load one project at a time). Before typing it shows the current project's cases.
 const router = useRouter()
 const projectStore = useProjectStore()
-const { projects } = storeToRefs(projectStore)
+const { projects, currentCases } = storeToRefs(projectStore)
 const requirementStore = useRequirementStore()
 
 const open = ref(false)
@@ -38,7 +38,8 @@ watch(query, (q) => {
 const results = computed(() => {
   const q = query.value?.trim().toLowerCase() ?? ''
   const projs = q ? projects.value.filter((p) => `${p.name} ${p.key} ${p.description}`.toLowerCase().includes(q)) : projects.value
-  return { cases: q ? found.value.cases : [], projects: projs.slice(0, 3), total: (q ? found.value.total : 0) + projs.length }
+  const cases = q ? found.value : { cases: currentCases.value, total: currentCases.value.length }
+  return { cases: cases.cases.slice(0, 6), projects: projs.slice(0, 3), total: cases.total + projs.length }
 })
 
 function goToCase(tc: TestCase) {
