@@ -13,7 +13,8 @@ export function stripOperators(value: unknown): void {
   }
 }
 
-const sanitizeInput: RequestHandler = (req, _res, next) => {
+/** after the body parser: it cleans what the client sent (body, params, query) */
+export const sanitizeInput: RequestHandler = (req, _res, next) => {
   stripOperators(req.body)
   stripOperators(req.params)
   // Express 5: req.query is a getter that re-parses; replace it with a cleaned copy
@@ -42,5 +43,4 @@ export function setupSecurity(app: Express): void {
       credentials: true,
     }),
   )
-  app.use(sanitizeInput)
 }

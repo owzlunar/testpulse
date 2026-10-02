@@ -27,7 +27,7 @@ const schema = new Schema<Person>(
   { timestamps: true },
 )
 schema.plugin(fieldEncryptionPlugin)
-schema.plugin(auditTrailPlugin, { targetType: 'PERSON', title: (d: Record<string, unknown>) => String(d.name) })
+schema.plugin(auditTrailPlugin, { targetType: 'USER', title: (d: Record<string, unknown>) => String(d.name) })
 schema.plugin(toJSONPlugin)
 const People = mongoose.model<Person>('PluginPerson', schema)
 const repo = new BaseRepository<Person, Person & { id: string }>(People)
@@ -85,7 +85,7 @@ describe('audit trail', () => {
     await repo.deleteById(created.id)
 
     expect(events.map((e) => e.action)).toEqual(['CREATE', 'UPDATE', 'DELETE'])
-    expect(events[0]).toMatchObject({ targetType: 'PERSON', targetId: created.id, targetTitle: 'A' })
+    expect(events[0]).toMatchObject({ targetType: 'USER', targetId: created.id, targetTitle: 'A' })
     expect(events[1]!.changes).toEqual([
       { field: 'name', oldValue: 'A', newValue: 'B' },
       { field: 'email', oldValue: '********', newValue: '********' },

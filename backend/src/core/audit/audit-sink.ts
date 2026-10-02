@@ -1,4 +1,4 @@
-import type { AuditAction, AuditChange } from '#contract/types.js'
+import type { AuditAction, AuditChange, AuditTargetType } from '#contract/types.js'
 import { logger } from '../config/logger.js'
 
 // Core records what changed; where it goes is up to the audit-log module, which registers itself as
@@ -7,7 +7,7 @@ import { logger } from '../config/logger.js'
 export interface AuditEvent {
   action: AuditAction
   /** what was changed, e.g. 'PROJECT', 'USER' */
-  targetType: string
+  targetType: AuditTargetType
   targetId: string
   targetTitle: string
   projectId?: string

@@ -10,5 +10,7 @@ declare module 'mongoose' {
     encrypted?: boolean
     /** with `encrypted`: also keep `<field>_bidx` for exact-match lookup; the value names the field, e.g. 'users.email' */
     blindIndex?: string
+    /** with `blindIndex`: no two documents may have the same plain value */
+    blindIndexUnique?: boolean
   }
 }

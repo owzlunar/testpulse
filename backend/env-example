@@ -9,6 +9,9 @@ APP_URL=http://localhost:5173
 CORS_ORIGINS=
 TRUST_PROXY=1
 BODY_LIMIT=1mb
+# requests per user/IP per 15 min (whole API) · sign-in / register / refresh / invite per IP per minute
+RATE_LIMIT_GLOBAL=1000
+RATE_LIMIT_AUTH=20
 
 # MongoDB 6+ replica set (transactions)
 MONGODB_URI=mongodb://127.0.0.1:27017/testpulse?replicaSet=rs0

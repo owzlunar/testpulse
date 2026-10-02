@@ -14,8 +14,9 @@ export interface AppModule {
   name: string
   /** mounted at BASE_PATH; routes spell out their full paths (e.g. '/projects/:id'), as in the API contract */
   router?: Router
-  /** models whose indexes `npm run db:indexes` builds */
-  models?: Model<never>[]
+  /** models whose indexes `npm run db:indexes` builds (any document type) */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  models?: Model<any>[]
   jobs?: ScheduledJob[]
   seeds?: Seed[]
   /** start-up wiring: register resolvers / sinks, subscribe to events (runs before routes are served) */

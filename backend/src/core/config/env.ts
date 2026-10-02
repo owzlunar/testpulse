@@ -80,6 +80,10 @@ const schema = Joi.object({
   CORS_ORIGINS: Joi.string().allow('').default(''),
   TRUST_PROXY: Joi.alternatives().try(Joi.boolean(), Joi.number(), Joi.string()).default(1),
   BODY_LIMIT: Joi.string().default('1mb'),
+  /** requests per user (or IP) per 15 minutes, whole API */
+  RATE_LIMIT_GLOBAL: Joi.number().integer().min(1).default(1000),
+  /** sign-in / register / refresh / invite requests per IP per minute */
+  RATE_LIMIT_AUTH: Joi.number().integer().min(1).default(20),
 }).unknown(true)
 
 // a key left empty in .env (e.g. `SMTP_HOST=`) counts as not set
@@ -168,6 +172,7 @@ export const config = Object.freeze({
   },
   trustProxy: env.TRUST_PROXY as boolean | number | string,
   bodyLimit: env.BODY_LIMIT as string,
+  rateLimit: { global: env.RATE_LIMIT_GLOBAL as number, auth: env.RATE_LIMIT_AUTH as number },
 })
 
 export type Config = typeof config

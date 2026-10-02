@@ -1,5 +1,5 @@
 import type { HydratedDocument, Model, Query, Schema } from 'mongoose'
-import type { AuditChange } from '#contract/types.js'
+import type { AuditChange, AuditTargetType } from '#contract/types.js'
 import { recordAudit } from '../../audit/audit-sink.js'
 import { encryption } from '../../crypto/encryption.js'
 import { encryptedPaths } from './field-encryption.js'
@@ -13,7 +13,7 @@ import { encryptedPaths } from './field-encryption.js'
 
 export interface AuditTrailOptions {
   /** e.g. 'PROJECT' */
-  targetType: string
+  targetType: AuditTargetType
   /** what the entry calls the document, e.g. the project name */
   title: (doc: Record<string, unknown>) => string
   /** for documents that belong to a project */

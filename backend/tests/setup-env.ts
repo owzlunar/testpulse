@@ -18,4 +18,7 @@ Object.assign(process.env, {
   BLIND_INDEX_SALT: randomBytes(32).toString('hex'),
   MAIL_DRIVER: 'log',
   STORAGE_DRIVER: 'local',
+  // the limits themselves are tested with their own limiter (core/http/__tests__)
+  RATE_LIMIT_GLOBAL: '100000',
+  RATE_LIMIT_AUTH: '100000',
 })

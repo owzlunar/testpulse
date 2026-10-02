@@ -9,13 +9,16 @@ import { errorHandler, notFoundHandler } from './http/error-handler.js'
 import { healthRouter } from './http/health.js'
 import { globalRateLimit } from './http/rate-limit.js'
 import { requestId } from './http/request-id.js'
-import { setupSecurity } from './http/security.js'
+import { sanitizeInput, setupSecurity } from './http/security.js'
+import { clearEventHandlers } from './events/event-bus.js'
 import type { AppModule } from './module.js'
 
 // The Express app for a list of modules (src/index.ts picks them; tests can pick fewer).
-// Pipeline: request id -> access log -> health -> security / CORS -> rate limit -> body -> modules -> 404 -> errors
+// Pipeline: request id -> access log -> health -> security / CORS -> rate limit -> body -> sanitize -> modules -> 404 -> errors
 
 export async function createApp({ modules }: { modules: AppModule[] }): Promise<Express> {
+  // modules (re-)register their event handlers, resolvers and sinks: building the app twice must not double them
+  clearEventHandlers()
   for (const module of modules) await module.setup?.()
 
   const app = express()
@@ -38,6 +41,7 @@ export async function createApp({ modules }: { modules: AppModule[] }): Promise<
   app.use(globalRateLimit)
   app.use(express.json({ limit: config.bodyLimit }))
   app.use(cookieParser())
+  app.use(sanitizeInput)
 
   for (const module of modules) {
     if (!module.router) continue

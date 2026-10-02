@@ -5,6 +5,7 @@ import tseslint from 'typescript-eslint'
 //   1. core never imports from modules
 //   2. a module uses another module only through its index.ts
 //   3. a controller never imports a repository or model (it goes through its service)
+//   4. a service never imports a model, except for types (it goes through its repository)
 
 export default tseslint.config(
   { ignores: ['dist', 'coverage', 'node_modules', 'src/contract/types.ts'] },
@@ -40,6 +41,7 @@ export default tseslint.config(
       ],
     },
   },
+  // (a later block replaces the rule for its files, so it repeats the module rules)
   {
     files: ['src/modules/**/*.controller.ts'],
     rules: {
@@ -47,8 +49,28 @@ export default tseslint.config(
         'error',
         {
           patterns: [
-            { group: ['./*.repository.js', './*.model.js'], message: 'controllers call the service, never the repository or model' },
+            {
+              group: ['./*.repository.js', './*.model.js'],
+              allowTypeImports: true,
+              message: 'controllers call the service, never the repository or model',
+            },
             { regex: '^#modules/[^/]+/(?!index\\.js$)', message: "use the other module's public index.ts" },
+            { regex: '^\\.\\./', message: "modules import core with '#core/...', other modules through '#modules/<name>/index.js'" },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/modules/**/*.service.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            { group: ['./*.model.js'], allowTypeImports: true, message: 'services reach the database through their repository' },
+            { regex: '^#modules/[^/]+/(?!index\\.js$)', message: "use the other module's public index.ts" },
+            { regex: '^\\.\\./', message: "modules import core with '#core/...', other modules through '#modules/<name>/index.js'" },
           ],
         },
       ],

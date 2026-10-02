@@ -5,7 +5,8 @@ import '../schema-options.js'
 
 // Encrypts schema fields marked `encrypted: true` at rest (AES-256-GCM) and keeps them plain in memory.
 // A field with `blindIndex: '<collection>.<field>'` also gets `<field>_bidx` (private, indexed) so it
-// can be looked up by exact value: `{ email_bidx: blindIndex(email, 'users.email') }`.
+// can be looked up by exact value: `{ email_bidx: blindIndex(email, 'users.email') }`; add
+// `blindIndexUnique: true` to make the plain value unique (e.g. one account per email).
 //
 // Covered: doc.save(), findOneAndUpdate / findByIdAndUpdate ($set or plain object).
 // Not covered: updateOne / updateMany / bulkWrite / insertMany (they would store plain text):
@@ -21,10 +22,13 @@ export const blindIndexPath = (path: string) => `${path}_bidx`
 export function fieldEncryptionPlugin(schema: Schema): void {
   const fields: FieldSpec[] = []
   schema.eachPath((path, type) => {
-    const options = type.options as { encrypted?: boolean; blindIndex?: string }
+    const options = type.options as { encrypted?: boolean; blindIndex?: string; blindIndexUnique?: boolean }
     if (!options.encrypted) return
     fields.push({ path, indexContext: options.blindIndex })
-    if (options.blindIndex) schema.add({ [blindIndexPath(path)]: { type: String, index: true, private: true } })
+    if (options.blindIndex) {
+      const index = options.blindIndexUnique ? { unique: true, sparse: true } : true
+      schema.add({ [blindIndexPath(path)]: { type: String, index, private: true } })
+    }
   })
   if (!fields.length) return
 
