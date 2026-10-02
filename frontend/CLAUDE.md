@@ -65,6 +65,10 @@ src/domain/<module>.ts        helpers the UI uses: Option lists, status / priori
 
 - Stores call `xApi` from `@/api` (`import { projectApi as api } from '@/api'`); components import helpers from `@/domain/...`. Nothing outside `src/api` imports `api/mock` or `api/real`, and `domain/` never imports either (ESLint rule).
 - A new endpoint: add it to the contract interface first (with its JSDoc endpoint line), then to both implementations; `satisfies Contract.XApi` makes vue-tsc fail when one is missing.
+- Mock or real is chosen at build time per module (`vite.config.ts` -> constants like `__API_MOCK_PROJECT__`): `VITE_API_MODE=real|mock` (`.env.development` and production builds: real; unset otherwise, e.g. unit tests and `e2e/`: mock) and `VITE_API_MOCK=a,b` to keep modules on the mock. A module without a file in `api/real/` always uses the mock. A real module goes live by adding `api/real/<module>.ts` and its line in `api/index.ts`.
+- While modules are mixed, `api/bridge.ts` keeps them consistent (the mock acts for the user signed in for real; real projects get case counts from the mock's cases). Delete it once every module is real.
+- Real client (`api/real/http.ts`): API at `api/v1` relative to `<base href>` (Vite proxies `/api` to the backend on :4000 in dev, nginx in the image), the access token in memory only, the refresh token in the backend's httpOnly cookie; a 401 refreshes once and retries, a failed refresh fires `SESSION_EXPIRED` and the app goes to `/login`.
+- Development against the backend: `npm run dev` in `backend/` (port 4000, `testpulse-dev`) and here (port 3000). Demo accounts on the login page (dev builds only) use password `password123` (backend: `npm run seed`).
 - `api/mock/storage.ts` is the mock database (LocalStorage). Only the mock touches it. Server-side logic (snapshot building, ID generation, gatekeeper validation) lives in the mock too, as the backend does it. Sync helpers named "server-side" (e.g. `renameRunCases`) are part of that logic, not endpoints.
 - One-off fixes to stored demo data go through `migrateOnce()`; never re-apply them on every load.
 - Permissions are checked in the service too: start every mutation with `assertCan(key | keys | 'admin', projectId)`, filter list endpoints with `sessionCan(view key)` + `inAccessibleProjects()`. The UI checks (`auth.can`, router `meta.permission`) only hide what the server would refuse. The signed-in user is `sessionUser()`; switching user reloads the app (`auth.switchUser`).
@@ -91,6 +95,7 @@ src/domain/<module>.ts        helpers the UI uses: Option lists, status / priori
 ## Workflow
 
 - Before changing a page, list the hardcoded colors, inline styles and duplicated components in it and propose the fix.
-- Before committing: `npm run check` (type-check, lint, format, unit tests) and `npm run build`. For UI changes also `npm run test:e2e` (Playwright, starts its own dev server; first time on a machine: `npx playwright install chromium`). Add or update a spec in `e2e/` for a changed flow.
+- Before committing: `npm run check` (type-check, lint, format, unit tests) and `npm run build`. For UI changes also `npm run test:e2e` (Playwright on the mock API, starts its own dev server; first time on a machine: `npx playwright install chromium`). Add or update a spec in `e2e/` for a changed flow.
+- Changes to a real module (or what it calls): `npm run test:e2e:real` (`e2e-real/`, local only: starts the backend on :4100 against the test database of `backend/.env.test`, emptied and re-seeded, with Mailpit for invite mail, and the app on :5176 in real mode).
 - Run `npm run build` after each group, then commit it.
 - When unsure whether a style belongs to the theme or the page, ask.

@@ -120,6 +120,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'เข้าสู่ระบบ', layout: 'blank' },
   },
   {
+    path: '/invite/:token',
+    name: 'invite',
+    component: () => import('@/views/auth/Invite.vue'),
+    meta: { title: 'ตั้งรหัสผ่าน', layout: 'blank' },
+  },
+  {
     path: '/register',
     name: 'register',
     component: () => import('@/views/auth/Register.vue'),
@@ -136,9 +142,12 @@ const router = createRouter({
 
 // pages the role may not open redirect to the dashboard (the sidebar hides them too; this covers typed URLs)
 router.beforeEach(async (to) => {
-  if (to.meta.layout === 'blank' || (!to.meta.permission && !to.meta.adminOnly)) return true
+  if (to.meta.layout === 'blank') return true
   const app = useAppStore()
   await app.bootstrap()
+  // no session (or it ended): sign in first
+  if (app.signedOut) return { path: '/login' }
+  if (!to.meta.permission && !to.meta.adminOnly) return true
   if (!app.ready) return true // start-up failed: the layout shows the error and a retry
   const auth = useAuthStore()
   const allowed = to.meta.adminOnly ? auth.isAdmin : auth.can(to.meta.permission!)

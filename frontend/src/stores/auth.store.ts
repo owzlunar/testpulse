@@ -1,14 +1,14 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import type { Option, PermissionKey, Project, Role, RoleDiscipline, RoleInput, Team, TeamInput, User } from '@/types'
-import { authApi, roleApi, teamApi, userApi } from '@/api'
+import type { Option, PermissionKey, Project, RegisterInput, Role, RoleDiscipline, RoleInput, Team, TeamInput, User, UserInviteInput } from '@/types'
+import { authApi, canSwitchUser, roleApi, teamApi, userApi } from '@/api'
 import { useAuditStore } from './audit.store'
 import { NO_ROLE } from '@/domain/role'
 
 /** stands in until the session has loaded */
 const SIGNED_OUT: User = { id: '', name: '', email: '', roleId: null, avatar: '' }
 
-// Session (mock login / user switching), users, their role groups and teams
+// Session (sign-in, invites, passwords; switching user with the mock only), users, their role groups and teams
 export const useAuthStore = defineStore('auth', () => {
   const users = ref<User[]>([])
   const roles = ref<Role[]>([])
@@ -22,17 +22,15 @@ export const useAuthStore = defineStore('auth', () => {
   const isAdmin = computed(() => currentRole.value?.builtIn === 'admin')
   const hasRole = computed(() => !!currentRole.value)
 
+  /** the session first (401 without one: the app shows the login page), then the people data */
   async function load() {
-    const [list, roleList, teamList, session] = await Promise.all([
-      userApi.fetchUsers(),
-      roleApi.fetchRoles(),
-      teamApi.fetchTeams(),
-      authApi.fetchSession(),
-    ])
+    const session = await authApi.fetchSession()
+    currentUser.value = session
+    const [list, roleList, teamList] = await Promise.all([userApi.fetchUsers(), roleApi.fetchRoles(), teamApi.fetchTeams()])
     users.value = list
     roles.value = roleList
     teams.value = teamList
-    currentUser.value = list.find((u) => u.id === session.id) ?? list[0] ?? session
+    currentUser.value = list.find((u) => u.id === session.id) ?? session
   }
 
   function can(key: PermissionKey): boolean {
@@ -54,18 +52,43 @@ export const useAuthStore = defineStore('auth', () => {
   /** people for the QA / Developer pickers and "my work" */
   const usersIn = (discipline: RoleDiscipline) => users.value.filter((u) => roleById(u.roleId)?.discipline === discipline)
 
-  async function loginAs(user: User) {
-    currentUser.value = await authApi.login(user.id)
-  }
-
   /**
-   * Sign in as someone else and start the app again at `to`: everything loaded so far (projects,
+   * Start the app again at `to` as the (new) signed-in user: everything loaded so far (projects,
    * cases, runs …) was filtered for the previous user, so it is reloaded rather than reused.
    */
-  async function switchUser(user: User, to?: string) {
-    await loginAs(user)
+  function restartAt(to?: string) {
     // an app path ('/dashboard') resolves against <base href>, so it works under a sub path too
     window.location.assign(to ? new URL(to.replace(/^\//, ''), document.baseURI).href : window.location.href)
+  }
+
+  async function signIn(email: string, password: string, to = '/dashboard') {
+    await authApi.login(email, password)
+    restartAt(to)
+  }
+
+  async function register(input: RegisterInput) {
+    await authApi.register(input)
+    restartAt('/dashboard')
+  }
+
+  async function acceptInvite(token: string, password: string) {
+    await authApi.acceptInvite(token, password)
+    restartAt('/dashboard')
+  }
+
+  async function signOut() {
+    await authApi.logout()
+    restartAt('/login')
+  }
+
+  const changePassword = (currentPassword: string, newPassword: string) => authApi.changePassword(currentPassword, newPassword)
+
+  /** demo only (mock sign-in): continue as someone else without their password */
+  const canSwitch = canSwitchUser
+  async function switchUser(user: User, to?: string) {
+    if (!canSwitch) return
+    await authApi.login(user.email, '')
+    restartAt(to)
   }
 
   /**
@@ -97,18 +120,21 @@ export const useAuthStore = defineStore('auth', () => {
     if (currentUser.value.id === userId) currentUser.value = saved
     audit().record({
       action: 'UPDATE',
-      targetType: 'PROJECT',
+      targetType: 'USER',
       targetId: userId,
       targetTitle: saved.name,
       details: `เปลี่ยน Role ของ ${saved.name}: ${before ? roleOf(before).label : '-'} → ${roleOf(saved).label}`,
     })
   }
 
-  async function addUser(input: Omit<User, 'id'>): Promise<User> {
-    const user = await userApi.createUser(input)
+  /** Admin adds someone: they get an invite by email to set a password */
+  async function inviteUser(input: UserInviteInput): Promise<User> {
+    const user = await userApi.inviteUser(input)
     users.value.push(user)
     return user
   }
+
+  const resendInvite = (userId: string) => userApi.resendInvite(userId)
 
   async function saveRole(input: RoleInput): Promise<Role> {
     const saved = await roleApi.saveRole(input)
@@ -117,7 +143,7 @@ export const useAuthStore = defineStore('auth', () => {
     else roles.value.push(saved)
     audit().record({
       action: input.id ? 'UPDATE' : 'CREATE',
-      targetType: 'PROJECT',
+      targetType: 'ROLE',
       targetId: saved.id,
       targetTitle: `Role ${saved.name}`,
       details: `${input.id ? 'แก้ไข' : 'สร้าง'} Role ${saved.name} (${saved.permissions.length} สิทธิ์)`,
@@ -135,7 +161,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (movedIds.has(currentUser.value.id)) currentUser.value = { ...currentUser.value, roleId: moveTo }
     audit().record({
       action: 'DELETE',
-      targetType: 'PROJECT',
+      targetType: 'ROLE',
       targetId: id,
       targetTitle: `Role ${target?.name ?? id}`,
       details: `ลบ Role ${target?.name ?? id}${moved.length ? ` ย้ายผู้ใช้ ${moved.length} คนไป ${roleOf({ roleId: moveTo }).label}` : ''}`,
@@ -149,7 +175,7 @@ export const useAuthStore = defineStore('auth', () => {
     else teams.value.push(saved)
     audit().record({
       action: input.id ? 'UPDATE' : 'CREATE',
-      targetType: 'PROJECT',
+      targetType: 'TEAM',
       targetId: saved.id,
       targetTitle: saved.name,
       details: `${input.id ? 'แก้ไข' : 'สร้าง'}${saved.name} (สมาชิก ${saved.memberIds.length} คน)`,
@@ -162,7 +188,7 @@ export const useAuthStore = defineStore('auth', () => {
     const target = teams.value.find((t) => t.id === id)
     const changed = await teamApi.deleteTeam(id)
     teams.value = teams.value.filter((t) => t.id !== id)
-    audit().record({ action: 'DELETE', targetType: 'PROJECT', targetId: id, targetTitle: target?.name ?? id, details: `ลบ${target?.name ?? 'ทีม'}` })
+    audit().record({ action: 'DELETE', targetType: 'TEAM', targetId: id, targetTitle: target?.name ?? id, details: `ลบ${target?.name ?? 'ทีม'}` })
     return changed
   }
 
@@ -175,6 +201,12 @@ export const useAuthStore = defineStore('auth', () => {
     membersOf,
     userIdsByName,
     switchUser,
+    canSwitch,
+    signIn,
+    signOut,
+    register,
+    acceptInvite,
+    changePassword,
     saveTeam,
     deleteTeam,
     currentRole,
@@ -186,9 +218,9 @@ export const useAuthStore = defineStore('auth', () => {
     roleOf,
     roleById,
     usersIn,
-    loginAs,
     updateUserRole,
-    addUser,
+    inviteUser,
+    resendInvite,
     saveRole,
     deleteRole,
   }

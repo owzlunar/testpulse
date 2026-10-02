@@ -5,6 +5,7 @@ import FoxPageHeader from '@/components/ui/FoxPageHeader.vue'
 import FoxCardHeader from '@/components/ui/FoxCardHeader.vue'
 import FoxConfirmDialog from '@/components/ui/FoxConfirmDialog.vue'
 import UserAvatar from '@/components/users/UserAvatar.vue'
+import ChangePasswordForm from '@/components/users/ChangePasswordForm.vue'
 import DocumentTemplateForm from '@/components/documents/DocumentTemplateForm.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useSnackbar } from '@/composables/useSnackbar'
@@ -90,7 +91,7 @@ function reset() {
     <v-col cols="12" md="6">
       <div class="fox-stack">
         <v-card class="fox-card-body">
-          <FoxCardHeader title="บัญชีผู้ทดสอบ" subtitle="สลับ Mock User เพื่อทดลองแต่ละ Role" />
+          <FoxCardHeader title="บัญชีของฉัน" :subtitle="auth.canSwitch ? 'สลับ Mock User เพื่อทดลองแต่ละ Role' : 'ข้อมูลผู้ใช้และรหัสผ่าน'" />
           <div class="d-flex align-center ga-4 my-5">
             <UserAvatar :user="currentUser" size="56" />
             <div class="overflow-hidden">
@@ -99,16 +100,19 @@ function reset() {
               <v-chip :color="auth.roleOf(currentUser).tone" size="x-small" variant="tonal" class="mt-1">{{ auth.roleOf(currentUser).label }}</v-chip>
             </div>
           </div>
-          <label class="fox-label" for="set-user">สลับผู้ใช้งาน</label>
-          <v-select
-            id="set-user"
-            :model-value="currentUser.id"
-            :items="users.map((u) => ({ title: `${u.name} · ${auth.roleOf(u).label}`, value: u.id }))"
-            @update:model-value="switchUser"
-          />
+          <template v-if="auth.canSwitch">
+            <label class="fox-label" for="set-user">สลับผู้ใช้งาน</label>
+            <v-select
+              id="set-user"
+              :model-value="currentUser.id"
+              :items="users.map((u) => ({ title: `${u.name} · ${auth.roleOf(u).label}`, value: u.id }))"
+              @update:model-value="switchUser"
+            />
+          </template>
+          <ChangePasswordForm v-else @changed="notify('เปลี่ยนรหัสผ่านแล้ว ออกจากระบบในอุปกรณ์อื่นทั้งหมดแล้ว')" />
         </v-card>
 
-        <v-card v-if="auth.isAdmin" color="light-warning" variant="flat" class="fox-card-body">
+        <v-card v-if="auth.isAdmin && demoData" color="light-warning" variant="flat" class="fox-card-body">
           <div class="d-flex align-start ga-4">
             <v-avatar color="warning" variant="flat" size="44"><v-icon icon="tabler:database" size="22" /></v-avatar>
             <div>

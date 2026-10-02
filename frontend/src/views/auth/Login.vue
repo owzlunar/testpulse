@@ -1,37 +1,30 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
-import { storeToRefs } from 'pinia'
+import { reactive, ref } from 'vue'
 import type { VForm } from 'vuetify/components'
 import AppLogo from '@/components/layout/AppLogo.vue'
-import UserAvatar from '@/components/users/UserAvatar.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { errorMessage } from '@/api/errors'
 import { useAuthStore } from '@/stores/auth.store'
-import type { User } from '@/types'
+import { DEMO_ACCOUNTS, DEMO_PASSWORD, showDemoAccounts } from '@/utils/demo-accounts'
 import * as v from '@/utils/validators'
 
 const auth = useAuthStore()
-const { users } = storeToRefs(auth)
-const { busy: signingIn, run } = useAsyncAction()
-const loadingUsers = ref(true)
-onMounted(() => run(() => auth.load()).finally(() => (loadingUsers.value = false)))
+const error = ref('')
+// errors show in the form, not in the global toast
+const { busy: signingIn, run } = useAsyncAction({ onError: (e) => (error.value = errorMessage(e)) })
 
 const formRef = ref<VForm>()
-const form = reactive({ email: 'somchai.qa@testpulse.dev', password: 'password123' })
+const form = reactive({ email: '', password: '' })
 const showPw = ref(false)
-const error = ref('')
 
-function signIn(user: User) {
-  run(() => auth.switchUser(user, '/dashboard'))
+function signIn(email: string, password: string) {
+  error.value = ''
+  run(() => auth.signIn(email, password))
 }
 
 async function submit() {
-  error.value = ''
   const result = await formRef.value?.validate()
-  if (!result?.valid) return
-  // demo: any password signs in as the user with that email
-  const user = users.value.find((u) => u.email === form.email)
-  if (user) signIn(user)
-  else error.value = 'ไม่พบบัญชีที่ใช้อีเมลนี้ ลองเลือกบัญชีทดสอบด้านบน'
+  if (result?.valid) signIn(form.email.trim(), form.password)
 }
 
 const year = new Date().getFullYear()
@@ -66,29 +59,37 @@ const highlights: { icon: string; text: string }[] = [
       <div class="login__form">
         <AppLogo class="d-md-none mb-8" />
         <h2 class="text-h2 mb-1">เข้าสู่ระบบ</h2>
-        <p class="text-body-1 text-muted mb-6">เลือกบัญชีทดสอบเพื่อเข้าใช้งานทันที</p>
+        <p class="text-body-1 text-muted mb-6">ใช้อีเมลและรหัสผ่านของคุณ</p>
 
-        <div v-if="loadingUsers" class="d-flex flex-column ga-2 mb-6">
-          <v-skeleton-loader v-for="i in 4" :key="i" type="list-item-avatar-two-line" />
-        </div>
-        <div v-else class="d-flex flex-column ga-2 mb-6">
-          <v-card v-for="u in users" :key="u.id" variant="flat" border class="login__user" @click="signIn(u)">
-            <div class="d-flex align-center ga-3 pa-3">
-              <UserAvatar :user="u" size="36" />
-              <div class="flex-grow-1 overflow-hidden">
-                <div class="text-subtitle-2 text-truncate">{{ u.name }}</div>
-                <div class="text-caption text-muted text-truncate">{{ u.email }}</div>
+        <template v-if="showDemoAccounts">
+          <div class="text-overline text-muted mb-2">บัญชีทดสอบ (รหัสผ่าน {{ DEMO_PASSWORD }})</div>
+          <div class="d-flex flex-column ga-2 mb-6">
+            <v-card
+              v-for="u in DEMO_ACCOUNTS"
+              :key="u.email"
+              variant="flat"
+              border
+              class="login__user"
+              :disabled="signingIn"
+              @click="signIn(u.email, DEMO_PASSWORD)"
+            >
+              <div class="d-flex align-center ga-3 pa-3">
+                <v-avatar :color="u.tone" variant="tonal" size="36"><v-icon icon="tabler:user" size="18" /></v-avatar>
+                <div class="flex-grow-1 overflow-hidden">
+                  <div class="text-subtitle-2 text-truncate">{{ u.name }}</div>
+                  <div class="text-caption text-muted text-truncate">{{ u.email }}</div>
+                </div>
+                <v-chip :color="u.tone" size="x-small" variant="tonal">{{ u.role }}</v-chip>
               </div>
-              <v-chip :color="auth.roleOf(u).tone" size="x-small" variant="tonal">{{ auth.roleOf(u).label }}</v-chip>
-            </div>
-          </v-card>
-        </div>
+            </v-card>
+          </div>
 
-        <div class="d-flex align-center ga-3 mb-6">
-          <v-divider />
-          <span class="text-caption text-muted text-no-wrap">หรือใช้อีเมล</span>
-          <v-divider />
-        </div>
+          <div class="d-flex align-center ga-3 mb-6">
+            <v-divider />
+            <span class="text-caption text-muted text-no-wrap">หรือใช้อีเมล</span>
+            <v-divider />
+          </div>
+        </template>
 
         <v-alert v-if="error" type="error" variant="tonal" density="compact" class="mb-4" :text="error" />
 

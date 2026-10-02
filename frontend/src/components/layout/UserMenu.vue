@@ -36,24 +36,26 @@ const { run } = useAsyncAction()
         </div>
       </div>
       <v-divider />
-      <div class="text-overline text-muted px-5 pt-3">สลับบัญชีทดสอบ</div>
-      <v-list class="px-2">
-        <v-list-item v-for="u in users" :key="u.id" :active="u.id === currentUser.id" color="primary" @click="run(() => auth.switchUser(u))">
-          <template #prepend>
-            <UserAvatar :user="u" size="28" class="mr-3" />
-          </template>
-          <v-list-item-title class="text-body-2">{{ u.name }}</v-list-item-title>
-          <template #append>
-            <v-chip :color="auth.roleOf(u).tone" size="x-small" variant="tonal">{{ auth.roleOf(u).label }}</v-chip>
-          </template>
-        </v-list-item>
-      </v-list>
-      <v-divider />
+      <template v-if="auth.canSwitch">
+        <div class="text-overline text-muted px-5 pt-3">สลับบัญชีทดสอบ</div>
+        <v-list class="px-2">
+          <v-list-item v-for="u in users" :key="u.id" :active="u.id === currentUser.id" color="primary" @click="run(() => auth.switchUser(u))">
+            <template #prepend>
+              <UserAvatar :user="u" size="28" class="mr-3" />
+            </template>
+            <v-list-item-title class="text-body-2">{{ u.name }}</v-list-item-title>
+            <template #append>
+              <v-chip :color="auth.roleOf(u).tone" size="x-small" variant="tonal">{{ auth.roleOf(u).label }}</v-chip>
+            </template>
+          </v-list-item>
+        </v-list>
+        <v-divider />
+      </template>
       <v-list class="px-2">
         <v-list-item to="/settings" prepend-icon="tabler:settings" title="ตั้งค่า" />
       </v-list>
       <div class="px-4 pb-4">
-        <v-btn block variant="outlined" color="primary" prepend-icon="tabler:logout" to="/login">ออกจากระบบ</v-btn>
+        <v-btn block variant="outlined" color="primary" prepend-icon="tabler:logout" @click="run(() => auth.signOut())">ออกจากระบบ</v-btn>
       </div>
     </v-card>
   </v-menu>

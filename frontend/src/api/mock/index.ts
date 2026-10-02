@@ -42,11 +42,27 @@ import {
   searchTestCases,
   updateTestCase,
 } from './test-case'
-import { createUser, fetchSession, fetchUsers, login, updateUser } from './user'
+import {
+  acceptInvite,
+  changePassword,
+  fetchInvite,
+  fetchSession,
+  fetchUsers,
+  inviteUser,
+  login,
+  logout,
+  register,
+  resendInvite,
+  updateUser,
+} from './user'
+import { upload } from './file'
 export { resetDemoData } from './storage'
+export { adoptSession } from './user'
+export { mockCaseStats } from './project'
 
-export const authApi = { fetchSession, login } satisfies Contract.AuthApi
-export const userApi = { fetchUsers, createUser, updateUser } satisfies Contract.UserApi
+export const authApi = { fetchSession, login, logout, register, fetchInvite, acceptInvite, changePassword } satisfies Contract.AuthApi
+export const userApi = { fetchUsers, inviteUser, updateUser, resendInvite } satisfies Contract.UserApi
+export const fileApi = { upload } satisfies Contract.FileApi
 export const roleApi = { fetchRoles, saveRole, deleteRole } satisfies Contract.RoleApi
 export const teamApi = { fetchTeams, saveTeam, deleteTeam } satisfies Contract.TeamApi
 export const projectApi = { fetchProjects, createProject, updateProject, deleteProject } satisfies Contract.ProjectApi

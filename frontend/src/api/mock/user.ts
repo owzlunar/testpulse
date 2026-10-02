@@ -1,6 +1,7 @@
-import type { User } from '@/types'
+import type { InviteInfo, RegisterInput, User, UserInviteInput } from '@/types'
 import { ApiError } from '@/api/errors'
 import { ADMIN_ROLE_ID } from '@/domain/role'
+import { DEFAULT_AVATAR } from '@/domain/user'
 import { newId } from '@/utils/ids'
 import { respond } from './http'
 import { assertCan } from './project'
@@ -30,12 +31,33 @@ function users(): User[] {
 export const fetchUsers = () => respond(users)
 
 /** POST /users */
-export const createUser = (input: Omit<User, 'id'>) =>
+function addUser(input: Omit<User, 'id'>): User {
+  if (users().some((u) => u.email.toLowerCase() === input.email.toLowerCase())) throw new ApiError('อีเมลนี้มีบัญชีอยู่แล้ว', 409, 'duplicate')
+  const user: User = { ...input, avatar: input.avatar || DEFAULT_AVATAR, id: newId('user') }
+  save(STORAGE_KEYS.users, [...users(), user])
+  return user
+}
+
+/** POST /users (Admin). The mock sends no mail: the new user can sign in right away (any password). */
+export const inviteUser = (input: UserInviteInput) =>
   respond(() => {
-    // public sign-up can only create a user without a role; giving one is an Admin's job
-    if (input.roleId) assertCan('admin')
-    const user: User = { ...input, id: newId('user') }
-    save(STORAGE_KEYS.users, [...users(), user])
+    assertCan('admin')
+    return addUser({ avatar: DEFAULT_AVATAR, ...input })
+  })
+
+/** POST /users/:id/invite (the mock has no invites: nothing to send) */
+export const resendInvite = (id: string) =>
+  respond(() => {
+    assertCan('admin')
+    if (!users().some((u) => u.id === id)) throw new ApiError('ไม่พบผู้ใช้', 404)
+  })
+
+/** POST /auth/register: a new account without a role, signed in (the mock keeps no passwords) */
+export const register = (input: RegisterInput) =>
+  respond(() => {
+    const { password: _password, ...profile } = input
+    const user = addUser({ ...profile, roleId: null, avatar: DEFAULT_AVATAR })
+    save(STORAGE_KEYS.currentUser, user)
     return user
   })
 
@@ -65,13 +87,42 @@ export const sessionUser = (): User | null => {
 /** GET /auth/me */
 export const fetchSession = () => respond(() => load(STORAGE_KEYS.currentUser, MOCK_USERS[0]), 100)
 
-/** POST /auth/login (mock: no password check) */
-export const login = (userId: string) =>
+/** POST /auth/login (mock: any password signs in as the user with that email) */
+export const login = (email: string, _password: string) =>
   respond(() => {
-    const user = users().find((u) => u.id === userId)
-    if (!user) throw new ApiError('ไม่พบบัญชีผู้ใช้', 401)
+    const user = users().find((u) => u.email.toLowerCase() === email.trim().toLowerCase())
+    if (!user) throw new ApiError('อีเมลหรือรหัสผ่านไม่ถูกต้อง', 401, 'unauthorized')
     save(STORAGE_KEYS.currentUser, user)
     return user
   })
 
+/** POST /auth/logout (the mock signs back in as the first demo user on the next load) */
+export const logout = () => respond(() => localStorage.removeItem(STORAGE_KEYS.currentUser), 50)
+
+/** GET /auth/invites/:token (the mock sends no invites) */
+export const fetchInvite = (_token: string): Promise<InviteInfo> =>
+  respond(() => {
+    throw new ApiError('ลิงก์เชิญหมดอายุหรือถูกใช้ไปแล้ว ติดต่อ Admin เพื่อขอลิงก์ใหม่', 404, 'not_found')
+  })
+
+/** POST /auth/invites/:token/accept (the mock sends no invites) */
+export const acceptInvite = (token: string, _password: string): Promise<User> => fetchInvite(token).then(() => sessionUser()!)
+
+/** PUT /me/password (the mock keeps no passwords) */
+export const changePassword = (_currentPassword: string, _newPassword: string) => respond(() => undefined)
+
 export { MOCK_USERS }
+
+/**
+ * Transition bridge (src/api/bridge.ts): signed in with the real backend while other modules still
+ * run on this mock, the mock acts for the same person (its access checks read the session user).
+ */
+export function adoptSession(user: User | null): void {
+  if (!user) return void localStorage.removeItem(STORAGE_KEYS.currentUser)
+  const list = users()
+  const i = list.findIndex((u) => u.id === user.id)
+  if (i >= 0) list[i] = { ...list[i], ...user }
+  else list.push(user)
+  save(STORAGE_KEYS.users, list)
+  save(STORAGE_KEYS.currentUser, user)
+}

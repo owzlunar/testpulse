@@ -30,4 +30,5 @@ One git repository (github.com/owzlunar/testpulse). Each side keeps its own `CLA
 ## Workflow
 - Work one page or component group per commit. A contract change commits both sides (frontend types + backend `npm run contract:sync`) together.
 - CI (`.github/workflows`) runs each side's checks when its folder changes; the backend's also when `frontend/src/types` does.
+- When a backend module and its real frontend module change, run `npm run test:e2e:real` in `frontend/` (the app against the real backend; local only, needs MongoDB and Mailpit).
 - When unsure whether a change belongs to the frontend, the backend or the contract, ask.

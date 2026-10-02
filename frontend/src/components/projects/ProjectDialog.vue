@@ -7,7 +7,8 @@ import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth.store'
 import type { Project, ProjectInput, ProjectMilestone } from '@/types'
 import { addDays, todayISO } from '@/utils/date'
-import { compressImage } from '@/utils/image'
+import { fileApi } from '@/api'
+import { errorMessage } from '@/api/errors'
 import { required } from '@/utils/validators'
 import { MILESTONE_TYPES, PROJECT_STATUSES } from '@/domain/project'
 
@@ -21,6 +22,7 @@ const formRef = ref<VForm>()
 const fileInput = ref<HTMLInputElement>()
 const dragging = ref(false)
 const logoError = ref('')
+const uploadingLogo = ref(false)
 
 const empty = (): ProjectInput => ({
   key: '',
@@ -61,7 +63,12 @@ function readLogo(file?: File | null) {
     return
   }
   logoError.value = ''
-  compressImage(file, 256).then((url) => (form.logo = url))
+  uploadingLogo.value = true
+  fileApi
+    .upload(file, 'project-logo')
+    .then((uploaded) => (form.logo = uploaded.url))
+    .catch((e: unknown) => (logoError.value = errorMessage(e)))
+    .finally(() => (uploadingLogo.value = false))
 }
 
 function onDrop(e: DragEvent) {
@@ -118,7 +125,8 @@ async function submit() {
                 @drop.prevent="onDrop"
               >
                 <ProjectAvatar :project="{ name: form.name, key: form.key, logo: form.logo }" size="56" />
-                <span class="text-caption text-muted">{{ form.logo ? 'คลิกเพื่อเปลี่ยน' : 'ลากไฟล์มาวาง หรือคลิก' }}</span>
+                <v-progress-circular v-if="uploadingLogo" indeterminate size="18" width="2" color="primary" />
+                <span v-else class="text-caption text-muted">{{ form.logo ? 'คลิกเพื่อเปลี่ยน' : 'ลากไฟล์มาวาง หรือคลิก' }}</span>
                 <v-btn v-if="form.logo" variant="text" size="x-small" color="error" @click.stop="form.logo = ''">ลบโลโก้</v-btn>
                 <input
                   ref="fileInput"

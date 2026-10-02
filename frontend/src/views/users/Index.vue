@@ -10,7 +10,7 @@ import UserDialog from '@/components/users/UserDialog.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useSnackbar } from '@/composables/useSnackbar'
 import { useAuthStore } from '@/stores/auth.store'
-import type { User } from '@/types'
+import type { User, UserInviteInput } from '@/types'
 import { ADMIN_ROLE_ID } from '@/domain/role'
 
 const auth = useAuthStore()
@@ -61,13 +61,20 @@ function switchTo(u: User) {
   run(() => auth.switchUser(u))
 }
 
-function onSave(input: Omit<User, 'id'>) {
+function onSave(input: UserInviteInput) {
   run(
-    () => auth.addUser(input),
+    () => auth.inviteUser(input),
     () => {
       dialog.value = false
-      notify(`เพิ่ม ${input.name} แล้ว`)
+      notify(`เพิ่ม ${input.name} แล้ว ส่งคำเชิญไปที่ ${input.email}`)
     },
+  )
+}
+
+function resend(u: User) {
+  run(
+    () => auth.resendInvite(u.id),
+    () => notify(`ส่งคำเชิญไปที่ ${u.email} อีกครั้งแล้ว`),
   )
 }
 </script>
@@ -156,17 +163,23 @@ function onSave(input: Omit<User, 'id'>) {
           </div>
         </template>
         <template #[`item.actions`]="{ item }">
-          <v-btn
-            v-if="item.id !== currentUser.id"
-            variant="tonal"
-            color="primary"
-            size="small"
-            prepend-icon="tabler:switch-horizontal"
-            @click="switchTo(item)"
-          >
-            Login as
-          </v-btn>
-          <v-chip v-else color="success" size="small" variant="tonal">ใช้งานอยู่</v-chip>
+          <div class="d-flex align-center justify-end ga-2">
+            <template v-if="item.status === 'invited'">
+              <v-chip color="warning" size="small" variant="tonal" prepend-icon="tabler:mail">รอตอบรับคำเชิญ</v-chip>
+              <v-btn variant="text" color="primary" size="small" prepend-icon="tabler:send" @click="resend(item)">ส่งอีกครั้ง</v-btn>
+            </template>
+            <v-chip v-else-if="item.id === currentUser.id" color="success" size="small" variant="tonal">ใช้งานอยู่</v-chip>
+            <v-btn
+              v-else-if="auth.canSwitch"
+              variant="tonal"
+              color="primary"
+              size="small"
+              prepend-icon="tabler:switch-horizontal"
+              @click="switchTo(item)"
+            >
+              Login as
+            </v-btn>
+          </div>
         </template>
         <template #no-data>
           <FoxEmptyState icon="tabler:user-search" title="ไม่พบผู้ใช้งาน" text="ลองเปลี่ยนคำค้นหาหรือตัวกรอง" />

@@ -2,6 +2,7 @@
 // The real implementation (src/api/real) calls these endpoints; the mock (src/api/mock) imitates them;
 // the backend implements them with the same shapes (src/types).
 export type { AuthApi } from './auth'
+export type { FileApi } from './file'
 export type { UserApi } from './user'
 export type { RoleApi } from './role'
 export type { TeamApi } from './team'

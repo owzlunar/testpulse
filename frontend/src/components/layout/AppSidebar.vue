@@ -46,7 +46,7 @@ const badgeOf = (to: string) => (to === '/test-cases' && currentCases.value.leng
           <v-tooltip v-if="rail" activator="parent" location="end">{{ item.title }}</v-tooltip>
         </v-list-item>
       </template>
-      <v-list-item prepend-icon="tabler:logout" title="ออกจากระบบ" to="/login" base-color="error">
+      <v-list-item prepend-icon="tabler:logout" title="ออกจากระบบ" base-color="error" @click="auth.signOut()">
         <v-tooltip v-if="rail" activator="parent" location="end">ออกจากระบบ</v-tooltip>
       </v-list-item>
     </v-list>

@@ -136,3 +136,8 @@ export const deleteProject = (id: string) =>
       storedCases().filter((c) => c.projectId !== id),
     )
   })
+
+/** Transition bridge (src/api/bridge.ts): case counts of the mock's test cases, for real projects */
+export function mockCaseStats(projectId: string): ProjectStats {
+  return caseStatsOf(storedCases().filter((c) => c.projectId === projectId && !c.archivedAt))
+}

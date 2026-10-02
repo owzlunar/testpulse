@@ -5,7 +5,6 @@ import AppLogo from '@/components/layout/AppLogo.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useAuthStore } from '@/stores/auth.store'
 import * as v from '@/utils/validators'
-import { DEFAULT_AVATAR } from '@/domain/user'
 
 const auth = useAuthStore()
 
@@ -19,8 +18,7 @@ async function submit() {
   const result = await formRef.value?.validate()
   if (!result?.valid) return
   await run(async () => {
-    const user = await auth.addUser({ name: form.name, email: form.email, roleId: null, title: form.title, avatar: DEFAULT_AVATAR })
-    await auth.switchUser(user, '/dashboard')
+    await auth.register({ name: form.name.trim(), email: form.email.trim(), title: form.title, password: form.password })
   })
 }
 </script>
@@ -62,7 +60,7 @@ async function submit() {
               autocomplete="new-password"
               prepend-inner-icon="tabler:lock"
               :append-inner-icon="showPw ? 'tabler:eye-off' : 'tabler:eye'"
-              :rules="[v.required, v.minLength(6)]"
+              :rules="[v.required, v.minLength(8)]"
               @click:append-inner="showPw = !showPw"
             />
           </v-col>

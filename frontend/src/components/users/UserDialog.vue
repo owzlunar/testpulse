@@ -4,16 +4,16 @@ import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { storeToRefs } from 'pinia'
 import type { VForm } from 'vuetify/components'
 import { useAuthStore } from '@/stores/auth.store'
-import type { User } from '@/types'
+import type { UserInviteInput } from '@/types'
 import * as v from '@/utils/validators'
 import { DEFAULT_AVATAR } from '@/domain/user'
 
 const open = defineModel<boolean>({ default: false })
 withDefaults(defineProps<{ loading?: boolean }>(), { loading: false })
-const emit = defineEmits<{ save: [user: Omit<User, 'id'>] }>()
+const emit = defineEmits<{ save: [user: UserInviteInput] }>()
 
 const formRef = ref<VForm>()
-const empty = (): Omit<User, 'id'> => ({ name: '', email: '', title: '', roleId: null, avatar: DEFAULT_AVATAR })
+const empty = (): UserInviteInput => ({ name: '', email: '', title: '', roleId: null, avatar: DEFAULT_AVATAR })
 
 // roles created on the "Role และสิทธิ์" page; a user may start without one
 const { roleOptions } = storeToRefs(useAuthStore())
@@ -35,7 +35,7 @@ async function submit() {
       <div class="d-flex align-center justify-space-between fox-card-body pb-0">
         <div>
           <h2 class="text-h5">เพิ่มผู้ใช้งาน</h2>
-          <p class="text-body-2 text-muted">ช่องที่มี * จำเป็นต้องกรอก</p>
+          <p class="text-body-2 text-muted">ระบบจะส่งลิงก์ตั้งรหัสผ่านไปที่อีเมลนี้ · ช่องที่มี * จำเป็นต้องกรอก</p>
         </div>
         <v-btn icon="tabler:x" variant="text" size="small" aria-label="ปิด" @click="open = false" />
       </div>

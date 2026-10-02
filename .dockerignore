@@ -5,6 +5,8 @@
 **/.env
 **/.env.*
 !**/env-example
+# the web app's build settings (no secrets): which API the production build uses
+!frontend/.env.production
 backend/storage
 **/test-results
 **/playwright-report

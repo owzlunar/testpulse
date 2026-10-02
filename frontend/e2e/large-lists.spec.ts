@@ -1,10 +1,12 @@
 import { expect, test } from '@playwright/test'
-import { caseIds, login } from './helpers'
+import { caseIds, db, login } from './helpers'
 
 // Cases load per project; long lists show one page of parent cases at a time
 
 test('a long list is paged, and moving a case to the bottom takes it to the last page', async ({ page }) => {
   await login(page)
+  // the dashboard stores the demo cases while it loads: add to them once they are there
+  await expect.poll(() => db(page, 'testpulse_testcases')).not.toBeNull()
   // 30 more parent cases in PromptPay (33 in all)
   await page.evaluate(() => {
     const key = 'testpulse_testcases'

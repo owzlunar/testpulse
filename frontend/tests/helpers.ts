@@ -1,4 +1,5 @@
 import { login } from '@/api/mock/user'
+import { MOCK_USERS } from '@/api/mock/seeds/users.seed'
 import type { Actor } from '@/types'
 
 /** seed users (src/api/mock/seeds/users.seed.ts) */
@@ -12,7 +13,7 @@ export const USERS = {
 
 /** sign in (the services read the signed-in user from the session, like a backend) */
 export async function signIn(userId: string): Promise<Actor> {
-  const user = await login(userId)
+  const user = await login(MOCK_USERS.find((u) => u.id === userId)!.email, 'any password')
   return { id: user.id, name: user.name, avatar: user.avatar }
 }
 
