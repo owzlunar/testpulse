@@ -7,7 +7,8 @@ export const SEED_PROJECTS: Project[] = [
     key: 'PAY',
     name: 'PromptPay & QR Payment Gateway v3',
     description: 'ระบบชำระเงินผ่าน PromptPay QR และ Credit Card Gateway รองรับธุรกรรม 5,000 TPS และ webhook reconciliation',
-    logo: '/images/projects/promptpay-logo.jpg',
+    // relative to the app's public path (<base href>)
+    logo: 'images/projects/promptpay-logo.jpg',
     createdAt: '2026-09-01T08:00:00Z',
     updatedAt: '2026-09-29T10:30:00Z',
     targetDeadline: '2026-10-15',

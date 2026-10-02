@@ -4,6 +4,8 @@ import vue from '@vitejs/plugin-vue'
 import vuetify from 'vite-plugin-vuetify'
 
 export default defineConfig({
+  // relative asset URLs: the built app works under any public path (<base href> in index.html)
+  base: './',
   plugins: [vue(), vuetify({ styles: { configFile: 'src/styles/settings.scss' } })],
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },

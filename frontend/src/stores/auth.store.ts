@@ -56,9 +56,10 @@ export const useAuthStore = defineStore('auth', () => {
    * Sign in as someone else and start the app again at `to`: everything loaded so far (projects,
    * cases, runs …) was filtered for the previous user, so it is reloaded rather than reused.
    */
-  async function switchUser(user: User, to = window.location.pathname + window.location.search) {
+  async function switchUser(user: User, to?: string) {
     await loginAs(user)
-    window.location.assign(to)
+    // an app path ('/dashboard') resolves against <base href>, so it works under a sub path too
+    window.location.assign(to ? new URL(to.replace(/^\//, ''), document.baseURI).href : window.location.href)
   }
 
   /**

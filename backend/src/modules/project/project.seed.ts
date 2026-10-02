@@ -7,8 +7,8 @@ const DEMO_PROJECTS = [
     key: 'PAY',
     name: 'PromptPay & QR Payment Gateway v3',
     description: 'ระบบชำระเงินผ่าน PromptPay QR และ Credit Card Gateway รองรับธุรกรรม 5,000 TPS และ webhook reconciliation',
-    // a file of the web app (public/images)
-    logo: '/images/projects/promptpay-logo.jpg',
+    // a file of the web app (public/images), relative to its public path
+    logo: 'images/projects/promptpay-logo.jpg',
     targetDeadline: '2026-10-15',
     status: 'active',
     tags: ['FinTech', 'High-Risk', 'Backend-API', 'PCI-DSS'],
