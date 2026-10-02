@@ -2,7 +2,7 @@
 
 REST API ของ TestPulse (Node.js 22 + TypeScript + Express 5 + Mongoose 8) จัดโครงสร้างแบบ **feature module**: `src/core` เป็นโครงสร้างพื้นฐานที่ทุก module ใช้ และ `src/modules/<ชื่อ>` เป็นฟีเจอร์ละโฟลเดอร์ ลบโฟลเดอร์ module กับบรรทัดใน `src/app-modules.ts` แล้วแอปยังทำงานได้
 
-สัญญา API (endpoint และ type) อยู่ฝั่ง frontend: `frontend/src/services/*.service.ts` และ `frontend/src/types` ส่วน backend เก็บสำเนา type ไว้ที่ `src/contract/types.ts`
+สัญญา API (endpoint และ type) อยู่ฝั่ง frontend ใน repo เดียวกัน: `frontend/src/services/*.service.ts` และ `frontend/src/types` ส่วน backend เก็บสำเนา type ไว้ที่ `src/contract/types.ts` (CI ตรวจว่าตรงกันทุกครั้ง)
 
 ## เริ่มต้นใช้งาน
 
