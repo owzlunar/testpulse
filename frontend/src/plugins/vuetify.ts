@@ -50,6 +50,7 @@ const light: ThemeDefinition = {
     info: '#1A9BFC',
     accent: '#0BB2FB',
     success: '#39CB7F',
+    'on-success': '#FFFFFF', // white text on green (Vuetify's contrast pick is black)
     warning: '#FEC90F',
     error: '#FC4B6C',
     // TestPulse: orange between warning and error (blocked cases, high priority, churn)
@@ -84,6 +85,7 @@ const dark: ThemeDefinition = {
     info: '#1A9BFC',
     accent: '#0BB2FB',
     success: '#39CB7F',
+    'on-success': '#FFFFFF', // white text on green (Vuetify's contrast pick is black)
     warning: '#FEC90F',
     error: '#FC4B6C',
     caution: '#FF9F5A',
