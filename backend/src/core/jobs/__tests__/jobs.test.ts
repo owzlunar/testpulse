@@ -8,20 +8,25 @@ useTestDatabase()
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 describe('withLock', () => {
-  it('runs a job on one caller at a time', async () => {
-    let running = 0
-    let maxRunning = 0
-    const job = async () => {
-      running++
-      maxRunning = Math.max(maxRunning, running)
-      await sleep(50)
-      running--
-      return 'done'
-    }
-    const results = await Promise.all([withLock('report', 10_000, job), withLock('report', 10_000, job)])
-    expect(maxRunning).toBe(1)
-    expect(results.filter((r) => r === 'done')).toHaveLength(1)
-    expect(results.filter((r) => r === null)).toHaveLength(1)
+  it('a second run is skipped while the first holds the lock', async () => {
+    let inside!: () => void
+    const entered = new Promise<void>((r) => (inside = r))
+    let release!: () => void
+    const finish = new Promise<void>((r) => (release = r))
+
+    const first = withLock('report', 10_000, async () => {
+      inside()
+      await finish
+      return 'first'
+    })
+    await entered
+    const second = await withLock('report', 10_000, async () => 'second')
+    release()
+
+    expect(second).toBeNull()
+    expect(await first).toBe('first')
+    // released: the next run takes it
+    expect(await withLock('report', 10_000, async () => 'next')).toBe('next')
   })
 
   it('releases the lock afterwards, also when the job fails', async () => {
