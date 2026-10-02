@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
 import BlankLayout from '@/layouts/BlankLayout.vue'
 import { useAppStore } from '@/stores/app.store'
@@ -10,13 +10,20 @@ import { answerLeave, leavePrompt } from '@/composables/useUnsavedChanges'
 const route = useRoute()
 const app = useAppStore()
 const layout = computed(() => (route.meta.layout === 'blank' ? BlankLayout : DefaultLayout))
+// nothing until the first navigation is done (it waits for start-up): a shell shown earlier would
+// react to clicks, then the first route change resets it (e.g. closes a drawer just opened)
+const routed = ref(false)
+useRouter()
+  .isReady()
+  .then(() => (routed.value = true))
 // closing the leave prompt any way but its confirm button means stay
 const leaveOpen = computed({ get: () => leavePrompt.show, set: (v) => !v && answerLeave(false) })
 </script>
 
 <template>
   <v-app>
-    <component :is="layout" />
+    <component :is="layout" v-if="routed" />
+    <v-progress-linear v-else indeterminate color="primary" class="app-starting" aria-label="กำลังโหลด" />
     <!-- leaving a form with unsaved changes (useUnsavedChanges) -->
     <FoxConfirmDialog
       v-model="leaveOpen"
@@ -35,3 +42,10 @@ const leaveOpen = computed({ get: () => leavePrompt.show, set: (v) => !v && answ
     </v-snackbar>
   </v-app>
 </template>
+
+<style scoped>
+.app-starting {
+  position: fixed;
+  inset: 0 0 auto;
+}
+</style>

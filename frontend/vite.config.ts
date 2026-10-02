@@ -1,4 +1,4 @@
-import { readdirSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
@@ -42,6 +42,12 @@ function apiDefines(env: Record<string, string>, mode: string): Record<string, s
   return defines
 }
 
+/** every Vuetify component entry (from its index: some folders in lib/components are leftovers that don't build) */
+function vuetifyComponents() {
+  const index = readFileSync(new URL('./node_modules/vuetify/lib/components/index.mjs', import.meta.url), 'utf8')
+  return [...index.matchAll(/from "\.\/(.+?)"/g)].map((m) => `vuetify/lib/components/${m[1]}`)
+}
+
 export default defineConfig(({ mode }) => ({
   define: apiDefines(loadEnv(mode, process.cwd(), 'VITE_'), mode),
   // relative asset URLs: the built app works under any public path (<base href> in index.html)
@@ -59,6 +65,9 @@ export default defineConfig(({ mode }) => ({
       scss: { api: 'modern', silenceDeprecations: ['mixed-decls'] },
     },
   },
+  // Vuetify components are imported per page (vite-plugin-vuetify): without this the dev server finds
+  // them one page at a time, re-bundles and reloads the browser mid-way (breaks e2e on a cold cache)
+  optimizeDeps: { include: vuetifyComponents() },
   server: {
     port: 3000,
     host: '0.0.0.0',
