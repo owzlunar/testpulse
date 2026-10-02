@@ -25,7 +25,7 @@ test('the page header sticks compact under the app bar, and can be turned off in
   await expect(page.locator('.fox-page-header--sticky')).toHaveCount(0)
 })
 
-test('the test case form is a bottom sheet over the content area, the same size on every tab', async ({ page }) => {
+test('the test case form is a full-width bottom sheet, the same size on every tab', async ({ page }) => {
   await page.goto('/test-cases')
   await expect(page.locator('.tc-slot').first()).toBeVisible()
   await page.getByLabel('เปิด TC-101', { exact: true }).click()
@@ -36,7 +36,8 @@ test('the test case form is a bottom sheet over the content area, the same size 
     await page.getByRole('tab', { name: tab }).click()
     const box = (await sheet.boundingBox())!
     sizes.add(`${Math.round(box.width)}x${Math.round(box.height)}`)
-    expect(Math.round(box.x)).toBe(264) // beside the drawer
+    expect(Math.round(box.x)).toBe(0)
+    expect(Math.round(box.width)).toBe(1440) // the whole window, drawer included
   }
   expect(sizes.size).toBe(1)
 })

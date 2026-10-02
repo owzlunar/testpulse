@@ -63,12 +63,12 @@ function linkLegacyRequirement() {
 const requirementRule = (v: string) => hasLinkedRequirement.value || !!v?.trim() || 'เลือก Requirement ที่เกี่ยวข้อง หรือระบุ Requirement เป็นข้อความ'
 const { canEdit, canCreate, allowedStatuses } = useTestCasePermissions()
 
-// the sheet fills the main content area, whatever the drawers do (full, rail, hidden, right aside)
+// the sheet spans the full window width, below the app bar
 const { mainRect } = useLayout()
 const sheetStyle = computed(() => ({
-  left: `${mainRect.value.left}px`,
-  right: `${mainRect.value.right}px`,
-  width: 'auto',
+  left: '0',
+  right: '0',
+  width: '100%',
   maxWidth: 'none',
   height: `calc(100vh - ${mainRect.value.top + 16}px)`,
   marginInline: '0',
