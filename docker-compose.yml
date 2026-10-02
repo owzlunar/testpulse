@@ -1,8 +1,16 @@
-# Runs the testpulse image locally against MongoDB and MinIO on the host
-# (the replica set on :20001 and MinIO's API on :9001, see backend/.env).
-#   docker compose up --build      -> http://localhost:8080
-#   invites and other mail          -> http://localhost:8025 (Mailpit)
-# Secrets (JWT keys, encryption key, salt) come from backend/.env (npm run env:init).
+# The testpulse image against services that run elsewhere (here: on the Docker host).
+#   docker compose up -d --build        -> http://localhost:8080
+# Every connection below is checked when the container starts: if MongoDB, the storage or the mail
+# server can't be reached (or the folders can't be written) the container stops with the reason in
+# `docker logs testpulse`. Override any value from the shell or a .env file next to this one,
+# e.g. STORAGE_DRIVER=minio docker compose up -d
+#
+# Secrets (JWT keypair, ENCRYPTION_KEY_*, BLIND_INDEX_SALT, MinIO keys, SMTP login) come from
+# docker/secrets.env (git-ignored), created with:
+#   npm --prefix backend run env:init -- --secrets-only ../docker/secrets.env
+# Keep it: data is encrypted with these keys (use the same ones as any other API on the same database).
+# Test mail server: Mailpit on the host, SMTP :1025, inbox http://localhost:8025
+#   docker run -d --name mailpit --restart unless-stopped -p 1025:1025 -p 8025:8025 axllent/mailpit
 
 services:
   testpulse:
@@ -10,36 +18,43 @@ services:
     image: testpulse
     container_name: testpulse
     ports:
+      # nginx only: the API (8081) is not published
       - '8080:8080'
-    env_file: backend/.env
+    env_file: docker/secrets.env
     environment:
-      NODE_ENV: production
-      APP_URL: http://localhost:8080
-      # the host's services, seen from inside the container
-      MONGODB_URI: mongodb://host.docker.internal:20001/testpulse?directConnection=true&replicaSet=dbrs
-      MINIO_ENDPOINT: host.docker.internal
-      # production refuses the log mail driver: Mailpit catches the mail instead
+      # public URL of the web app; behind a reverse proxy on a sub path e.g. https://mydomain/testpulse
+      BASE_URL: ${BASE_URL:-http://localhost:8080}
+      # requests come through the container's nginx; add the outer proxy too when there is one
+      # (e.g. "loopback, 10.0.0.0/8") so client IPs in logs and rate limits are right
+      TRUST_PROXY: ${TRUST_PROXY:-loopback}
+      # plain http on localhost; true behind https
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+
+      # MongoDB 6+ replica set
+      MONGODB_URI: ${MONGODB_URI:-mongodb://host.docker.internal:20001/testpulse?directConnection=true&replicaSet=dbrs}
+
+      # uploads: local (the host folder below) or minio
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-host.docker.internal}
+      MINIO_PORT: ${MINIO_PORT:-9001}
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
+      # MINIO_ACCESS_KEY / MINIO_SECRET_KEY: in docker/secrets.env
+      MINIO_BUCKET: ${MINIO_BUCKET:-testpulse}
+
+      # mail (invites): production needs SMTP
       MAIL_DRIVER: smtp
-      SMTP_HOST: mailpit
-      SMTP_PORT: 1025
-      SMTP_SECURE: 'false'
-      # plain http on localhost
-      COOKIE_SECURE: 'false'
-      TRUST_PROXY: 1
+      MAIL_FROM: ${MAIL_FROM:-TestPulse <no-reply@testpulse.local>}
+      SMTP_HOST: ${SMTP_HOST:-host.docker.internal}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      # SMTP_USER / SMTP_PASSWORD (if the server needs a login): in docker/secrets.env
+
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_RETENTION_DAYS: ${LOG_RETENTION_DAYS:-14}
+    volumes:
+      # uploaded files (STORAGE_DRIVER=local) and access / error logs, kept on the host
+      - ./docker-data/uploads:/app/backend/storage/uploads
+      - ./docker-data/logs:/app/backend/logs
     extra_hosts:
       - 'host.docker.internal:host-gateway'
-    volumes:
-      - uploads:/app/backend/storage
-    depends_on:
-      - mailpit
     restart: unless-stopped
-
-  mailpit:
-    image: axllent/mailpit:latest
-    container_name: testpulse-mailpit
-    ports:
-      - '8025:8025'
-    restart: unless-stopped
-
-volumes:
-  uploads:

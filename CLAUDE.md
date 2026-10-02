@@ -8,9 +8,10 @@ testpulse
 |--- frontend   Vue 3 + Vuetify app (own CLAUDE.md)
 |--- backend    Express 5 + Mongoose API in feature modules (own CLAUDE.md)
 |--- PRD.md     product spec, shared by both sides
-|--- Dockerfile one image `testpulse`: nginx :8080 (web app, proxies /api and /health) + the API, run by supervisor
-|--- docker/    nginx.conf, supervisor.conf, entrypoint.sh (builds DB indexes, then starts supervisor)
-|--- docker-compose.yml  runs the image locally against the host's MongoDB / MinIO, with Mailpit (:8025) for mail
+|--- README.md  how to run and configure the Docker image (Thai)
+|--- Dockerfile one image `testpulse`: nginx :8080 (web app, proxies /api and /health) + the API on 127.0.0.1:8081, run by supervisor
+|--- docker/    nginx.conf, supervisor.conf, entrypoint.sh (BASE_URL path, preflight checks, DB indexes, supervisor); secrets.env (git-ignored)
+|--- docker-compose.yml  the image against the host's MongoDB / MinIO / Mailpit, settings in `environment`, uploads and logs in ./docker-data
 ```
 One git repository (github.com/owzlunar/testpulse). Each side keeps its own `CLAUDE.md` with its stack rules; this file holds what both share.
 
@@ -22,6 +23,7 @@ One git repository (github.com/owzlunar/testpulse). Each side keeps its own `CLA
 - Stale changes: a test case has a stable `uid` (its `id` changes when the list is renumbered) and a `rev` (+1 on every write). Changes to a case carry the `{uid, rev}` the client saw; the server answers 409 with `code: 'stale'` if the case moved on (see `assertFresh`), and the client reloads. Reorders carry the uid of every id.
 - Project access: a project lists `teamIds`; only members of those teams (with a role) may open it, a project without teams is open to every role, Admins open everything.
 - Notifications have an audience (`to`: user ids and / or disciplines; none = everyone who can open the project, minus the sender) and per-person `readBy` / `hiddenFor`; `notificationIsFor` (notification.service.ts) is the rule. The backend creates them in the same request as the change.
+- The app may be served under a sub path (`BASE_URL`, e.g. https://mydomain/testpulse): the frontend uses relative URLs that resolve against `<base href>` (never a leading `/` for files or `window.location`), the backend gives public paths from `config.publicPath` / `publicApiPath`.
 - No emoji in the UI (PRD). Emoji are only allowed inside the exported Obsidian Markdown.
 - UI text is Thai; code, identifiers and comments are English.
 
