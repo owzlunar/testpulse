@@ -1,0 +1,24 @@
+{
+  // Type-checks everything (sources, tests, scripts). The build uses tsconfig.build.json.
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    // `#core/*` and `#modules/*` (package.json "imports") point at src/ under this condition, at dist/ otherwise
+    "customConditions": ["source"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "exactOptionalPropertyTypes": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true,
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["src", "scripts", "tests", "vitest.config.ts", "eslint.config.js"]
+}

@@ -1,0 +1,83 @@
+{
+  "name": "testpulse-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TestPulse REST API (Express 5 + Mongoose, feature modules)",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "imports": {
+    "#core/*": {
+      "source": "./src/core/*",
+      "default": "./dist/core/*"
+    },
+    "#modules/*": {
+      "source": "./src/modules/*",
+      "default": "./dist/modules/*"
+    },
+    "#contract/*": {
+      "source": "./src/contract/*",
+      "default": "./dist/contract/*"
+    }
+  },
+  "scripts": {
+    "dev": "tsx watch --conditions=source src/index.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "contract:sync": "tsx scripts/contract.ts sync",
+    "contract:check": "tsx scripts/contract.ts check",
+    "check": "npm run contract:check && npm run typecheck && npm run lint && npm run format:check && npm run test",
+    "env:init": "tsx scripts/init-env.ts",
+    "seed": "tsx --conditions=source scripts/seed.ts",
+    "db:indexes": "tsx --conditions=source scripts/db-indexes.ts",
+    "keys:rotate": "tsx --conditions=source scripts/rotate-keys.ts",
+    "make:module": "tsx scripts/make-module.ts"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv-flow": "^4.1.0",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
+    "joi": "^18.2.9",
+    "jsonwebtoken": "^9.0.3",
+    "minio": "^8.0.7",
+    "mongoose": "^8.24.4",
+    "morgan": "^1.12.1",
+    "multer": "^2.4.0",
+    "node-cron": "^4.6.0",
+    "nodemailer": "^10.0.13",
+    "winston": "^3.19.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/morgan": "^1.9.10",
+    "@types/multer": "^2.3.0",
+    "@types/node": "^22.20.5",
+    "@types/nodemailer": "^8.0.2",
+    "@types/supertest": "^7.2.1",
+    "@vitest/coverage-v8": "^5.0.3",
+    "eslint": "^10.11.0",
+    "mongodb-memory-server": "^11.3.0",
+    "prettier": "^3.9.9",
+    "supertest": "^7.3.0",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.0",
+    "vitest": "^5.0.3"
+  }
+}
