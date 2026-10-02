@@ -22,7 +22,7 @@ export default defineConfigWithVueTs(
     rules: {
       'no-restricted-imports': [
         'error',
-        { patterns: [{ regex: '^@/api/(mock|real)(/|$)', message: "import the API from '@/api' (it picks mock or real)" }] },
+        { patterns: [{ regex: '^@/api/(mock|rest)(/|$)', message: "import the API from '@/api' (it picks mock or rest)" }] },
       ],
     },
   },

@@ -54,7 +54,7 @@ export default defineConfig({
     },
     {
       command: `npx vite --port ${FRONTEND} --strictPort`,
-      env: { VITE_API_MODE: 'real', API_PROXY_TARGET: `http://localhost:${BACKEND}` },
+      env: { VITE_API_MODE: 'rest', API_PROXY_TARGET: `http://localhost:${BACKEND}` },
       url: `http://localhost:${FRONTEND}`,
       reuseExistingServer: false,
       timeout: 60_000,

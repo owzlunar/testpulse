@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { apiOn } from '@/api'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
@@ -31,7 +32,9 @@ const projectStore = useProjectStore()
 const { projects, selectedProjectId, overallStats, currentProject, currentStats } = storeToRefs(projectStore)
 const auth = useAuthStore()
 const { currentUser, users } = storeToRefs(auth)
-const canSeeAudit = computed(() => auth.can('audit.view'))
+// rest mode: test cases and the audit trail show once the backend has them (apiOn)
+const casesOn = apiOn['test-case']
+const canSeeAudit = computed(() => apiOn.audit && auth.can('audit.view'))
 const admins = computed(() =>
   users.value
     .filter((u) => auth.roleById(u.roleId)?.builtIn === 'admin')
@@ -44,12 +47,14 @@ const { busy: saving, run } = useAsyncAction()
 
 // --- stats -------------------------------------------------------------------
 const urgentCount = computed(() => overallStats.value.attention)
-const stats = computed(() => [
+const allStats = computed(() => [
   { label: 'โปรเจกต์ทั้งหมด', value: overallStats.value.totalProjects, icon: 'tabler:folders', tone: 'primary' as const },
   { label: 'Test Cases ทั้งหมด', value: overallStats.value.totalTestCases, icon: 'tabler:flask', tone: 'info' as const },
   { label: 'Pass Rate เฉลี่ย', value: formatPercent(overallStats.value.passRate), icon: 'tabler:circle-check', tone: 'success' as const },
   { label: 'ใกล้ครบกำหนด / เลยกำหนด', value: urgentCount.value, icon: 'tabler:clock-exclamation', tone: 'error' as const },
 ])
+/** without test cases only the project count means something */
+const stats = computed(() => (casesOn ? allStats.value : allStats.value.slice(0, 1)))
 
 const statusSegments = computed(() =>
   STATUSES.map((s) => ({ label: s.label, value: currentStats.value.byStatus[s.value], tone: s.tone })).filter((s) => s.value > 0),
@@ -174,11 +179,11 @@ watch(
     </v-row>
 
     <!-- to-do, current project status, recent activity -->
-    <v-row class="fox-grid">
-      <v-col cols="12" lg="4">
+    <v-row v-if="casesOn || canSeeAudit" class="fox-grid">
+      <v-col v-if="casesOn" cols="12" lg="4">
         <TodoCard />
       </v-col>
-      <v-col cols="12" :md="canSeeAudit ? 5 : 12" :lg="canSeeAudit ? 4 : 8">
+      <v-col v-if="casesOn" cols="12" :md="canSeeAudit ? 5 : 12" :lg="canSeeAudit ? 4 : 8">
         <v-card class="fox-card-body h-100">
           <FoxCardHeader title="สถานะการทดสอบ" :subtitle="currentProject?.name ?? '-'" />
           <v-divider class="my-5" />
@@ -192,7 +197,7 @@ watch(
           <FoxEmptyState v-else icon="tabler:flask" title="ยังไม่มี Test Case" text="เริ่มสร้าง Test Case แรกของโปรเจกต์นี้" />
         </v-card>
       </v-col>
-      <v-col v-if="canSeeAudit" cols="12" md="7" lg="4">
+      <v-col v-if="canSeeAudit" cols="12" :md="casesOn ? 7 : 12" :lg="casesOn ? 4 : 12">
         <v-card class="fox-card-body h-100">
           <FoxCardHeader title="กิจกรรมล่าสุด" subtitle="จาก Audit Trail">
             <v-btn variant="text" color="primary" size="small" append-icon="tabler:arrow-right" to="/audit-trail">ดูทั้งหมด</v-btn>

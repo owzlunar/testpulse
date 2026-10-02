@@ -24,8 +24,9 @@ test('an Admin invites a user, who sets a password from the mailed link and sign
   await invited.locator('#invite-confirm').fill('my-own-password')
   await invited.getByRole('button', { name: 'ตั้งรหัสผ่านและเข้าสู่ระบบ' }).click()
   await invited.waitForURL('**/dashboard')
-  // no role yet: no project, no module pages
-  await expect(invited.locator('.fox-nav').getByText('Test Cases')).toHaveCount(0)
+  // no role yet: no project
+  await expect(invited.locator('.fox-nav')).toBeVisible()
+  await expect(invited.locator('.project-card')).toHaveCount(0)
 
   // the link works once
   await invited.goto(link.replace(/^https?:\/\/[^/]+/, 'http://localhost:5176'))
@@ -37,7 +38,7 @@ test('an Admin invites a user, who sets a password from the mailed link and sign
   await page.locator('.v-overlay--active .v-list-item', { hasText: 'QA Tester' }).click()
   await expect(toast(page)).toContainText('เป็น QA Tester')
   await invited.goto('http://localhost:5176/dashboard')
-  await expect(invited.locator('.fox-nav').getByText('Test Cases')).toBeVisible()
+  await expect(invited.locator('.project-card', { hasText: 'Enterprise SSO' })).toBeVisible() // a project without a team: every role
 })
 
 test('a user changes their password: the old one stops working', async ({ page }) => {

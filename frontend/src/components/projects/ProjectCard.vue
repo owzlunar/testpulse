@@ -7,6 +7,7 @@ import { useProjectStore } from '@/stores/project.store'
 import type { Project } from '@/types'
 import { daysFromToday, formatDateTH } from '@/utils/date'
 import { projectStatusOf } from '@/domain/project'
+import { apiOn } from '@/api'
 
 const props = defineProps<{ project: Project; selected: boolean }>()
 defineEmits<{ select: [id: string]; open: [id: string]; edit: [project: Project]; delete: [project: Project]; export: [id: string] }>()
@@ -16,6 +17,8 @@ const stats = computed(() => useProjectStore().statsFor(props.project.id))
 const teams = computed(() => auth.teams.filter((t) => props.project.teamIds?.includes(t.id)))
 const members = computed(() => auth.membersOf(props.project))
 const status = computed(() => projectStatusOf(props.project.status))
+/** test cases are on (rest mode hides them until the backend has them) */
+const casesOn = apiOn['test-case']
 const daysLeft = computed(() => (props.project.targetDeadline ? daysFromToday(props.project.targetDeadline) : null))
 </script>
 
@@ -41,7 +44,7 @@ const daysLeft = computed(() => (props.project.targetDeadline ? daysFromToday(pr
           <v-btn v-bind="menu" icon="tabler:dots-vertical" variant="text" size="small" aria-label="ตัวเลือกโปรเจกต์" @click.stop />
         </template>
         <v-list>
-          <v-list-item prepend-icon="tabler:markdown" title="ส่งออก Obsidian (.md)" @click="$emit('export', project.id)" />
+          <v-list-item v-if="casesOn" prepend-icon="tabler:markdown" title="ส่งออก Obsidian (.md)" @click="$emit('export', project.id)" />
           <!-- projects are managed by Admins -->
           <template v-if="auth.isAdmin">
             <v-list-item prepend-icon="tabler:pencil" title="แก้ไขโปรเจกต์" @click="$emit('edit', project)" />
@@ -61,7 +64,7 @@ const daysLeft = computed(() => (props.project.targetDeadline ? daysFromToday(pr
         <v-chip v-for="tag in project.tags" :key="tag" size="x-small" variant="tonal" color="secondary">#{{ tag }}</v-chip>
       </div>
       <v-spacer />
-      <TestCaseProgress :stats="stats" :height="6" />
+      <TestCaseProgress v-if="casesOn" :stats="stats" :height="6" />
     </div>
 
     <v-divider />
@@ -74,7 +77,7 @@ const daysLeft = computed(() => (props.project.targetDeadline ? daysFromToday(pr
       <span class="d-inline-flex align-center ga-1 text-caption text-muted" :title="members.map((u) => u.name).join(', ')">
         <v-icon icon="tabler:users" size="16" /><span class="fox-num">{{ members.length }}</span> คน
       </span>
-      <v-btn variant="text" color="primary" size="small" append-icon="tabler:arrow-right" @click.stop="$emit('open', project.id)">
+      <v-btn v-if="casesOn" variant="text" color="primary" size="small" append-icon="tabler:arrow-right" @click.stop="$emit('open', project.id)">
         <span class="fox-num">{{ stats.total }}</span
         >&nbsp;Test Cases
       </v-btn>

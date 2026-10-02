@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import { useNotificationStore } from '@/stores/notification.store'
 import AppLogo from './AppLogo.vue'
 import GlobalSearch from './GlobalSearch.vue'
+import { apiOn } from '@/api'
 import ProjectSwitcher from './ProjectSwitcher.vue'
 import UserMenu from './UserMenu.vue'
 
@@ -32,7 +33,7 @@ const auth = useAuthStore()
       <ProjectSwitcher v-if="auth.hasRole" class="ml-1" />
 
       <div class="app-header__search d-none d-md-block ml-3">
-        <GlobalSearch v-if="auth.hasRole" />
+        <GlobalSearch v-if="auth.hasRole && apiOn['test-case']" />
       </div>
 
       <v-spacer />
@@ -42,7 +43,7 @@ const auth = useAuthStore()
       </v-btn>
 
       <v-btn
-        v-if="auth.can('notification.receive')"
+        v-if="apiOn.notification && auth.can('notification.receive')"
         icon
         variant="text"
         aria-label="การแจ้งเตือน"

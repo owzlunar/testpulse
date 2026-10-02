@@ -6,6 +6,7 @@ import { useNotificationStore } from './notification.store'
 import { useProjectStore } from './project.store'
 import { useSettingsStore } from './settings.store'
 import { useTestCaseStore } from './test-case.store'
+import { apiOn } from '@/api'
 import { ApiError, errorMessage } from '@/api/errors'
 import { SESSION_EXPIRED } from '@/api/session'
 
@@ -28,9 +29,15 @@ export const useAppStore = defineStore('app', () => {
       try {
         failed.value = ''
         await useAuthStore().load()
-        await Promise.all([useSettingsStore().load(), useProjectStore().load(), useAuditStore().load(), useNotificationStore().load()])
+        // modules that are off (rest mode, not in the backend yet) load nothing
+        await Promise.all([
+          useSettingsStore().load(),
+          useProjectStore().load(),
+          apiOn.audit ? useAuditStore().load() : undefined,
+          apiOn.notification ? useNotificationStore().load() : undefined,
+        ])
         // cases load per project: the selected one now, others when opened
-        await useTestCaseStore().ensureProject(useProjectStore().currentProject?.id)
+        if (apiOn['test-case']) await useTestCaseStore().ensureProject(useProjectStore().currentProject?.id)
         ready.value = true
       } catch (e) {
         if (e instanceof ApiError && e.status === 401) signedOut.value = true

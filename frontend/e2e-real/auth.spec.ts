@@ -41,11 +41,9 @@ test('each user sees only the projects of their teams (and those without a team)
   await expect(page.locator('.project-card', { hasText: 'PromptPay' })).toHaveCount(0) // team Payment only
 })
 
-test('a user signed in for real also works on the modules still on the mock (test cases)', async ({ page }) => {
+test('modules the backend lacks are off: no menu, and their pages lead back to the dashboard', async ({ page }) => {
   await signIn(page, ACCOUNTS.qaLead.email)
-  // PromptPay: the project with the mock's demo cases
-  await page.evaluate(() => localStorage.setItem('testpulse_selected_project_id', 'proj-1'))
+  for (const item of ['Test Cases', 'Requirements', 'Defects', 'รอบการทดสอบ']) await expect(page.locator('.fox-nav').getByText(item)).toHaveCount(0)
   await page.goto('/test-cases')
-  await expect(page.locator('.tc-slot').first()).toBeVisible()
-  await expect(page.locator('.tc-slot', { hasText: 'TC-101' }).first()).toBeVisible()
+  await page.waitForURL('**/dashboard')
 })

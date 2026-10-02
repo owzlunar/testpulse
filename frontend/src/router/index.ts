@@ -1,3 +1,4 @@
+import { apiAllOn, type ApiModule } from '@/api'
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { installLeaveGuard } from '@/composables/useUnsavedChanges'
 import { useAppStore } from '@/stores/app.store'
@@ -14,6 +15,8 @@ declare module 'vue-router' {
     permission?: PermissionKey
     /** built-in Admin role only (users, roles, teams) */
     adminOnly?: boolean
+    /** API modules the page needs: off ones (rest mode, see apiOn) hide it from the menu and redirect */
+    api?: ApiModule[]
   }
 }
 
@@ -29,31 +32,31 @@ const routes: RouteRecordRaw[] = [
     path: '/requirements',
     name: 'requirements',
     component: () => import('@/views/requirements/Index.vue'),
-    meta: { title: 'Requirements', permission: 'requirement.view' },
+    meta: { title: 'Requirements', permission: 'requirement.view', api: ['requirement', 'test-case'] },
   },
   {
     path: '/test-cases',
     name: 'test-cases',
     component: () => import('@/views/test-cases/Index.vue'),
-    meta: { title: 'Test Cases', permission: 'case.view' },
+    meta: { title: 'Test Cases', permission: 'case.view', api: ['test-case'] },
   },
   {
     path: '/test-runs',
     name: 'test-runs',
     component: () => import('@/views/test-runs/Index.vue'),
-    meta: { title: 'รอบการทดสอบ', permission: 'run.view' },
+    meta: { title: 'รอบการทดสอบ', permission: 'run.view', api: ['run', 'test-case'] },
   },
   {
     path: '/test-runs/:id',
     name: 'test-run-execute',
     component: () => import('@/views/test-runs/Execute.vue'),
-    meta: { title: 'บันทึกผลการทดสอบ', permission: 'run.view' },
+    meta: { title: 'บันทึกผลการทดสอบ', permission: 'run.view', api: ['run', 'test-case'] },
   },
   {
     path: '/defects',
     name: 'defects',
     component: () => import('@/views/defects/Index.vue'),
-    meta: { title: 'Defects', permission: 'defect.view' },
+    meta: { title: 'Defects', permission: 'defect.view', api: ['defect'] },
   },
   {
     path: '/calendar',
@@ -63,49 +66,49 @@ const routes: RouteRecordRaw[] = [
       default: () => import('@/views/calendar/Index.vue'),
       aside: () => import('@/components/calendar/CalendarAside.vue'),
     },
-    meta: { title: 'ปฏิทินงานทดสอบ', permission: 'calendar.view' },
+    meta: { title: 'ปฏิทินงานทดสอบ', permission: 'calendar.view', api: ['test-case'] },
   },
   {
     path: '/documents',
     name: 'documents',
     component: () => import('@/views/documents/Index.vue'),
-    meta: { title: 'ศูนย์เอกสาร', permission: 'document.view' },
+    meta: { title: 'ศูนย์เอกสาร', permission: 'document.view', api: ['document'] },
   },
   {
     path: '/documents/:id',
     name: 'document-preview',
     component: () => import('@/views/documents/Preview.vue'),
-    meta: { title: 'เอกสาร', permission: 'document.view' },
+    meta: { title: 'เอกสาร', permission: 'document.view', api: ['document'] },
   },
   {
     path: '/reports',
     name: 'reports',
     component: () => import('@/views/reports/Index.vue'),
-    meta: { title: 'รายงาน', permission: 'report.view' },
+    meta: { title: 'รายงาน', permission: 'report.view', api: ['test-case', 'run', 'defect'] },
   },
   {
     path: '/audit-trail',
     name: 'audit-trail',
     component: () => import('@/views/audit-trail/Index.vue'),
-    meta: { title: 'Audit Logs', permission: 'audit.view' },
+    meta: { title: 'Audit Logs', permission: 'audit.view', api: ['audit'] },
   },
   {
     path: '/admin/users',
     name: 'users',
     component: () => import('@/views/users/Index.vue'),
-    meta: { title: 'ผู้ใช้งาน', adminOnly: true },
+    meta: { title: 'ผู้ใช้งาน', adminOnly: true, api: ['user'] },
   },
   {
     path: '/admin/permissions',
     name: 'permissions',
     component: () => import('@/views/permissions/Index.vue'),
-    meta: { title: 'Role และสิทธิ์', adminOnly: true },
+    meta: { title: 'Role และสิทธิ์', adminOnly: true, api: ['role'] },
   },
   {
     path: '/admin/teams',
     name: 'teams',
     component: () => import('@/views/teams/Index.vue'),
-    meta: { title: 'ทีม', adminOnly: true },
+    meta: { title: 'ทีม', adminOnly: true, api: ['team'] },
   },
   {
     path: '/settings',
@@ -147,6 +150,8 @@ router.beforeEach(async (to) => {
   await app.bootstrap()
   // no session (or it ended): sign in first
   if (app.signedOut) return { path: '/login' }
+  // a module that isn't on yet (rest mode, the backend doesn't have it): its pages wait
+  if (!apiAllOn(to.meta.api)) return { path: '/dashboard' }
   if (!to.meta.permission && !to.meta.adminOnly) return true
   if (!app.ready) return true // start-up failed: the layout shows the error and a retry
   const auth = useAuthStore()

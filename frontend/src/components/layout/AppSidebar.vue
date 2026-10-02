@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { apiAllOn } from '@/api'
 import navigation from '@/router/navigation'
 import { useAuthStore } from '@/stores/auth.store'
 import { useLayoutStore } from '@/stores/layout.store'
@@ -16,7 +17,11 @@ const layout = useLayoutStore()
 const { currentCases } = storeToRefs(useProjectStore())
 
 // hide items (and section headers) the current role has no permission for
-const allowed = (item: (typeof navigation)[number]) => (!item.adminOnly || auth.isAdmin) && (!item.permission || auth.can(item.permission))
+const router = useRouter()
+/** the API modules behind the page an item opens are on (rest mode hides the ones the backend lacks) */
+const moduleOn = (item: (typeof navigation)[number]) => !('to' in item) || apiAllOn(router.resolve(item.to).meta.api)
+const allowed = (item: (typeof navigation)[number]) =>
+  (!item.adminOnly || auth.isAdmin) && (!item.permission || auth.can(item.permission)) && moduleOn(item)
 // drop items the role may not open, then section headers left with nothing under them
 const items = computed(() => {
   const visible = navigation.filter(allowed)

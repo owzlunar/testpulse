@@ -3,8 +3,11 @@ import { expect, type Page } from '@playwright/test'
 /** sign in from the login page by (part of) a seed user's name, then wait for the app */
 export async function login(page: Page, name = 'ศุภชัย') {
   await page.goto('/login')
+  // the demo cards render at once: wait until the page is interactive (its form is there)
+  await expect(page.locator('#login-email')).toBeEditable()
   await page.locator('.login__user', { hasText: name }).first().click()
-  await page.waitForURL('**/dashboard')
+  // signing in reloads the app at /dashboard (also when the previous page was already the dashboard)
+  await page.waitForURL((url) => url.pathname.endsWith('/dashboard'), { waitUntil: 'load' })
   await expect(page.locator('.fox-nav')).toBeVisible()
 }
 

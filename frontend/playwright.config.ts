@@ -20,7 +20,7 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } }],
   webServer: {
     // the e2e suite runs on the mock API (no backend needed)
-    command: `VITE_API_MODE=mock npx vite --port ${PORT} --strictPort`,
+    command: `npx vite --mode mock --port ${PORT} --strictPort`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: true,
     timeout: 60_000,
