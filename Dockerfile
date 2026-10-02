@@ -1,7 +1,8 @@
 # TestPulse: the web app (nginx) and the API (Node) in one image, run by supervisor.
 #   docker build -t testpulse .
 # nginx :8080 serves the web app and forwards /api and /health to the API on 127.0.0.1:8081
-# (not exposed). Settings come from the environment: see docker-compose.yml and backend/env-example.
+# (not exposed). Settings come from the environment: docker-compose.yml passes backend/.env and
+# backend/.env.prod; the image never contains an env file.
 
 ARG NODE_VERSION=22
 

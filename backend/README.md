@@ -10,8 +10,8 @@ REST API ของ TestPulse (Node.js 22 + TypeScript + Express 5 + Mongoose 8) 
 
 ```bash
 npm ci
-npm run env:init     # สร้าง .env พร้อม secret ใหม่ (JWT keypair, encryption key, blind index salt)
-# แก้ .env: MONGODB_URI, STORAGE_DRIVER / MINIO_*, MAIL_*
+npm run env:init -- dev   # สร้าง .env.dev พร้อม secret ใหม่ (JWT keypair, encryption key, blind index salt)
+# แก้ .env.dev: MONGODB_URI (ฐาน dev เช่น testpulse-dev), STORAGE_DRIVER / MINIO_*, MAIL_*
 npm run db:indexes   # สร้าง index ทุก collection
 npm run seed         # ข้อมูลตัวอย่าง (id เดียวกับ mock ของ frontend) รหัสผ่านทุกคน: password123
 npm run migrate      # migration ที่ยังไม่ได้รัน (หลัง seed จะมี Admin แล้ว จึงไม่ต้องตั้ง INITIAL_ADMIN_*)
@@ -20,10 +20,21 @@ npm run dev          # http://localhost:4000/api/v1
 
 ถ้าไม่ใช้ข้อมูลตัวอย่าง ให้ตั้ง `INITIAL_ADMIN_EMAIL` และ `INITIAL_ADMIN_PASSWORD` แล้วรัน `npm run migrate` ระบบจะสร้าง Admin คนแรกด้วยรหัสนั้น (เฉพาะเมื่อฐานยังไม่มี Admin) หลัง login ครั้งแรกให้เปลี่ยนรหัสผ่านและลบ `INITIAL_ADMIN_PASSWORD` ออก
 
-**ฐานข้อมูลสำหรับ test:** ถ้ามีไฟล์ `.env.test` (ไม่เข้า git) ที่ตั้ง `TEST_MONGODB_URI` ไว้ test จะใช้ฐานนั้นและรันทีละไฟล์ ข้อมูลในฐานนั้นจะถูกล้างทุกครั้ง และชื่อฐานต้องมีคำว่า `test` ถ้าไม่มีไฟล์นี้ (เช่นใน CI) test จะใช้ MongoDB ใน memory
+### ไฟล์ตั้งค่า (dotenv-flow)
+
+ใช้ชื่อ key เดียวกันทุก environment ไฟล์หลังทับไฟล์แรก และค่าที่ตั้งใน environment จริง (shell หรือ docker-compose) ทับทุกไฟล์
+
+| ไฟล์        | ใช้เมื่อ                                                               | เก็บอะไร                                                      | git                   |
+| ----------- | ---------------------------------------------------------------------- | ------------------------------------------------------------- | --------------------- |
+| `.env`      | ทุก environment (โหลดก่อน)                                             | ค่ากลางที่ไม่ลับ: TTL, rate limit, BASE_PATH, ชื่อ bucket ฯลฯ | เข้า (ห้ามใส่ secret) |
+| `.env.dev`  | `NODE_ENV=development` (ค่าเริ่มต้น: `npm run dev`, `seed`, `migrate`) | ฐาน dev, secret ของ dev, storage และเมลของเครื่อง             | ไม่เข้า               |
+| `.env.prod` | `NODE_ENV=production` (container ผ่าน `env_file`, `npm start`)         | ฐาน production, secret ของ production, SMTP                   | ไม่เข้า               |
+| `.env.test` | `npm test`                                                             | มีแค่ `MONGODB_URI` ของฐาน test                               | ไม่เข้า               |
+
+**test:** อ่านเฉพาะ `MONGODB_URI` จาก `.env.test` ไม่อ่าน `.env`, `.env.dev` และไม่อ่านค่าจาก shell เพราะ test จะล้างข้อมูลทุกครั้ง ชื่อฐานจึงต้องมีคำว่า `test` และ test จะรันทีละไฟล์ ค่าอื่นรวมถึง secret ของ test จะถูกสร้างใหม่ทุกครั้งที่รัน ถ้าไม่มี `.env.test` (เช่นใน CI) test จะใช้ MongoDB ใน memory
 
 ```bash
-echo 'TEST_MONGODB_URI=mongodb://user:pass@localhost:27017/testpulse-test?authSource=admin&replicaSet=rs0&directConnection=true' > .env.test
+echo 'MONGODB_URI=mongodb://user:pass@localhost:27017/testpulse-test?authSource=admin&replicaSet=rs0&directConnection=true' > .env.test
 ```
 
 ตรวจสถานะ: `GET /health/live` (process ยังทำงาน) และ `GET /health/ready` (เชื่อม MongoDB ได้)
@@ -46,7 +57,7 @@ echo 'TEST_MONGODB_URI=mongodb://user:pass@localhost:27017/testpulse-test?authSo
 | `npm run migrate` / `migrate:status`       | รัน migration ที่ค้างอยู่ / ดูว่ารันอะไรไปแล้ว                         |
 | `npm run keys:rotate`                      | เข้ารหัสฟิลด์ใหม่ด้วยกุญแจปัจจุบัน (ดูหัวข้อความปลอดภัย)               |
 | `npm run make:module -- <ชื่อ>`            | สร้าง module ใหม่ตามแบบมาตรฐาน                                         |
-| `npm run env:init`                         | สร้าง `.env` จาก `env-example` พร้อม secret ใหม่                       |
+| `npm run env:init -- dev\|prod`            | สร้าง `.env.dev` / `.env.prod` จาก `env-example` พร้อม secret ใหม่     |
 
 ## โครงสร้าง
 

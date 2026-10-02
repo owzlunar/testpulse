@@ -2,19 +2,24 @@ import { generateKeyPairSync, randomBytes } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-// Creates .env from env-example with fresh secrets (JWT keypair, encryption key, blind index salt).
-// Never overwrites an existing .env: secrets in use must not change (data would become unreadable).
+// npm run env:init -- dev    -> .env.dev   (development)
+// npm run env:init -- prod   -> .env.prod  (the container, via docker-compose's env_file)
+// Copies env-example with fresh secrets (JWT keypair, encryption key, blind index salt).
+// Never overwrites an existing file: secrets in use must not change (stored data would become
+// unreadable). Shared defaults stay in .env.
 
-const root = resolve(import.meta.dirname, '..')
-// `--secrets-only <file>`: just the secrets, e.g. for docker-compose's env_file (../docker/secrets.env)
-const secretsOnly = process.argv.indexOf('--secrets-only')
-const target = secretsOnly >= 0 ? resolve(process.cwd(), process.argv[secretsOnly + 1] ?? '') : resolve(root, '.env')
-if (secretsOnly >= 0 && !process.argv[secretsOnly + 1]) {
-  console.error('usage: npm run env:init -- --secrets-only <file>')
+const FILES: Record<string, string> = { dev: '.env.dev', prod: '.env.prod' }
+const which = process.argv[2] ?? ''
+const file = FILES[which]
+if (!file) {
+  console.error('usage: npm run env:init -- dev | prod')
   process.exit(2)
 }
+
+const root = resolve(import.meta.dirname, '..')
+const target = resolve(root, file)
 if (existsSync(target)) {
-  console.log(`${target} already exists, left as it is`)
+  console.log(`${file} already exists, left as it is`)
   process.exit(0)
 }
 
@@ -24,36 +29,28 @@ const { publicKey, privateKey } = generateKeyPairSync('rsa', {
   privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
 })
 const oneLine = (pem: string) => `"${pem.trim().replace(/\n/g, '\\n')}"`
-const secrets: Record<string, string> = {
+const values: Record<string, string> = {
   JWT_PRIVATE_KEY: oneLine(privateKey),
   JWT_PUBLIC_KEY: oneLine(publicKey),
   ENCRYPTION_KEY_V1: randomBytes(32).toString('hex'),
   BLIND_INDEX_SALT: randomBytes(32).toString('hex'),
+  // the container's starting points (see docker-compose.yml)
+  ...(which === 'prod'
+    ? {
+        BASE_URL: 'http://localhost:8080',
+        MONGODB_URI: 'mongodb://user:pass@host.docker.internal:27017/testpulse?authSource=admin&replicaSet=rs0&directConnection=true',
+        MAIL_DRIVER: 'smtp',
+        SMTP_HOST: 'host.docker.internal',
+      }
+    : {}),
 }
 
-if (secretsOnly >= 0) {
-  const lines = [
-    '# TestPulse secrets: keep them; changing ENCRYPTION_KEY_* or BLIND_INDEX_SALT makes stored data unreadable',
-    'ENCRYPTION_CURRENT_KEY_ID=v1',
-  ]
-  // logins of the services the deployment uses, filled in by hand
-  const logins = [
-    '# connections and logins, as needed',
-    'MONGODB_URI=',
-    'MINIO_ACCESS_KEY=',
-    'MINIO_SECRET_KEY=',
-    'SMTP_USER=',
-    'SMTP_PASSWORD=',
-    '# first start on an empty database (remove after the first sign-in)',
-    'INITIAL_ADMIN_PASSWORD=',
-  ]
-  writeFileSync(target, [...lines, ...Object.entries(secrets).map(([k, v]) => `${k}=${v}`), ...logins, ''].join('\n'), { mode: 0o600 })
-  console.log(`${target} created with new secrets (add the MinIO / SMTP logins it needs)`)
-  process.exit(0)
-}
-
-const content = readFileSync(resolve(root, 'env-example'), 'utf8').replace(/^([A-Z0-9_]+)=.*$/gm, (line, key: string) =>
-  key in secrets ? `${key}=${secrets[key]}` : line,
-)
-writeFileSync(target, content, { mode: 0o600 })
-console.log('.env created with new secrets; set MONGODB_URI and the storage / mail settings')
+const header = `# ${which === 'dev' ? 'Development (NODE_ENV=development, the default)' : 'Production: the container (docker-compose env_file)'}. Overrides .env; not in git.\n`
+const content = readFileSync(resolve(root, 'env-example'), 'utf8')
+  .split('\n')
+  .filter((line) => !line.startsWith('#') && !(which === 'prod' && line.startsWith('PORT=')))
+  .join('\n')
+  .replace(/^([A-Z0-9_]+)=.*$/gm, (line, key: string) => (key in values ? `${key}=${values[key]}` : line))
+  .replace(/\n{3,}/g, '\n\n')
+writeFileSync(target, header + content.trimStart(), { mode: 0o600 })
+console.log(`${file} created with new secrets: set MONGODB_URI${which === 'prod' ? ', the storage and SMTP settings' : ''}`)

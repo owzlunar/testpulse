@@ -29,7 +29,7 @@ tests              global setup (in-memory replica set), helpers, cross-module t
 6. Ids are strings made by the server (`stringId('proj')` → `proj-…`), like the web app's. Test case ids restart per project: anything keyed by a case id also carries its `projectId`.
 7. Personal data (emails) is `encrypted: true` with a `blindIndex` for lookups; never log it (the logger redacts known keys; don't put PII in URLs).
 8. Thai for messages a user sees (`ApiError` messages, mail); English for code, comments, logs.
-9. Secrets come only from the environment and fail fast when missing; no fallback keys. Tests make their own (`tests/setup-env.ts`) and never read `.env`.
+9. Secrets come only from the environment and fail fast when missing; no fallback keys. Settings files (dotenv-flow, same keys everywhere): `.env` shared defaults in git (never a secret), then `.env.dev` (development) or `.env.prod` (production / the container) override it; real environment variables override both. Tests read only `MONGODB_URI` from `.env.test` and make everything else themselves (`tests/setup-env.ts`).
 
 ## Conventions
 

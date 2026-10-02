@@ -4,8 +4,18 @@ import Joi from 'joi'
 // Environment, validated once at start-up. A missing or weak secret stops the process (fail-fast):
 // there are no built-in fallback keys, salts or passwords anywhere in the code.
 
-// tests set their own environment (tests/setup-env.ts) and never read a developer's .env
-if (process.env.NODE_ENV !== 'test') dotenvFlow.config({ silent: true })
+// Settings files (backend/), later ones override earlier ones; variables already set in the
+// environment (shell, docker-compose) override every file:
+//   .env                       shared defaults, no secrets (in git)
+//   .env.dev                   NODE_ENV=development (the default): local development
+//   .env.prod                  NODE_ENV=production: the container (docker-compose passes it as env_file)
+// Tests read none of them (tests/setup-env.ts sets their environment; the database comes from
+// .env.test, see vitest.config.ts), so a developer's settings never leak into a test run.
+export const ENV_FILES: Record<string, string> = { development: '.env.dev', production: '.env.prod' }
+const nodeEnv = process.env.NODE_ENV ?? 'development'
+if (nodeEnv !== 'test') {
+  dotenvFlow.config({ files: ['.env', ...(ENV_FILES[nodeEnv] ? [ENV_FILES[nodeEnv]] : [])], silent: true })
+}
 
 const HEX_32_BYTES = /^[0-9a-fA-F]{64}$/
 /** example values from env-example: allowed in development and tests, refused in production */

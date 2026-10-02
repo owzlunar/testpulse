@@ -3,13 +3,14 @@ import { parse } from 'dotenv'
 import { defineConfig } from 'vitest/config'
 
 // Tests run against a real MongoDB, so plugins, indexes and transactions are tested for real:
-// - TEST_MONGODB_URI (environment, or backend/.env.test on a developer machine): that database,
-//   emptied before and after each test; the files run one after another (they share it)
+// - MONGODB_URI in backend/.env.test (a developer machine): that database, emptied before and after
+//   each test; the files run one after another (they share it). Only this file is read: never
+//   .env / .env.dev / .env.prod, nor a MONGODB_URI left in the shell, since the tests delete data.
 // - otherwise (CI): an in-memory replica set started once, one database per test file, in parallel
-const local = existsSync('.env.test') ? parse(readFileSync('.env.test')) : {}
-const testMongoUri = process.env.TEST_MONGODB_URI ?? local.TEST_MONGODB_URI
-// the global setup runs in this process (test.env only reaches the test workers)
+const testMongoUri = existsSync('.env.test') ? parse(readFileSync('.env.test')).MONGODB_URI : undefined
+// handed to the global setup, which runs in this process (test.env only reaches the test workers)
 if (testMongoUri) process.env.TEST_MONGODB_URI = testMongoUri
+else delete process.env.TEST_MONGODB_URI
 
 export default defineConfig({
   resolve: { conditions: ['source'] },

@@ -26,10 +26,10 @@
 ### รันในเครื่อง
 
 ```bash
-# ครั้งแรก: สร้าง secret (JWT keypair, encryption key, blind index salt) เก็บไว้ที่ docker/secrets.env (ไม่เข้า git)
-npm --prefix backend run env:init -- --secrets-only ../docker/secrets.env
-# แล้วกรอกในไฟล์เดียวกัน: MONGODB_URI (มีรหัสผ่านของฐาน), MINIO_ACCESS_KEY, MINIO_SECRET_KEY, SMTP_USER, SMTP_PASSWORD
-# และสำหรับการ start ครั้งแรกบนฐานว่าง: INITIAL_ADMIN_PASSWORD (ลบออกหลัง login ครั้งแรก)
+# ครั้งแรก: สร้าง backend/.env.prod (ไม่เข้า git) พร้อม secret ใหม่ (JWT keypair, encryption key, blind index salt)
+npm --prefix backend run env:init -- prod
+# แล้วกรอกในไฟล์นั้น: MONGODB_URI (มีรหัสผ่านของฐาน), STORAGE_DRIVER / MINIO_*, SMTP_*
+# และสำหรับการ start ครั้งแรกบนฐานว่าง: INITIAL_ADMIN_EMAIL + INITIAL_ADMIN_PASSWORD (ลบรหัสออกหลัง login ครั้งแรก)
 
 # เมลทดสอบ (Mailpit): SMTP :1025 และกล่องจดหมาย http://localhost:8025
 docker run -d --name mailpit --restart unless-stopped -p 1025:1025 -p 8025:8025 axllent/mailpit
@@ -38,26 +38,31 @@ docker compose up -d --build     # http://localhost:8080
 docker logs -f testpulse
 ```
 
-> secret ต้องเก็บไว้และใช้ชุดเดียวกับทุกตัวที่เชื่อมฐานข้อมูลเดียวกัน ข้อมูล (เช่นอีเมลผู้ใช้) ถูกเข้ารหัสด้วย key นี้ ถ้าเปลี่ยน key ข้อมูลเดิมจะอ่านไม่ได้
+> secret ใน `.env.prod` ต้องเก็บไว้และใช้ชุดเดียวกับทุกตัวที่เชื่อมฐานข้อมูลเดียวกัน ข้อมูล (เช่นอีเมลผู้ใช้) ถูกเข้ารหัสด้วย key นี้ ถ้าเปลี่ยน key ข้อมูลเดิมจะอ่านไม่ได้
 
 ### ค่าตั้งค่า (environment)
 
-ตั้งใน `docker-compose.yml` หรือส่งจาก shell หรือจากไฟล์ `.env` ข้างไฟล์ compose เช่น `STORAGE_DRIVER=minio docker compose up -d`
+container อ่านค่าจากสองไฟล์ผ่าน `env_file` ของ compose ไฟล์หลังทับไฟล์แรก:
 
-| ตัวแปร | ค่าเริ่มต้นใน compose | หมายเหตุ |
+1. `backend/.env` ค่ากลางที่ใช้ร่วมกันทุก environment อยู่ใน git จึงห้ามใส่ secret
+2. `backend/.env.prod` ค่าของ deployment นี้ ทั้งฐานข้อมูล, storage, SMTP และ secret ไม่เข้า git
+
+ค่าที่ใส่ไว้ใน `environment:` ของ compose จะทับทั้งสองไฟล์ ส่วนพอร์ตและ path ภายใน container (API 127.0.0.1:8081, โฟลเดอร์ upload และ log) image กำหนดเองเสมอ
+
+| ตัวแปร | ค่าใน `.env.prod` ที่ env:init สร้างให้ | หมายเหตุ |
 | --- | --- | --- |
 | `BASE_URL` | `http://localhost:8080` | URL ที่ผู้ใช้เปิด รวม sub path ถ้ามี เช่น `https://mydomain/testpulse` ใช้กับลิงก์เชิญ, CORS, path ของ cookie และ URL ไฟล์ |
-| `MONGODB_URI` | (ใน `docker/secrets.env`) | MongoDB 6+ แบบ replica set เก็บใน secrets เพราะมี username/password อยู่ใน URI |
-| `INITIAL_ADMIN_EMAIL` / `INITIAL_ADMIN_NAME` | (ว่าง) / `ผู้ดูแลระบบ` | Admin คนแรกบนฐานว่าง รหัสผ่าน (`INITIAL_ADMIN_PASSWORD`) อยู่ใน `docker/secrets.env` ใน production ต้องยาวอย่างน้อย 12 ตัว |
+| `MONGODB_URI` | host `:27017` ฐาน `testpulse` | MongoDB 6+ แบบ replica set (มี username/password อยู่ใน URI) |
+| `INITIAL_ADMIN_EMAIL` / `INITIAL_ADMIN_PASSWORD` / `INITIAL_ADMIN_NAME` | (ว่าง) / (ว่าง) / `ผู้ดูแลระบบ` | Admin คนแรกบนฐานว่าง ใน production รหัสต้องยาวอย่างน้อย 12 ตัว |
 | `STORAGE_DRIVER` | `local` | `local` (เก็บที่โฟลเดอร์ `docker-data/uploads` ของ host) หรือ `minio` |
-| `MINIO_ENDPOINT` / `MINIO_PORT` / `MINIO_USE_SSL` / `MINIO_BUCKET` | MinIO บน host `:9001` | ใช้เมื่อ `STORAGE_DRIVER=minio` (bucket จะถูกสร้างให้ถ้ายังไม่มี) ส่วน `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` ใส่ใน `docker/secrets.env` |
-| `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE` / `MAIL_FROM` | Mailpit บน host `:1025` | ใช้ส่งอีเมลเชิญผู้ใช้ ถ้า server ต้อง login ให้ใส่ `SMTP_USER` / `SMTP_PASSWORD` ใน `docker/secrets.env` |
+| `MINIO_ENDPOINT` / `MINIO_PORT` / `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | host | ใช้เมื่อ `STORAGE_DRIVER=minio` (bucket ชื่อตาม `MINIO_BUCKET` จะถูกสร้างให้ถ้ายังไม่มี) |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` | host | ใช้ส่งอีเมลเชิญผู้ใช้ (ทดสอบด้วย Mailpit `:1025`) |
 | `COOKIE_SECURE` | `false` | ตั้ง `true` เมื่อเปิดผ่าน https |
 | `TRUST_PROXY` | `loopback` | ถ้ามี reverse proxy ข้างหน้า ให้เพิ่ม address ของ proxy ด้วย (เช่น `loopback, 10.0.0.0/8`) เพื่อให้ IP ใน log และ rate limit ถูกต้อง |
 | `LOG_LEVEL` / `LOG_RETENTION_DAYS` | `info` / `14` | ระดับ log ที่ console และจำนวนวันที่เก็บไฟล์ log |
 | `RUN_DB_INDEXES` / `RUN_MIGRATIONS` | `true` | ตั้ง `false` ถ้าขั้น deploy อื่นทำให้แล้ว |
 
-ค่าอื่นทั้งหมดอยู่ใน `backend/env-example`
+ค่ากลางอื่น ๆ (TTL ของ token, rate limit, BASE_PATH ฯลฯ) อยู่ใน `backend/.env` และแม่แบบของ `.env.prod` อยู่ใน `backend/env-example`
 
 ### Volume (เก็บไว้บน host)
 

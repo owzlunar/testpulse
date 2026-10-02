@@ -1,5 +1,4 @@
-# each side has its own .gitignore (node_modules, dist, .env, ...)
+# each side has its own .gitignore (node_modules, dist, env files, ...)
 .DS_Store
 .claude/
 docker-data/
-docker/secrets.env

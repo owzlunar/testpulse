@@ -10,8 +10,8 @@ testpulse
 |--- PRD.md     product spec, shared by both sides
 |--- README.md  how to run and configure the Docker image (Thai)
 |--- Dockerfile one image `testpulse`: nginx :8080 (web app, proxies /api and /health) + the API on 127.0.0.1:8081, run by supervisor
-|--- docker/    nginx.conf, supervisor.conf, entrypoint.sh (BASE_URL path, preflight checks, DB indexes, supervisor); secrets.env (git-ignored)
-|--- docker-compose.yml  the image against the host's MongoDB / MinIO / Mailpit, settings in `environment`, uploads and logs in ./docker-data
+|--- docker/    nginx.conf, supervisor.conf, entrypoint.sh (BASE_URL path, preflight checks, DB indexes, migrations, supervisor)
+|--- docker-compose.yml  the image with env_file backend/.env + backend/.env.prod (git-ignored), uploads and logs in ./docker-data
 ```
 One git repository (github.com/owzlunar/testpulse). Each side keeps its own `CLAUDE.md` with its stack rules; this file holds what both share.
 

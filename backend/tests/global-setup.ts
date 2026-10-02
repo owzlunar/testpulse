@@ -1,7 +1,7 @@
 import type { TestProject } from 'vitest/node'
 import { MongoMemoryReplSet } from 'mongodb-memory-server'
 
-// The database tests use: TEST_MONGODB_URI when set (see vitest.config.ts), otherwise one in-memory
+// The database tests use: MONGODB_URI of backend/.env.test (vitest.config.ts), otherwise one in-memory
 // replica set (transactions work) for the whole run, same major version as the local server.
 declare module 'vitest' {
   export interface ProvidedContext {
@@ -18,7 +18,7 @@ export async function setup(project: TestProject) {
   if (shared) {
     const name = new URL(shared).pathname.slice(1)
     // the tests empty every collection: never let them near real data
-    if (!/test/i.test(name)) throw new Error(`TEST_MONGODB_URI must name a test database (got "${name}")`)
+    if (!/test/i.test(name)) throw new Error(`.env.test: MONGODB_URI must name a test database (got "${name}")`)
     project.provide('mongoUri', shared)
     project.provide('sharedDatabase', true)
     return

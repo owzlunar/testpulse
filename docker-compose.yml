@@ -1,15 +1,14 @@
 # The testpulse image against services that run elsewhere (here: on the Docker host).
 #   docker compose up -d --build        -> http://localhost:8080
-# Every connection below is checked when the container starts: if MongoDB, the storage or the mail
-# server can't be reached (or the folders can't be written) the container stops with the reason in
-# `docker logs testpulse`. Override any value from the shell or a .env file next to this one,
-# e.g. STORAGE_DRIVER=minio docker compose up -d
 #
-# Secrets (MONGODB_URI with its login, JWT keypair, ENCRYPTION_KEY_*, BLIND_INDEX_SALT, MinIO keys,
-# SMTP login, INITIAL_ADMIN_PASSWORD) come from
-# docker/secrets.env (git-ignored), created with:
-#   npm --prefix backend run env:init -- --secrets-only ../docker/secrets.env
-# Keep it: data is encrypted with these keys (use the same ones as any other API on the same database).
+# Settings: backend/.env (shared defaults, in git) + backend/.env.prod (this deployment: database,
+# storage, SMTP, secrets; not in git, create it with `npm --prefix backend run env:init -- prod`).
+# Anything under `environment` below overrides both files.
+#
+# Every connection is checked when the container starts: if MongoDB, the storage or the mail server
+# can't be reached (or the folders can't be written) the container stops with the reason in
+# `docker logs testpulse`. On an empty database set INITIAL_ADMIN_EMAIL / INITIAL_ADMIN_PASSWORD in
+# .env.prod for the first start (the first Admin).
 # Test mail server: Mailpit on the host, SMTP :1025, inbox http://localhost:8025
 #   docker run -d --name mailpit --restart unless-stopped -p 1025:1025 -p 8025:8025 axllent/mailpit
 
@@ -21,41 +20,11 @@ services:
     ports:
       # nginx only: the API (8081) is not published
       - '8080:8080'
-    env_file: docker/secrets.env
-    environment:
-      # public URL of the web app; behind a reverse proxy on a sub path e.g. https://mydomain/testpulse
-      BASE_URL: ${BASE_URL:-http://localhost:8080}
-      # requests come through the container's nginx; add the outer proxy too when there is one
-      # (e.g. "loopback, 10.0.0.0/8") so client IPs in logs and rate limits are right
-      TRUST_PROXY: ${TRUST_PROXY:-loopback}
-      # plain http on localhost; true behind https
-      COOKIE_SECURE: ${COOKIE_SECURE:-false}
-
-      # MongoDB 6+ replica set: MONGODB_URI carries the login, so it is in docker/secrets.env, e.g.
-      #   MONGODB_URI=mongodb://user:pass@host.docker.internal:27017/testpulse?authSource=admin&replicaSet=rs0&directConnection=true
-
-      # first start on an empty database: the first Admin (INITIAL_ADMIN_PASSWORD is in docker/secrets.env)
-      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-}
-      INITIAL_ADMIN_NAME: ${INITIAL_ADMIN_NAME:-ผู้ดูแลระบบ}
-
-      # uploads: local (the host folder below) or minio
-      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
-      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-host.docker.internal}
-      MINIO_PORT: ${MINIO_PORT:-9001}
-      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
-      # MINIO_ACCESS_KEY / MINIO_SECRET_KEY: in docker/secrets.env
-      MINIO_BUCKET: ${MINIO_BUCKET:-testpulse}
-
-      # mail (invites): production needs SMTP
-      MAIL_DRIVER: smtp
-      MAIL_FROM: ${MAIL_FROM:-TestPulse <no-reply@testpulse.local>}
-      SMTP_HOST: ${SMTP_HOST:-host.docker.internal}
-      SMTP_PORT: ${SMTP_PORT:-1025}
-      SMTP_SECURE: ${SMTP_SECURE:-false}
-      # SMTP_USER / SMTP_PASSWORD (if the server needs a login): in docker/secrets.env
-
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      LOG_RETENTION_DAYS: ${LOG_RETENTION_DAYS:-14}
+    env_file:
+      - backend/.env
+      - backend/.env.prod
+    # environment:
+    #   LOG_LEVEL: debug
     volumes:
       # uploaded files (STORAGE_DRIVER=local) and access / error logs, kept on the host
       - ./docker-data/uploads:/app/backend/storage/uploads

@@ -2,7 +2,9 @@ node_modules/
 dist/
 coverage/
 /storage/
-.env
+# .env (shared defaults, no secrets) is in git; the per-environment files are not
+.env.dev
+.env.prod
 .env.test
 .env.local
 .env.*.local

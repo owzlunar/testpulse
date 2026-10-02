@@ -9,6 +9,9 @@
 set -e
 
 APP_USER=testpulse
+# fixed by the image, whatever the env files say: nginx proxies to 127.0.0.1:8081, the volumes are here
+export NODE_ENV=production HOST=127.0.0.1 PORT=8081 \
+  STORAGE_LOCAL_ROOT=/app/backend/storage/uploads LOG_DIR=/app/backend/logs
 as_app() { if [ "$(id -u)" = "0" ]; then su-exec "$APP_USER" "$@"; else "$@"; fi; }
 
 # --- 1. writable folders --------------------------------------------------------------------------
