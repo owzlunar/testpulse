@@ -139,6 +139,20 @@ export interface AuthSession {
   expiresIn: number
 }
 
+/** POST /auth/register: a new account without a role */
+export interface RegisterInput {
+  name: string
+  email: string
+  title?: string
+  password: string
+}
+
+/** POST /users (Admin): the person gets an email invite to set a password */
+export type UserInviteInput = Pick<User, 'name' | 'email' | 'roleId'> & Partial<Pick<User, 'title' | 'avatar'>>
+
+/** what an upload is for: decides who may upload it */
+export type FileCategory = 'avatar' | 'project-logo'
+
 /** GET /auth/invites/:token: who the invite is for (shown on the set-password page) */
 export interface InviteInfo {
   name: string
