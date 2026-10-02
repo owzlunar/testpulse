@@ -119,6 +119,8 @@ export default createVuetify({
   // Component defaults = change the look once, applies everywhere
   defaults: {
     VBtn: { elevation: 0, rounded: 'lg' },
+    // the group owns the radius (main.scss hands it to the end buttons); rounded-lg on each button would split it into separate pills
+    VBtnToggle: { rounded: 'lg', VBtn: { rounded: false } },
     VChip: { label: true },
 
     VTextField: field,

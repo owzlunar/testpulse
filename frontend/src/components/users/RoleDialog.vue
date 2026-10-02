@@ -97,17 +97,31 @@ async function submit() {
             </v-col>
             <v-col cols="12" sm="6">
               <div class="fox-label">สี</div>
-              <v-chip-group v-model="form.tone" mandatory>
-                <v-chip v-for="t in ROLE_TONES" :key="t" :value="t" :color="t" :base-color="t" variant="flat" size="small" :aria-label="t">
-                  <v-icon v-if="form.tone === t" icon="tabler:check" size="14" />
-                </v-chip>
-              </v-chip-group>
+              <!-- v-item-group, not v-chip-group: Vuetify 3.5 colours only the selected chip in a chip group -->
+              <v-item-group v-model="form.tone" mandatory class="d-flex flex-wrap ga-2">
+                <v-item v-for="t in ROLE_TONES" :key="t" v-slot="{ isSelected, toggle }" :value="t">
+                  <v-btn icon :color="t" variant="flat" size="small" rounded="circle" :aria-label="t" :aria-pressed="isSelected" @click="toggle">
+                    <v-icon v-if="isSelected" icon="tabler:check" />
+                  </v-btn>
+                </v-item>
+              </v-item-group>
             </v-col>
             <v-col cols="12" sm="6">
               <div class="fox-label">ไอคอน</div>
-              <v-btn-toggle v-model="form.icon" mandatory density="comfortable" variant="outlined" divided class="flex-wrap">
-                <v-btn v-for="i in ROLE_ICONS" :key="i" :value="i" :icon="i" size="small" :aria-label="i" />
-              </v-btn-toggle>
+              <v-item-group v-model="form.icon" mandatory class="d-flex flex-wrap ga-2">
+                <v-item v-for="i in ROLE_ICONS" :key="i" v-slot="{ isSelected, toggle }" :value="i">
+                  <v-btn
+                    :icon="i"
+                    :color="isSelected ? 'primary' : undefined"
+                    :variant="isSelected ? 'flat' : 'outlined'"
+                    size="small"
+                    rounded="circle"
+                    :aria-label="i"
+                    :aria-pressed="isSelected"
+                    @click="toggle"
+                  />
+                </v-item>
+              </v-item-group>
             </v-col>
           </v-row>
 

@@ -266,6 +266,20 @@ html {
     }
   }
 
+  // Segmented toggle: the group is rounded and clips its buttons, so the end buttons
+  // take its corners or their outline is cut off at the curve
+  .v-btn-group .v-btn {
+    &:first-child {
+      border-start-start-radius: inherit;
+      border-end-start-radius: inherit;
+    }
+
+    &:last-child {
+      border-start-end-radius: inherit;
+      border-end-end-radius: inherit;
+    }
+  }
+
   // -----------------------------------------------------------------------------
   // Inputs  (outlined, light grey border, primary on focus)
   // Design puts the label ABOVE the field -> use  <label class="fox-label">

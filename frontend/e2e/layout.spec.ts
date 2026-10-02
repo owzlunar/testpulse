@@ -48,3 +48,34 @@ test('a detail page opened directly keeps its module highlighted in the drawer',
   await expect(page.locator('.fox-nav .v-list-item--active')).toHaveCount(1)
 })
 
+test('a button toggle reads as one segmented control whose end buttons keep the rounded outline', async ({ page }) => {
+  await page.goto('/test-runs/run-2')
+  const toggle = page.locator('.exec-list .v-btn-toggle')
+  await expect(toggle).toBeVisible()
+  const radius = (n: number) =>
+    toggle
+      .locator('.v-btn')
+      .nth(n)
+      .evaluate((e) => getComputedStyle(e).borderTopRightRadius)
+  const groupRadius = await toggle.evaluate((e) => getComputedStyle(e).borderTopRightRadius)
+  expect(groupRadius).not.toBe('0px')
+  expect(await radius(0)).toBe('0px')
+  expect(await radius(2)).toBe(groupRadius)
+})
+
+test('the role dialog shows every colour swatch in its colour, and icons as separate round buttons', async ({ page }) => {
+  await page.goto('/admin/permissions')
+  await page.getByRole('button', { name: 'สร้าง Role' }).click()
+  const dialog = page.locator('.v-dialog')
+  const swatch = (tone: string) => dialog.getByRole('button', { name: tone, exact: true })
+  await expect(swatch('error')).toHaveClass(/bg-error/)
+  await expect(swatch('info')).toHaveAttribute('aria-pressed', 'true')
+  await swatch('success').click()
+  await expect(swatch('success')).toHaveAttribute('aria-pressed', 'true')
+  await expect(swatch('info')).toHaveClass(/bg-info/)
+  const icon = dialog.getByRole('button', { name: 'tabler:crown' })
+  await expect(icon).toHaveClass(/rounded-circle/)
+  await icon.click()
+  await expect(icon).toHaveAttribute('aria-pressed', 'true')
+})
+
