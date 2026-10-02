@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
+import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { storeToRefs } from 'pinia'
 import { useLayout } from 'vuetify'
 import type { VForm, VTextarea } from 'vuetify/components'
@@ -115,11 +116,21 @@ const title = computed(() =>
   isEdit.value ? `${readonly.value ? '' : 'แก้ไข '}${form.id}` : form.parentId ? `สร้าง Sub-case ภายใต้ ${form.parentId}` : 'สร้าง Test Case ใหม่',
 )
 
+const { dirty, markClean } = useUnsavedChanges(open, () => [form, changeSummary.value, bumpMajor.value])
+
 watch(
   open,
   (isOpen) => {
     if (!isOpen) return
-    requirementStore.ensureLoaded().then(linkLegacyRequirement, () => {})
+    requirementStore.ensureLoaded().then(
+      () => {
+        // the legacy link is filled in for the user, not an edit of theirs
+        const untouched = !dirty.value
+        linkLegacyRequirement()
+        if (untouched) nextTick(markClean)
+      },
+      () => {},
+    )
     tab.value = 'spec'
     changeSummary.value = ''
     bumpMajor.value = false

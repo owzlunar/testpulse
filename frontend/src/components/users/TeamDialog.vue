@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
+import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { storeToRefs } from 'pinia'
 import type { VForm } from 'vuetify/components'
 import UserAvatar from '@/components/users/UserAvatar.vue'
@@ -28,6 +29,7 @@ watch(
   },
   { immediate: true },
 )
+useUnsavedChanges(open, () => form)
 
 async function submit() {
   const result = await formRef.value?.validate()

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useLeaveGuard } from '@/composables/useUnsavedChanges'
 import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import FoxPageHeader from '@/components/ui/FoxPageHeader.vue'
@@ -67,6 +68,7 @@ const draft = ref<RunResult | null>(null)
 const saved = computed(() => results.value.find((r) => r.caseId === selectedId.value) ?? null)
 watch(saved, (r) => (draft.value = r ? JSON.parse(JSON.stringify(r)) : null), { immediate: true })
 const dirty = computed(() => !!draft.value && !!saved.value && JSON.stringify(draft.value) !== JSON.stringify(saved.value))
+useLeaveGuard(() => dirty.value)
 
 const derived = computed<ResultStatus>(() => (draft.value ? deriveResult(draft.value.stepResults) : 'untested'))
 // a deleted case's id may now belong to another case: never resolve it

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
+import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { storeToRefs } from 'pinia'
 import type { VForm } from 'vuetify/components'
 import TestCaseStatusChip from '@/components/test-cases/TestCaseStatusChip.vue'
@@ -51,6 +52,7 @@ watch(
   },
   { immediate: true },
 )
+useUnsavedChanges(open, () => form)
 watch(
   () => form.name,
   (name) => (form.round = runStore.nextRound(name)),

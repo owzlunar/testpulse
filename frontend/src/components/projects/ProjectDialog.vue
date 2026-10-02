@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
+import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import type { VForm } from 'vuetify/components'
 import ProjectAvatar from './ProjectAvatar.vue'
 import { storeToRefs } from 'pinia'
@@ -45,6 +46,7 @@ watch(
   },
   { immediate: true },
 )
+useUnsavedChanges(open, () => form)
 
 const rules = {
   required,

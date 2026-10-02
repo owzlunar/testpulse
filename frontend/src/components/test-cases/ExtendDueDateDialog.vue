@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import type { VForm } from 'vuetify/components'
 import { EXTEND_REASONS, isOverdue, overdueDays } from '@/services/test-case.service'
@@ -40,6 +41,7 @@ watch(
   },
   { immediate: true },
 )
+useUnsavedChanges(open, () => [newDate.value, category.value, note.value])
 
 const rules = {
   required,

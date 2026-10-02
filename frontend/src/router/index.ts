@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { installLeaveGuard } from '@/composables/useUnsavedChanges'
 import { ApiError } from '@/services/http'
 import { useAppStore } from '@/stores/app.store'
 import { useAuthStore } from '@/stores/auth.store'
@@ -145,6 +146,9 @@ router.beforeEach(async (to) => {
   app.showError(new ApiError(`คุณไม่มีสิทธิ์เปิดหน้า ${to.meta.title ?? to.path} (${auth.roleOf(auth.currentUser).label})`, 403))
   return { path: '/dashboard' }
 })
+
+// forms with unsaved changes ask before the page (or a dialog form) is left
+installLeaveGuard(router)
 
 router.afterEach((to) => {
   document.title = to.meta.title ? `${to.meta.title} · TestPulse` : 'TestPulse'

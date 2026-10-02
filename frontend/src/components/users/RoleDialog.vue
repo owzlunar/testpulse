@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
+import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import type { VForm } from 'vuetify/components'
 import RolePermissionEditor from './RolePermissionEditor.vue'
 import { DISCIPLINES, ROLE_ICONS, ROLE_TONES } from '@/services/role.service'
@@ -47,6 +48,7 @@ watch(
   },
   { immediate: true },
 )
+useUnsavedChanges(open, () => form)
 
 async function submit() {
   const result = await formRef.value?.validate()

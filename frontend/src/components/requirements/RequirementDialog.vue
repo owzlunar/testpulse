@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
+import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import type { VForm } from 'vuetify/components'
 import { REQUIREMENT_STATUSES, REQUIREMENT_TYPES } from '@/services/requirement.service'
 import { PRIORITIES } from '@/services/test-case.service'
@@ -38,6 +39,7 @@ watch(
   },
   { immediate: true },
 )
+useUnsavedChanges(open, () => form)
 
 async function submit() {
   const result = await formRef.value?.validate()

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
+import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { storeToRefs } from 'pinia'
 import type { VForm } from 'vuetify/components'
 import FoxImageUpload from '@/components/ui/FoxImageUpload.vue'
@@ -55,6 +56,7 @@ watch(
   },
   { immediate: true },
 )
+useUnsavedChanges(open, () => form)
 
 const devs = computed(() => auth.usersIn('dev').map((u) => u.name))
 const caseOptions = computed(() => [

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
+import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { storeToRefs } from 'pinia'
 import type { VForm } from 'vuetify/components'
 import { useAsyncAction } from '@/composables/useAsyncAction'
@@ -83,6 +84,8 @@ function updateTitle() {
   }
 }
 
+// the defaults below are the saved state: they load asynchronously, so mark them clean once filled
+const { markClean } = useUnsavedChanges(open, () => [docType.value, title.value, docNumber.value, options, uat, signatories.value])
 watch(
   open,
   async (isOpen) => {
@@ -97,6 +100,7 @@ watch(
       name: i === 0 ? currentUser.value.name : '',
       status: 'pending',
     }))
+    markClean()
   },
   { immediate: true },
 )

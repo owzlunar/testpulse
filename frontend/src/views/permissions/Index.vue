@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useLeaveGuard } from '@/composables/useUnsavedChanges'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useDisplay } from 'vuetify'
@@ -47,6 +48,7 @@ const showDetail = computed(() => mdAndUp.value || (!!selected.value && !!select
 const draft = ref<PermissionKey[]>([])
 const sorted = (keys: PermissionKey[]) => [...keys].sort().join()
 const dirty = computed(() => !!selected.value && sorted(draft.value) !== sorted(selected.value.permissions))
+useLeaveGuard(() => dirty.value)
 const changes = computed(() => {
   if (!selected.value) return 0
   const saved = new Set(selected.value.permissions)

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
+import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { storeToRefs } from 'pinia'
 import type { VForm } from 'vuetify/components'
 import { DEFAULT_AVATAR } from '@/services/user.service'
@@ -19,6 +20,7 @@ const { roleOptions } = storeToRefs(useAuthStore())
 const form = reactive(empty())
 
 watch(open, (isOpen) => isOpen && Object.assign(form, empty()), { immediate: true })
+useUnsavedChanges(open, () => form)
 
 async function submit() {
   const result = await formRef.value?.validate()
