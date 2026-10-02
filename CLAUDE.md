@@ -8,6 +8,9 @@ testpulse
 |--- frontend   Vue 3 + Vuetify app (own CLAUDE.md)
 |--- backend    Express 5 + Mongoose API in feature modules (own CLAUDE.md)
 |--- PRD.md     product spec, shared by both sides
+|--- Dockerfile one image `testpulse`: nginx :8080 (web app, proxies /api and /health) + the API, run by supervisor
+|--- docker/    nginx.conf, supervisor.conf, entrypoint.sh (builds DB indexes, then starts supervisor)
+|--- docker-compose.yml  runs the image locally against the host's MongoDB / MinIO, with Mailpit (:8025) for mail
 ```
 One git repository (github.com/owzlunar/testpulse). Each side keeps its own `CLAUDE.md` with its stack rules; this file holds what both share.
 

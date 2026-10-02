@@ -1,0 +1,17 @@
+# Only sources and lock files go into the build context: no dependencies, builds, secrets or VCS data.
+**/node_modules
+**/dist
+**/coverage
+**/.env
+**/.env.*
+!**/env-example
+backend/storage
+**/test-results
+**/playwright-report
+**/blob-report
+**/.vite
+**/.DS_Store
+.git
+.github
+.claude
+docker-compose.yml

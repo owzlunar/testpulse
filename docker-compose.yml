@@ -1,0 +1,45 @@
+# Runs the testpulse image locally against MongoDB and MinIO on the host
+# (the replica set on :20001 and MinIO's API on :9001, see backend/.env).
+#   docker compose up --build      -> http://localhost:8080
+#   invites and other mail          -> http://localhost:8025 (Mailpit)
+# Secrets (JWT keys, encryption key, salt) come from backend/.env (npm run env:init).
+
+services:
+  testpulse:
+    build: .
+    image: testpulse
+    container_name: testpulse
+    ports:
+      - '8080:8080'
+    env_file: backend/.env
+    environment:
+      NODE_ENV: production
+      APP_URL: http://localhost:8080
+      # the host's services, seen from inside the container
+      MONGODB_URI: mongodb://host.docker.internal:20001/testpulse?directConnection=true&replicaSet=dbrs
+      MINIO_ENDPOINT: host.docker.internal
+      # production refuses the log mail driver: Mailpit catches the mail instead
+      MAIL_DRIVER: smtp
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_SECURE: 'false'
+      # plain http on localhost
+      COOKIE_SECURE: 'false'
+      TRUST_PROXY: 1
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    volumes:
+      - uploads:/app/backend/storage
+    depends_on:
+      - mailpit
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: testpulse-mailpit
+    ports:
+      - '8025:8025'
+    restart: unless-stopped
+
+volumes:
+  uploads:
