@@ -9,7 +9,7 @@ const { publicKey, privateKey } = generateKeyPairSync('rsa', {
 
 Object.assign(process.env, {
   NODE_ENV: 'test',
-  APP_URL: 'http://localhost:5173',
+  BASE_URL: 'http://localhost:5173',
   MONGODB_URI: 'mongodb://127.0.0.1:1/placeholder', // the real one comes from the test database helper
   JWT_PRIVATE_KEY: privateKey,
   JWT_PUBLIC_KEY: publicKey,

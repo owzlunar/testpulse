@@ -4,7 +4,6 @@ import morgan from 'morgan'
 import { config } from './config/env.js'
 import { logger } from './config/logger.js'
 import { sanitizeUrl } from './config/redact.js'
-import { requestContext } from './http/context.js'
 import { errorHandler, notFoundHandler } from './http/error-handler.js'
 import { healthRouter } from './http/health.js'
 import { globalRateLimit } from './http/rate-limit.js'
@@ -27,10 +26,14 @@ export async function createApp({ modules }: { modules: AppModule[] }): Promise<
 
   app.use(requestId)
   if (!config.isTest) {
-    morgan.token('id', () => requestContext()?.requestId ?? '-')
+    // morgan writes after the response, maybe outside the request context: read the id from the response
+    morgan.token('id', (_req, res) => String(res.getHeader('x-request-id') ?? '-'))
     morgan.token('safe-url', (req) => sanitizeUrl((req as express.Request).originalUrl ?? req.url ?? ''))
     app.use(
-      morgan('[:id] :method :safe-url :status :res[content-length] - :response-time ms', { stream: { write: (line) => logger.http(line.trim()) } }),
+      // one access line per request: client, request id, request, status, size, time, browser
+      morgan(':remote-addr [:id] ":method :safe-url" :status :res[content-length] :response-time ms ":user-agent"', {
+        stream: { write: (line) => logger.http(line.trim()) },
+      }),
     )
   }
 

@@ -12,7 +12,8 @@ const cookieOptions = (): CookieOptions => ({
   httpOnly: true,
   secure: config.auth.cookieSecure,
   sameSite: 'strict',
-  path: `${config.basePath}/auth`,
+  // the path the browser sees (behind a proxy on a sub path: /testpulse/api/v1/auth)
+  path: `${config.publicApiPath}/auth`,
   maxAge: config.auth.refreshTokenTtlDays * 24 * 60 * 60 * 1000,
 })
 

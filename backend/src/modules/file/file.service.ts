@@ -17,7 +17,8 @@ export interface Upload {
   originalName: string
 }
 
-const urlOf = (id: string) => `${config.basePath}/files/${id}/content`
+/** as the browser reaches it (with the proxy's sub path, if any) */
+const urlOf = (id: string) => `${config.publicApiPath}/files/${id}/content`
 
 const toUploaded = (f: { _id: string; name: string; contentType: string; size: number }): UploadedFile => ({
   id: f._id,

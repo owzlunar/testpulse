@@ -44,7 +44,7 @@ async function sendInvite(user: User): Promise<void> {
     tokenHash: hashToken(token),
     expiresAt: new Date(Date.now() + config.auth.inviteTtlHours * 60 * 60 * 1000),
   })
-  await getMailer().send(inviteMail(user, `${config.appUrl}/invite/${token}`, config.auth.inviteTtlHours))
+  await getMailer().send(inviteMail(user, `${config.baseUrl}/invite/${token}`, config.auth.inviteTtlHours))
 }
 
 export const authService = {

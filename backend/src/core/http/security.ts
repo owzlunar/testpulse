@@ -24,8 +24,8 @@ export const sanitizeInput: RequestHandler = (req, _res, next) => {
   next()
 }
 
-/** browsers may call the API only from the web app (APP_URL) and CORS_ORIGINS */
-export const allowedOrigins = () => [...new Set([config.appUrl, ...config.cors.origins])]
+/** browsers may call the API only from the web app (BASE_URL's origin) and CORS_ORIGINS */
+export const allowedOrigins = () => [...new Set([config.appOrigin, ...config.cors.origins])]
 
 export function setupSecurity(app: Express): void {
   app.use(helmet())

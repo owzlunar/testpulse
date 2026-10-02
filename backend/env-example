@@ -1,10 +1,15 @@
 # TestPulse API. Copy to .env with `npm run env:init` (it fills the secrets below with fresh random values).
 NODE_ENV=development
 PORT=4000
+HOST=0.0.0.0
 LOG_LEVEL=info
+# also write access / error logs here, rotated daily (empty = console only)
+LOG_DIR=
+LOG_RETENTION_DAYS=14
 BASE_PATH=/api/v1
-# the web app: invite links point here, and it is the allowed CORS origin
-APP_URL=http://localhost:5173
+# public URL of the web app (with the sub path when a reverse proxy serves it under one,
+# e.g. https://mydomain/testpulse): invite links, CORS origin, cookie and file paths
+BASE_URL=http://localhost:5173
 # more allowed browser origins, comma-separated
 CORS_ORIGINS=
 TRUST_PROXY=1

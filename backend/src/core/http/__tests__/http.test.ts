@@ -82,8 +82,8 @@ describe('request hygiene', () => {
   })
 
   it('allows the web app origin and refuses others', async () => {
-    const allowed = await request(app).get(url('/conflict')).set('Origin', config.appUrl)
-    expect(allowed.headers['access-control-allow-origin']).toBe(config.appUrl)
+    const allowed = await request(app).get(url('/conflict')).set('Origin', config.appOrigin)
+    expect(allowed.headers['access-control-allow-origin']).toBe(config.appOrigin)
     const other = await request(app).get(url('/conflict')).set('Origin', 'https://evil.example')
     expect(other.headers['access-control-allow-origin']).toBeUndefined()
   })

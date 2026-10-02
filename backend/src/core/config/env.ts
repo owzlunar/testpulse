@@ -23,11 +23,21 @@ const normalizeBasePath = (value: string) => {
 const schema = Joi.object({
   NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
   PORT: Joi.number().port().default(4000),
+  /** interface the API listens on (the Docker image: 127.0.0.1, only nginx reaches it) */
+  HOST: Joi.string().default('0.0.0.0'),
   LOG_LEVEL: Joi.string().valid('error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly').default('info'),
+  /** also write access-YYYY-MM-DD.log and error-YYYY-MM-DD.log here (rotated daily) */
+  LOG_DIR: Joi.string().allow('').optional(),
+  LOG_RETENTION_DAYS: Joi.number().integer().min(1).default(14),
   /** every API route is mounted under it (the health probes are also served at the root) */
   BASE_PATH: Joi.string().allow('').default('/api/v1'),
-  /** where the web app runs; invite links point at it */
-  APP_URL: Joi.string().uri().required(),
+  /**
+   * the public URL of the web app, e.g. https://mydomain/testpulse behind a reverse proxy on a sub
+   * path: invite links, the CORS origin and the public paths (cookies, file URLs) come from it
+   */
+  BASE_URL: Joi.string()
+    .uri({ scheme: ['http', 'https'] })
+    .required(),
 
   MONGODB_URI: Joi.string()
     .uri({ scheme: ['mongodb', 'mongodb+srv'] })
@@ -107,6 +117,9 @@ if (!encryptionKeys[currentKeyId]) {
 }
 
 const pem = (value: string) => value.replace(/\\n/g, '\n')
+const baseUrl = new URL(String(env.BASE_URL))
+/** "/testpulse" for https://mydomain/testpulse, "" at the root of a domain */
+const publicPath = baseUrl.pathname.replace(/\/+$/, '')
 const isProduction = env.NODE_ENV === 'production'
 
 if (isProduction) {
@@ -121,9 +134,18 @@ export const config = Object.freeze({
   isProduction,
   isTest: env.NODE_ENV === 'test',
   port: env.PORT as number,
+  host: env.HOST as string,
   logLevel: env.LOG_LEVEL as string,
+  logs: { dir: (env.LOG_DIR as string | undefined) || null, retentionDays: env.LOG_RETENTION_DAYS as number },
   basePath: normalizeBasePath(env.BASE_PATH),
-  appUrl: String(env.APP_URL).replace(/\/+$/, ''),
+  /** the web app's public URL without a trailing slash */
+  baseUrl: `${baseUrl.origin}${publicPath}`,
+  /** browsers call the API from here (CORS) */
+  appOrigin: baseUrl.origin,
+  /** path prefix of everything public (the proxy's sub path): cookies and file URLs carry it */
+  publicPath,
+  /** where browsers reach the API: publicPath + BASE_PATH, e.g. /testpulse/api/v1 */
+  publicApiPath: `${publicPath}${normalizeBasePath(env.BASE_PATH)}`,
   mongo: { uri: env.MONGODB_URI as string },
   pagination: { maxPageSize: env.MAX_PAGE_SIZE as number },
   audit: { retentionDays: env.AUDIT_RETENTION_DAYS as number },
