@@ -36,7 +36,10 @@
     "contract:sync": "tsx scripts/contract.ts sync",
     "contract:check": "tsx scripts/contract.ts check",
     "check": "npm run contract:check && npm run typecheck && npm run lint && npm run format:check && npm run test",
-    "env:init": "tsx scripts/init-env.ts"
+    "env:init": "tsx scripts/init-env.ts",
+    "seed": "tsx --conditions=source scripts/seed.ts",
+    "db:indexes": "tsx --conditions=source scripts/db-indexes.ts",
+    "keys:rotate": "tsx --conditions=source scripts/rotate-keys.ts"
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",

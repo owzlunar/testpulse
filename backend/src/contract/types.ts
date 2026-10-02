@@ -126,6 +126,49 @@ export interface User {
   roleId: string | null
   title?: string
   avatar: string
+  /** invited = added by an Admin, has not set a password yet (can't sign in); missing = active */
+  status?: UserStatus
+}
+
+export type UserStatus = 'active' | 'invited'
+
+/** POST /auth/login, /auth/refresh, /auth/register, /auth/invites/:token/accept */
+export interface AuthSession {
+  user: User
+  /** Bearer token for every other request; the refresh token travels in an httpOnly cookie */
+  accessToken: string
+  /** seconds until accessToken expires */
+  expiresIn: number
+}
+
+/** GET /auth/invites/:token: who the invite is for (shown on the set-password page) */
+export interface InviteInfo {
+  name: string
+  email: string
+  expiresAt: string
+}
+
+/** POST /files: a stored upload; `url` goes into fields like Project.logo or User.avatar */
+export interface UploadedFile {
+  id: string
+  url: string
+  name: string
+  contentType: string
+  size: number
+}
+
+/** The signed-in user's preferences (GET / PUT /me/settings) */
+export interface AppSettings {
+  alertOnModification: boolean
+  alertOnStatusChange: boolean
+  alertOnExpiry: boolean
+  /** warn this many days before a due date */
+  expiryDaysThreshold: number
+  obsidianFrontmatter: boolean
+  obsidianCallouts: boolean
+  obsidianWikilinks: boolean
+  /** long pages keep a compact page header under the app bar while scrolling (md and up) */
+  stickyPageHeader: boolean
 }
 
 /** A team of people (e.g. "ทีม Payment"); projects list the teams that may open them */
@@ -346,6 +389,9 @@ export interface AuditChange {
   newValue?: unknown
 }
 
+/** what an audit entry is about (users, roles and teams are recorded by the backend) */
+export type AuditTargetType = 'PROJECT' | 'TEST_CASE' | 'USER' | 'ROLE' | 'TEAM'
+
 export interface AuditTrailEntry {
   id: string
   timestamp: string
@@ -353,7 +399,7 @@ export interface AuditTrailEntry {
   userName: string
   userRole: string
   action: AuditAction
-  targetType: 'PROJECT' | 'TEST_CASE'
+  targetType: AuditTargetType
   targetId: string
   /** project of a TEST_CASE target: case ids restart per project (TC-101 …) */
   projectId?: string
