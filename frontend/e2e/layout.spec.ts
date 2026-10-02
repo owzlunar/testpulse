@@ -40,3 +40,11 @@ test('the test case form is a bottom sheet over the content area, the same size 
   }
   expect(sizes.size).toBe(1)
 })
+
+test('a detail page opened directly keeps its module highlighted in the drawer', async ({ page }) => {
+  await page.goto('/test-runs/run-2')
+  await expect(page.locator('.exec-list__items')).toBeVisible()
+  await expect(page.locator('.fox-nav .v-list-item--active')).toHaveText(/รอบการทดสอบ/)
+  await expect(page.locator('.fox-nav .v-list-item--active')).toHaveCount(1)
+})
+

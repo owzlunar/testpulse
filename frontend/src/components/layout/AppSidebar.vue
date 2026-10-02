@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useRoute } from 'vue-router'
 import navigation from '@/router/navigation'
 import { useAuthStore } from '@/stores/auth.store'
 import { useLayoutStore } from '@/stores/layout.store'
@@ -9,6 +10,7 @@ import AppLogo from './AppLogo.vue'
 
 withDefaults(defineProps<{ rail?: boolean }>(), { rail: false })
 
+const route = useRoute()
 const auth = useAuthStore()
 const layout = useLayoutStore()
 const { currentCases } = storeToRefs(useProjectStore())
@@ -20,6 +22,8 @@ const items = computed(() => {
   const visible = navigation.filter(allowed)
   return visible.filter((item, i) => !('header' in item) || (visible[i + 1] && !('header' in visible[i + 1])))
 })
+// detail pages (/test-runs/:id, /documents/:id) are sibling routes, so RouterLink alone would not mark their menu item
+const isActive = (to: string) => route.path === to || route.path.startsWith(`${to}/`)
 const badgeOf = (to: string) => (to === '/test-cases' && currentCases.value.length ? String(currentCases.value.length) : '')
 </script>
 
@@ -35,7 +39,7 @@ const badgeOf = (to: string) => (to === '/test-cases' && currentCases.value.leng
     <v-list>
       <template v-for="item in items" :key="'header' in item ? item.header : item.title">
         <v-list-subheader v-if="'header' in item">{{ item.header }}</v-list-subheader>
-        <v-list-item v-else :to="item.to" :prepend-icon="item.icon" :title="item.title">
+        <v-list-item v-else :to="item.to" :active="isActive(item.to)" :prepend-icon="item.icon" :title="item.title">
           <template v-if="badgeOf(item.to)" #append>
             <v-chip size="x-small" color="primary" variant="tonal" class="fox-num">{{ badgeOf(item.to) }}</v-chip>
           </template>
