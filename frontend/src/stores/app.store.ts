@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { useAiStore } from './ai.store'
 import { useAuditStore } from './audit.store'
 import { useAuthStore } from './auth.store'
 import { useNotificationStore } from './notification.store'
@@ -35,6 +36,7 @@ export const useAppStore = defineStore('app', () => {
           useProjectStore().load(),
           apiOn.audit ? useAuditStore().load() : undefined,
           apiOn.notification ? useNotificationStore().load() : undefined,
+          apiOn.ai ? useAiStore().load() : undefined,
         ])
         // cases load per project: the selected one now, others when opened
         if (apiOn['test-case']) await useTestCaseStore().ensureProject(useProjectStore().currentProject?.id)

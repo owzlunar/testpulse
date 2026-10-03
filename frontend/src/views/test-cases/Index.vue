@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { apiOn } from '@/api'
+import { useAiStore } from '@/stores/ai.store'
 import { storeToRefs } from 'pinia'
 import FoxPageHeader from '@/components/ui/FoxPageHeader.vue'
 import FoxPageSkeleton from '@/components/ui/FoxPageSkeleton.vue'
@@ -25,6 +25,8 @@ import { useRequirementStore } from '@/stores/requirement.store'
 import { useTestCaseStore } from '@/stores/test-case.store'
 import type { TestCase, TestCaseInput, TestCaseTemplate } from '@/types'
 import { isHighChurn, isOverdue } from '@/domain/test-case'
+
+const aiStore = useAiStore()
 
 const route = useRoute()
 const router = useRouter()
@@ -58,15 +60,15 @@ const saveTemplateOpen = ref(false)
 const importOpen = ref(false)
 const aiOpen = ref(false)
 
-const createOptions = [
+const createOptions = computed(() => [
   { title: 'เริ่มจากฟอร์มว่าง', subtitle: 'กรอกเองทุกช่อง', icon: 'tabler:file-plus', action: () => openCreate() },
   { title: 'จาก Template', subtitle: 'รูปแบบการทดสอบที่ใช้บ่อย', icon: 'tabler:template', action: () => (templateOpen.value = true) },
-  // AI drafts wait for the backend's ai module
-  ...(apiOn.ai
+  // AI drafts: only while the server has a language model set up
+  ...(aiStore.available
     ? [{ title: 'ร่างด้วย AI', subtitle: 'วาง Requirement แล้วให้ระบบร่างเคส', icon: 'tabler:sparkles', action: () => (aiOpen.value = true) }]
     : []),
   { title: 'นำเข้าจาก Excel / CSV', subtitle: 'หลายเคสในครั้งเดียว', icon: 'tabler:file-import', action: () => (importOpen.value = true) },
-]
+])
 
 function fromTemplate(t: TestCaseTemplate) {
   editing.value = null

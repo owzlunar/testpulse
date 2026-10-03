@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { apiOn } from '@/api'
+import { useAiStore } from '@/stores/ai.store'
 import { storeToRefs } from 'pinia'
 import FoxPageHeader from '@/components/ui/FoxPageHeader.vue'
 import FoxPageSkeleton from '@/components/ui/FoxPageSkeleton.vue'
@@ -30,6 +30,8 @@ import {
   requirementTypeOf,
 } from '@/domain/requirement'
 import { statusOf } from '@/domain/test-case'
+
+const aiStore = useAiStore()
 
 const router = useRouter()
 const route = useRoute()
@@ -283,7 +285,7 @@ function exportRtm() {
                   </div>
                   <div class="d-flex flex-wrap ga-2">
                     <v-btn
-                      v-if="canCreate && apiOn.ai"
+                      v-if="canCreate && aiStore.available"
                       variant="tonal"
                       color="primary"
                       size="small"

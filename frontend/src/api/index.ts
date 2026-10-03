@@ -34,8 +34,7 @@ export const runApi: Contract.RunApi = __API_MOCK_RUN__ ? mock.runApi : rest.run
 export const defectApi: Contract.DefectApi = __API_MOCK_DEFECT__ ? mock.defectApi : rest.defectApi
 export const documentApi: Contract.DocumentApi = __API_MOCK_DOCUMENT__ ? mock.documentApi : rest.documentApi
 export const reportApi: Contract.ReportApi = __API_MOCK_REPORT__ ? mock.reportApi : rest.reportApi
-// no rest implementation yet: always the mock
-export const aiApi: Contract.AiApi = mock.aiApi
+export const aiApi: Contract.AiApi = __API_MOCK_AI__ ? mock.aiApi : rest.aiApi
 
 export type ApiModule =
   | 'ai'

@@ -68,3 +68,13 @@ test('the universal search finds a requirement of any project and opens it', asy
   await page.waitForURL(/\/requirements\?search=REQ-PAY-04$/)
   await expect(page.getByText('Webhook Retry แบบ Exponential Backoff และ DLQ').first()).toBeVisible()
 })
+
+test('AI drafts stay hidden while the server has no model set up', async ({ page }) => {
+  const status = page.waitForResponse((r) => r.url().endsWith('/ai/status'))
+  await page.reload()
+  expect((await (await status).json()).data).toEqual({ enabled: false })
+  await openPaymentCases(page)
+  await page.getByRole('button', { name: 'สร้าง Test Case' }).first().click()
+  await expect(page.locator('.v-overlay--active .v-list-item', { hasText: 'จาก Template' })).toBeVisible()
+  await expect(page.locator('.v-overlay--active .v-list-item', { hasText: 'ร่างด้วย AI' })).toHaveCount(0)
+})
