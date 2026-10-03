@@ -151,8 +151,8 @@ export interface RegisterInput {
 export type UserInviteInput = Pick<User, 'name' | 'email' | 'roleId'> & Partial<Pick<User, 'title' | 'avatar'>>
 
 /** what an upload is for: decides who may upload it */
-/** avatar / project-logo: public pictures; case-image: test evidence (expected / actual results), behind a long random id */
-export type FileCategory = 'avatar' | 'project-logo' | 'case-image'
+/** avatar / project-logo / document-logo: public pictures; case-image: test evidence (expected / actual results), behind a long random id */
+export type FileCategory = 'avatar' | 'project-logo' | 'document-logo' | 'case-image'
 
 /** GET /auth/invites/:token: who the invite is for (shown on the set-password page) */
 export interface InviteInfo {

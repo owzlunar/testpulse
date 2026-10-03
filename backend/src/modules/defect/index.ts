@@ -8,6 +8,11 @@ import { defectService } from './defect.service.js'
 
 // Defects found while testing (BUG-nnn across every project): Dev fixes, QA re-tests, closes.
 // They follow renumbered cases, keep a deleted case's id as history and count in a case's impact.
+// Public API for other modules: a project's defects (documents print them).
+export const defects = {
+  ofProject: (projectId: string) => defectRepository.ofProjects([projectId]),
+}
+
 export const defectModule: AppModule = {
   name: 'defect',
   router: defectRouter,

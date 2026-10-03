@@ -1,4 +1,21 @@
-import type { ResultStatus, RunResult, StepResult, TestCase, TestRun } from '@/types'
+import type { ResultStatus, RunResult, StepResult, TestCase, TestRun, Tone } from '@/types'
+
+/** how a result is named and coloured (UI, documents) */
+export const RESULT_LABELS: Record<ResultStatus, string> = {
+  passed: 'Pass',
+  failed: 'Fail',
+  blocked: 'Blocked',
+  skipped: 'Skip',
+  untested: 'ยังไม่ทดสอบ',
+}
+
+export const RESULT_TONES: Record<ResultStatus, Tone> = {
+  passed: 'success',
+  failed: 'error',
+  blocked: 'caution',
+  skipped: 'secondary',
+  untested: 'secondary',
+}
 
 /** overall case result from its step results: any fail > any block > all pass/skip */
 export function deriveResult(steps: StepResult[]): ResultStatus {
