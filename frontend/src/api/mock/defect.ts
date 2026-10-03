@@ -26,6 +26,17 @@ export function detachDefectCases(projectId: string, caseIds: string[]) {
   save(STORAGE_KEYS.defects, list)
 }
 
+/** GET /defects/search?q=:q&limit=:limit&offset=:offset */
+export const searchDefects = (q: string, limit = 20, offset = 0) =>
+  respond(() => {
+    const text = q.trim().toLowerCase()
+    if (!text || !sessionCan('defect.view')) return { defects: [] as Defect[], total: 0 }
+    const found = inAccessibleProjects(defects())
+      .filter((d) => `${d.id} ${d.title} ${d.externalKey ?? ''} ${d.caseId ?? ''}`.toLowerCase().includes(text))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    return { defects: found.slice(offset, offset + limit), total: found.length }
+  })
+
 /** server-side: the stored defects of a project */
 export const defectsOf = (projectId: string): Defect[] => defects().filter((d) => d.projectId === projectId)
 

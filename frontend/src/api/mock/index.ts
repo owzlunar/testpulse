@@ -2,11 +2,12 @@
 import type * as Contract from '../contract'
 import { draftTestCases, fetchAiStatus } from './ai'
 import { createAuditLog, fetchAuditLogs } from './audit'
-import { addDefectComment, fetchDefects, saveDefect } from './defect'
+import { addDefectComment, fetchDefects, saveDefect, searchDefects } from './defect'
 import {
   deleteDocument,
   fetchDocumentTemplate,
   fetchDocuments,
+  searchDocuments,
   generateDocument,
   regenerateDocument,
   saveDocumentTemplate,
@@ -26,7 +27,7 @@ import { createProject, deleteProject, fetchProjects, updateProject } from './pr
 import { fetchProjectReport, recordExport } from './report'
 import { deleteRequirement, fetchRequirements, saveRequirement, searchRequirements } from './requirement'
 import { deleteRole, fetchRoles, saveRole } from './role'
-import { createRun, deleteRun, fetchRuns, saveResult, updateRun } from './run'
+import { createRun, deleteRun, fetchRuns, saveResult, searchRuns, updateRun } from './run'
 import { fetchSettings, saveSettings } from './settings'
 import { deleteTeam, fetchTeams, saveTeam } from './team'
 import { createTemplate, deleteTemplate, fetchTemplates, markTemplateUsed } from './template'
@@ -83,10 +84,11 @@ export const testCaseApi = {
   reorderTestCases,
 } satisfies Contract.TestCaseApi
 export const requirementApi = { fetchRequirements, saveRequirement, deleteRequirement, searchRequirements } satisfies Contract.RequirementApi
-export const runApi = { fetchRuns, createRun, updateRun, saveResult, deleteRun } satisfies Contract.RunApi
-export const defectApi = { fetchDefects, saveDefect, addDefectComment } satisfies Contract.DefectApi
+export const runApi = { fetchRuns, searchRuns, createRun, updateRun, saveResult, deleteRun } satisfies Contract.RunApi
+export const defectApi = { fetchDefects, searchDefects, saveDefect, addDefectComment } satisfies Contract.DefectApi
 export const documentApi = {
   fetchDocuments,
+  searchDocuments,
   generateDocument,
   regenerateDocument,
   updateDocument,

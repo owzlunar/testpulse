@@ -767,6 +767,16 @@ export interface DocumentTemplate {
 }
 
 // =============================================================================
+// Universal search (one page of a group's matches; the rest by offset)
+// =============================================================================
+
+/** a test run as a search result (without its results) */
+export type RunSearchHit = Pick<TestRun, 'id' | 'projectId' | 'name' | 'round' | 'type' | 'status' | 'environment' | 'build' | 'createdAt'>
+
+/** a document as a search result (without its snapshot) */
+export type DocumentSearchHit = Pick<DocumentRecord, 'id' | 'projectId' | 'type' | 'title' | 'docNumber' | 'version' | 'status' | 'updatedAt'>
+
+// =============================================================================
 // Reports (aggregates the server computes from a project's active cases, runs and defects)
 // =============================================================================
 

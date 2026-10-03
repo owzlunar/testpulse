@@ -1,4 +1,4 @@
-import type { DocumentRecord, DocumentRequest, DocumentSnapshot, DocumentTemplate, Signatory } from '@/types'
+import type { DocumentRecord, DocumentRequest, DocumentSearchHit, DocumentSnapshot, DocumentTemplate, Signatory } from '@/types'
 import { ApiError } from '@/api/errors'
 import { DEFAULT_TEMPLATE, buildSnapshot, uatBlock } from '@/domain/document'
 import { newId } from '@/utils/ids'
@@ -49,6 +49,27 @@ const write = (list: DocumentRecord[], doc: DocumentRecord) => {
 
 /** GET /documents */
 export const fetchDocuments = () => respond(() => (sessionCan('document.view') ? inAccessibleProjects(documents()) : []))
+
+/** GET /documents/search?q=:q&limit=:limit&offset=:offset */
+export const searchDocuments = (q: string, limit = 20, offset = 0) =>
+  respond(() => {
+    const text = q.trim().toLowerCase()
+    if (!text || !sessionCan('document.view')) return { documents: [] as DocumentSearchHit[], total: 0 }
+    const found = inAccessibleProjects(documents())
+      .filter((d) => `${d.docNumber} ${d.title}`.toLowerCase().includes(text))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    const hits = found.slice(offset, offset + limit).map(({ id, projectId, type, title, docNumber, version, status, updatedAt }) => ({
+      id,
+      projectId,
+      type,
+      title,
+      docNumber,
+      version,
+      status,
+      updatedAt,
+    }))
+    return { documents: hits, total: found.length }
+  })
 
 /** POST /documents (the server collects the data and freezes it in `snapshot`) */
 export const generateDocument = (req: DocumentRequest, createdBy: string) =>

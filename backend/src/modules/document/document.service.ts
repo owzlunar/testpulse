@@ -1,9 +1,18 @@
-import type { DocumentRecord, DocumentRequest, DocumentSnapshot, DocumentTemplate, PermissionKey, Signatory } from '#contract/types.js'
+import type {
+  DocumentRecord,
+  DocumentRequest,
+  DocumentSearchHit,
+  DocumentSnapshot,
+  DocumentTemplate,
+  PermissionKey,
+  Signatory,
+} from '#contract/types.js'
 import { DEFAULT_TEMPLATE, buildSnapshot, uatBlock } from '#contract/rules/document.js'
 import { recordAudit } from '#core/audit/audit-sink.js'
 import { assertCan } from '#core/auth/guards.js'
 import { can, type Principal } from '#core/auth/principal.js'
 import { ApiError } from '#core/http/errors.js'
+import { searchPattern } from '#core/http/search.js'
 import { notify } from '#core/notify/notify-sink.js'
 import { defects } from '#modules/defect/index.js'
 import { projectAccess } from '#modules/project/index.js'
@@ -61,6 +70,21 @@ export const documentService = {
   async list(p: Principal): Promise<DocumentRecord[]> {
     if (!p.roleId || !can(p, 'document.view')) return []
     return documentRepository.ofProjects([...(await projectAccess.accessibleIds(p))])
+  },
+
+  /** GET /documents/search: document number or title, in the projects the user may open; latest change first */
+  async search(p: Principal, q: string, limit: number, offset: number): Promise<{ documents: DocumentSearchHit[]; total: number }> {
+    const text = q.trim()
+    if (!text || !p.roleId || !can(p, 'document.view')) return { documents: [], total: 0 }
+    const pattern = searchPattern(text)
+    const { items, total } = await documentRepository.findPage(
+      { projectId: { $in: [...(await projectAccess.accessibleIds(p))] }, $or: [{ docNumber: pattern }, { title: pattern }] },
+      { updatedAt: -1 },
+      limit,
+      offset,
+      'projectId type title docNumber version status updatedAt',
+    )
+    return { documents: items as DocumentSearchHit[], total }
   },
 
   /** POST /documents: the server collects the data and freezes it in `snapshot` */

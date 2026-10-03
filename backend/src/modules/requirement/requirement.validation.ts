@@ -1,4 +1,5 @@
 import Joi from 'joi'
+import { searchQuery } from '#core/http/search.js'
 import { idParams, idSchema } from '#core/http/validate.js'
 
 const requirementBody = Joi.object({
@@ -13,7 +14,7 @@ const requirementBody = Joi.object({
 })
 
 export const requirementValidation = {
-  search: { query: Joi.object({ q: Joi.string().allow('').max(200).default(''), limit: Joi.number().integer().min(1).max(100).default(20) }) },
+  search: { query: searchQuery },
   create: { params: Joi.object({ projectId: idSchema.required() }), body: requirementBody },
   update: { params: idParams, body: requirementBody },
   remove: { params: idParams },

@@ -25,6 +25,7 @@ import { can, type Principal } from '#core/auth/principal.js'
 import { transaction } from '#core/database/transaction.js'
 import { emit } from '#core/events/event-bus.js'
 import { ApiError } from '#core/http/errors.js'
+import { searchPattern } from '#core/http/search.js'
 import { notify } from '#core/notify/notify-sink.js'
 import { projectAccess } from '#modules/project/index.js'
 import { requirements } from '#modules/requirement/index.js'
@@ -49,7 +50,6 @@ const notFound = (id: string) => ApiError.notFound(`ไม่พบ ${id}`)
 const archivedError = (id: string) => ApiError.conflict(`${id} อยู่ในคลังเก็บ กู้คืนก่อนจึงแก้ไขได้`)
 const now = () => new Date().toISOString()
 const thaiDateTime = (iso: string) => new Date(iso).toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-const escapeRegex = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 async function presenceOf(actor: Actor): Promise<ActiveUserPresence> {
   const user = await accounts.findById(actor.id)
@@ -300,20 +300,18 @@ export const testCaseService = {
   },
 
   /** GET /test-cases?search=:q: active cases of every project the user may open (id, name, requirement, scenario) */
-  async search(p: Principal, q: string, limit: number): Promise<{ cases: TestCase[]; total: number }> {
+  async search(p: Principal, q: string, limit: number, offset = 0): Promise<{ cases: TestCase[]; total: number }> {
     const text = q.trim()
     if (!text || !p.roleId || !can(p, 'case.view')) return { cases: [], total: 0 }
     const projectIds = [...(await projectAccess.accessibleIds(p))]
-    const pattern = new RegExp(escapeRegex(text), 'i')
+    const pattern = searchPattern(text)
     // the requirement a case shows includes its linked requirements' codes and titles
-    const linked: string[] = []
-    for (const projectId of projectIds) {
-      for (const r of await requirements.ofProject(projectId)) if (pattern.test(`${r.code}: ${r.title}`)) linked.push(r.id)
-    }
+    const linked = await requirements.idsMatching(projectIds, text)
     return testCaseRepository.searchActive(
       projectIds,
       { $or: [{ id: pattern }, { name: pattern }, { requirement: pattern }, { testScenario: pattern }, { requirementIds: { $in: linked } }] },
       limit,
+      offset,
     )
   },
 

@@ -10,6 +10,7 @@ import { requirementService } from './requirement.service.js'
 // cases that test it get flagged for review.
 export const requirements = {
   ofProject: requirementService.ofProject,
+  idsMatching: requirementService.idsMatching,
 }
 
 export const requirementModule: AppModule = {

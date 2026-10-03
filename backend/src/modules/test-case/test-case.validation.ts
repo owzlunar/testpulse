@@ -1,4 +1,5 @@
 import Joi from 'joi'
+import { searchParamQuery } from '#core/http/search.js'
 import { idSchema } from '#core/http/validate.js'
 
 // Images are file URLs (POST /files), never inline data: the case list carries every image link
@@ -59,7 +60,7 @@ const withExpected = Joi.object({ expected })
 
 export const testCaseValidation = {
   list: { params: projectParams },
-  search: { query: Joi.object({ search: Joi.string().allow('').max(200).default(''), limit: Joi.number().integer().min(1).max(100).default(20) }) },
+  search: { query: searchParamQuery },
   create: { params: projectParams, body: Joi.object({ cases: Joi.array().items(newCase).min(1).max(500).required() }) },
   update: {
     params: caseParams,

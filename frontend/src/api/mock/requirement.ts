@@ -17,12 +17,12 @@ export const requirementsOf = (projectId: string): Requirement[] => requirements
 export const fetchRequirements = () => respond(() => (sessionCan('requirement.view') ? inAccessibleProjects(requirements()) : []))
 
 /** GET /requirements/search?q=:q&limit=:limit (code, title or description, in the projects the user may open) */
-export const searchRequirements = (q: string, limit = 20) =>
+export const searchRequirements = (q: string, limit = 20, offset = 0) =>
   respond(() => {
     const text = q.trim().toLowerCase()
     if (!text || !sessionCan('requirement.view')) return { requirements: [] as Requirement[], total: 0 }
     const found = inAccessibleProjects(requirements()).filter((r) => `${r.code} ${r.title} ${r.description}`.toLowerCase().includes(text))
-    return { requirements: found.slice(0, limit), total: found.length }
+    return { requirements: found.slice(offset, offset + limit), total: found.length }
   })
 
 /** what a requirement says; a change here means the linked cases must be reviewed (type / priority / status don't) */

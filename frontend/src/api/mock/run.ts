@@ -1,4 +1,4 @@
-import type { Actor, ResultStatus, RunResult, RunResultSaveResult, TestCase, TestCaseStatus, TestRun, TestRunInput } from '@/types'
+import type { Actor, ResultStatus, RunResult, RunResultSaveResult, RunSearchHit, TestCase, TestCaseStatus, TestRun, TestRunInput } from '@/types'
 import { ApiError } from '@/api/errors'
 import { caseSyncBlock, resultFor } from '@/domain/run'
 import { addDays, todayISO } from '@/utils/date'
@@ -120,6 +120,28 @@ export const runsOf = (projectId: string): TestRun[] => runs().filter((r) => r.p
 
 /** GET /test-runs (of the projects the signed-in user may open) */
 export const fetchRuns = () => respond(() => (sessionCan('run.view') ? inAccessibleProjects(runs()) : []))
+
+/** GET /test-runs/search?q=:q&limit=:limit&offset=:offset */
+export const searchRuns = (q: string, limit = 20, offset = 0) =>
+  respond(() => {
+    const text = q.trim().toLowerCase()
+    if (!text || !sessionCan('run.view')) return { runs: [] as RunSearchHit[], total: 0 }
+    const found = inAccessibleProjects(runs())
+      .filter((r) => `${r.name} ${r.environment} ${r.build}`.toLowerCase().includes(text))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    const hits = found.slice(offset, offset + limit).map(({ id, projectId, name, round, type, status, environment, build, createdAt }) => ({
+      id,
+      projectId,
+      name,
+      round,
+      type,
+      status,
+      environment,
+      build,
+      createdAt,
+    }))
+    return { runs: hits, total: found.length }
+  })
 
 /** POST /projects/:projectId/test-runs (the server snapshots the selected cases) */
 export const createRun = (input: TestRunInput, cases: TestCase[], createdBy: string) =>

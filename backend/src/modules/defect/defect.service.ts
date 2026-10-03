@@ -4,6 +4,7 @@ import { recordAudit } from '#core/audit/audit-sink.js'
 import { assertCan } from '#core/auth/guards.js'
 import { can, type Principal } from '#core/auth/principal.js'
 import { ApiError } from '#core/http/errors.js'
+import { searchPattern } from '#core/http/search.js'
 import { notify } from '#core/notify/notify-sink.js'
 import { projectAccess } from '#modules/project/index.js'
 import { testCases } from '#modules/test-case/index.js'
@@ -46,6 +47,23 @@ export const defectService = {
   async list(p: Principal): Promise<Defect[]> {
     if (!p.roleId || !can(p, 'defect.view')) return []
     return defectRepository.ofProjects([...(await projectAccess.accessibleIds(p))])
+  },
+
+  /** GET /defects/search: id, title, external key or case, in the projects the user may open; newest first */
+  async search(p: Principal, q: string, limit: number, offset: number): Promise<{ defects: Defect[]; total: number }> {
+    const text = q.trim()
+    if (!text || !p.roleId || !can(p, 'defect.view')) return { defects: [], total: 0 }
+    const pattern = searchPattern(text)
+    const { items, total } = await defectRepository.findPage(
+      {
+        projectId: { $in: [...(await projectAccess.accessibleIds(p))] },
+        $or: [{ _id: pattern }, { title: pattern }, { externalKey: pattern }, { caseId: pattern }],
+      },
+      { createdAt: -1 },
+      limit,
+      offset,
+    )
+    return { defects: items, total }
   },
 
   /** POST /projects/:projectId/defects: numbered BUG-nnn; the assigned developer (or every one) is told */
