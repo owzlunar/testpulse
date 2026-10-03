@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import FoxCardHeader from '@/components/ui/FoxCardHeader.vue'
+import { fileApi } from '@/api'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { useAppStore } from '@/stores/app.store'
 import { useDocumentStore } from '@/stores/document.store'
 import type { DocumentTemplate } from '@/types'
-import { compressImage } from '@/utils/image'
+import { compressImage, dataUrlToFile } from '@/utils/image'
 import { formatDocNumber } from '@/domain/document'
 
 // Organisation branding and defaults applied to every generated document
@@ -18,10 +20,22 @@ watch(
   (t) => Object.assign(form, JSON.parse(JSON.stringify(t))),
 )
 
+// shrunk, then uploaded (POST /files, document-logo); the template keeps the URL
 const fileInput = ref<HTMLInputElement>()
-function onLogo(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0]
-  if (file) compressImage(file, 256).then((url) => (form.logo = url))
+const uploadingLogo = ref(false)
+async function onLogo(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  uploadingLogo.value = true
+  try {
+    form.logo = (await fileApi.upload(await dataUrlToFile(await compressImage(file, 256), file.name), 'document-logo')).url
+  } catch (err) {
+    useAppStore().showError(err)
+  } finally {
+    uploadingLogo.value = false
+    input.value = ''
+  }
 }
 
 const sample = computed(() => formatDocNumber(form.docNumberPattern, 'uat', 'PAY', 1))
@@ -37,13 +51,14 @@ function save() {
 <template>
   <v-card class="fox-card-body">
     <FoxCardHeader title="แม่แบบเอกสาร" subtitle="หัวกระดาษ เลขที่เอกสาร และผู้ลงนามเริ่มต้นของทุกเอกสารที่สร้าง">
-      <v-btn color="primary" :loading="busy" @click="save">บันทึกแม่แบบ</v-btn>
+      <v-btn color="primary" :loading="busy" :disabled="uploadingLogo" @click="save">บันทึกแม่แบบ</v-btn>
     </FoxCardHeader>
     <v-row dense class="fox-form-grid mt-4">
       <v-col cols="12" md="2">
         <span class="fox-label">โลโก้</span>
-        <button type="button" class="tpl-logo" aria-label="อัปโหลดโลโก้" @click="fileInput?.click()">
-          <img v-if="form.logo" :src="form.logo" alt="" />
+        <button type="button" class="tpl-logo" aria-label="อัปโหลดโลโก้" :disabled="uploadingLogo" @click="fileInput?.click()">
+          <v-progress-circular v-if="uploadingLogo" indeterminate size="24" />
+          <img v-else-if="form.logo" :src="form.logo" alt="" />
           <v-icon v-else icon="tabler:photo-plus" size="28" />
         </button>
         <input ref="fileInput" type="file" accept="image/*" class="d-none" @change="onLogo" />

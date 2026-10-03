@@ -1,4 +1,5 @@
 import type { Option, ResultStatus, RunStatus, RunType } from '@/types'
+import { RESULT_LABELS, RESULT_TONES } from './rules/run'
 
 // Rules the backend shares (snapshots, verdict -> case status, counts) live in ./rules/run.ts
 export * from './rules/run'
@@ -17,11 +18,11 @@ export const RUN_STATUSES: Option<RunStatus>[] = [
 ]
 
 export const RESULT_STATUSES: Option<ResultStatus>[] = [
-  { value: 'passed', label: 'Pass', hint: 'ผ่าน', tone: 'success', icon: 'tabler:circle-check' },
-  { value: 'failed', label: 'Fail', hint: 'ไม่ผ่าน', tone: 'error', icon: 'tabler:circle-x' },
-  { value: 'blocked', label: 'Blocked', hint: 'ทดสอบไม่ได้', tone: 'caution', icon: 'tabler:ban' },
-  { value: 'skipped', label: 'Skip', hint: 'ข้าม', tone: 'secondary', icon: 'tabler:player-skip-forward' },
-  { value: 'untested', label: 'ยังไม่ทดสอบ', tone: 'secondary', icon: 'tabler:circle-dashed' },
+  { value: 'passed', label: RESULT_LABELS.passed, hint: 'ผ่าน', tone: RESULT_TONES.passed, icon: 'tabler:circle-check' },
+  { value: 'failed', label: RESULT_LABELS.failed, hint: 'ไม่ผ่าน', tone: RESULT_TONES.failed, icon: 'tabler:circle-x' },
+  { value: 'blocked', label: RESULT_LABELS.blocked, hint: 'ทดสอบไม่ได้', tone: RESULT_TONES.blocked, icon: 'tabler:ban' },
+  { value: 'skipped', label: RESULT_LABELS.skipped, hint: 'ข้าม', tone: RESULT_TONES.skipped, icon: 'tabler:player-skip-forward' },
+  { value: 'untested', label: RESULT_LABELS.untested, tone: RESULT_TONES.untested, icon: 'tabler:circle-dashed' },
 ]
 
 export const runTypeOf = (v: RunType) => RUN_TYPES.find((t) => t.value === v) ?? RUN_TYPES[1]

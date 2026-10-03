@@ -29,9 +29,11 @@ const toUploaded = (f: { _id: string; name: string; contentType: string; size: n
   size: f.size,
 })
 
-/** avatars: anyone signed in; project logos: the Admin (who manages projects); case images: who writes or tests cases */
+/** avatars: anyone signed in; project logos: the Admin (who manages projects); document logos: who makes
+ * documents (the template); case images: who writes or tests cases */
 function assertMayUpload(principal: Principal, category: FileCategory) {
   if (category === 'project-logo' && !principal.isAdmin) throw ApiError.forbidden('เฉพาะ Admin เท่านั้น')
+  if (category === 'document-logo' && !can(principal, 'document.create')) throw ApiError.forbidden('ต้องมีสิทธิ์สร้างเอกสาร')
   if (category === 'case-image' && !can(principal, 'case.edit') && !can(principal, 'run.execute')) {
     throw ApiError.forbidden('ต้องมีสิทธิ์แก้ไข Test Case หรือบันทึกผลการทดสอบ')
   }

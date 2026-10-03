@@ -1,4 +1,4 @@
-import type { ProjectStats, Requirement, TestCase, TestCaseSpec, TestCaseStatus } from '@/types'
+import type { ProjectStats, Requirement, TestCase, TestCaseSpec, TestCaseStatus, Tone } from '@/types'
 import { daysFromToday } from './date.js'
 import { requirementsForCase } from './requirement.js'
 
@@ -11,6 +11,16 @@ export const STATUS_LABELS: Record<TestCaseStatus, string> = {
   passed: 'Passed',
   failed: 'Failed',
   blocked: 'Blocked',
+}
+
+export const STATUS_TONES: Record<TestCaseStatus, Tone> = {
+  pending: 'primary',
+  ready_for_test: 'info',
+  untested: 'secondary',
+  in_progress: 'warning',
+  passed: 'success',
+  failed: 'error',
+  blocked: 'caution',
 }
 
 /** every case status, in the lifecycle's order */

@@ -11,9 +11,11 @@ import { patchCase, testCaseService } from './test-case.service.js'
 // Test cases: versions, the Dev <-> QA lifecycle, archive, renumbering. Announces renumbered and
 // deleted cases ('test-case.renamed' / 'test-case.deleted') so the modules that point at cases follow.
 export { applyCasePatch, assertFresh } from './test-case.service.js'
-/** for the modules that work on cases (runs: snapshots, verdicts that become the case status) */
+/** for the modules that work on cases (runs: snapshots, verdicts that become the case status; documents) */
 export const testCases = {
   find: (projectId: string, id: string) => testCaseRepository.findCase(projectId, id),
+  /** archived ones too */
+  ofProject: (projectId: string) => testCaseRepository.ofProject(projectId),
   activeOfProject: (projectId: string) => testCaseRepository.activeOfProject(projectId),
   /** a change made by another module's request (permissions checked there), announced like any edit */
   patch: patchCase,

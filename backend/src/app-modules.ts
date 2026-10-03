@@ -2,6 +2,7 @@ import type { AppModule } from '#core/module.js'
 import { auditLogModule } from '#modules/audit-log/index.js'
 import { authModule } from '#modules/auth/index.js'
 import { defectModule } from '#modules/defect/index.js'
+import { documentModule } from '#modules/document/index.js'
 import { fileModule } from '#modules/file/index.js'
 import { notificationModule } from '#modules/notification/index.js'
 import { projectModule } from '#modules/project/index.js'
@@ -31,4 +32,5 @@ export const appModules: AppModule[] = [
   templateModule,
   runModule,
   defectModule,
+  documentModule,
 ]

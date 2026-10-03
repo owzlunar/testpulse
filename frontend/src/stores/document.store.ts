@@ -65,11 +65,23 @@ export const useDocumentStore = defineStore('document', () => {
   async function requestSignoff(id: string) {
     const doc = replace(await api.updateDocument(id, { status: 'pending_signoff' }))
     log(doc, `ส่ง ${doc.docNumber} ขอลงนาม ${doc.signatories.length} คน`)
+    // signatories who have an account (the backend tells them itself), and the requester as a confirmation
+    const me = auth.currentUser.id
+    const signers = auth.userIdsByName(...doc.signatories.map((sg) => sg.name)).filter((id) => id !== me)
+    if (signers.length) {
+      notify.add({
+        type: 'SYSTEM',
+        title: 'เอกสารรอลงนาม',
+        to: { userIds: signers },
+        message: `${doc.docNumber} ${doc.title}`,
+        projectId: doc.projectId,
+        severity: 'info',
+      })
+    }
     notify.add({
       type: 'SYSTEM',
       title: 'ส่งเอกสารขอลงนามแล้ว',
-      // signatories who have an account, and the requester as a confirmation
-      to: { userIds: [...useAuthStore().userIdsByName(...doc.signatories.map((sg) => sg.name)), useAuthStore().currentUser.id] },
+      to: { userIds: [me] },
       message: `${doc.docNumber} · ${doc.signatories.map((s) => s.name || s.role).join(', ')}`,
       projectId: doc.projectId,
       severity: 'info',

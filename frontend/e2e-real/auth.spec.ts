@@ -41,14 +41,11 @@ test('each user sees only the projects of their teams (and those without a team)
   await expect(page.locator('.project-card', { hasText: 'PromptPay' })).toHaveCount(0) // team Payment only
 })
 
-test('modules the backend lacks are off: no menu, and their pages lead back to the dashboard', async ({ page }) => {
+test('every module with a page runs on the backend: each one is in the menu', async ({ page }) => {
   await signIn(page, ACCOUNTS.qaLead.email)
   const nav = page.locator('.fox-nav')
-  for (const item of ['Test Cases', 'Requirements', 'ปฏิทินงานทดสอบ', 'รอบการทดสอบ', 'Defects', 'รายงาน'])
+  for (const item of ['Test Cases', 'Requirements', 'ปฏิทินงานทดสอบ', 'รอบการทดสอบ', 'Defects', 'ศูนย์เอกสาร', 'รายงาน'])
     await expect(nav.getByText(item, { exact: true })).toHaveCount(1)
-  for (const item of ['ศูนย์เอกสาร']) await expect(nav.getByText(item, { exact: true })).toHaveCount(0)
-  await page.goto('/documents')
-  await page.waitForURL('**/dashboard')
 })
 
 test('the access token is renewed before it expires (silent refresh): no request meets a 401', async ({ page }) => {

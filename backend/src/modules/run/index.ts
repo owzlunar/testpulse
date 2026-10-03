@@ -8,7 +8,11 @@ import { runService } from './run.service.js'
 
 // Test runs: rounds of execution over snapshots of cases. A verdict becomes the case status when it
 // is the latest result for the case's current spec (caseSyncBlock). Results follow renumbered cases
-// and keep deleted ones as history.
+// and keep deleted ones as history. Public API for other modules: a run (documents print one).
+export const runs = {
+  find: (id: string) => runRepository.findById(id),
+}
+
 export const runModule: AppModule = {
   name: 'run',
   router: runRouter,
