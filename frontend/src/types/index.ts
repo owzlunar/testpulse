@@ -487,6 +487,22 @@ export interface TestCaseDraft {
   requirementIds?: string[]
 }
 
+/** what to ask the AI for (AI drafts) */
+export interface DraftOptions {
+  positive: boolean
+  negative: boolean
+  boundary: boolean
+  /** extra context, e.g. platform or business rules */
+  context?: string
+}
+
+/** whether the server has a language model set up for drafts (the AI buttons show only then) */
+export interface AiStatus {
+  enabled: boolean
+  /** the model drafts come from, e.g. "qwen2.5:14b" */
+  model?: string
+}
+
 export interface TestCaseTemplate {
   id: string
   name: string

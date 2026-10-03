@@ -1,7 +1,9 @@
-import type { TestCaseDraft } from '@/types'
-import type { DraftOptions } from '@/domain/ai'
+import type { AiStatus, DraftOptions, TestCaseDraft } from '@/types'
 
 export interface AiApi {
+  /** GET /ai/status (the AI buttons show only when a model is set up) */
+  fetchAiStatus(): Promise<AiStatus>
+
   /**
    * POST /ai/test-case-drafts
    * Body: { requirement, options } → TestCaseDraft[] (QA reviews before saving)

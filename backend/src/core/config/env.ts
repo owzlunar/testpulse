@@ -101,6 +101,15 @@ const schema = Joi.object({
   SMTP_USER: Joi.string().allow('').optional(),
   SMTP_PASSWORD: Joi.string().allow('').optional(),
 
+  /** AI test case drafts: none (the AI actions stay hidden) · ollama: a local Ollama server */
+  AI_PROVIDER: Joi.string().valid('none', 'ollama').default('none'),
+  OLLAMA_BASE_URL: Joi.string()
+    .uri({ scheme: ['http', 'https'] })
+    .when('AI_PROVIDER', { is: 'ollama', then: Joi.required(), otherwise: Joi.optional() }),
+  OLLAMA_MODEL: Joi.string().when('AI_PROVIDER', { is: 'ollama', then: Joi.required(), otherwise: Joi.optional() }),
+  /** how long a draft may take (a local model on a CPU is slow) */
+  AI_TIMEOUT_SEC: Joi.number().integer().min(5).max(600).default(120),
+
   CORS_ORIGINS: Joi.string().allow('').default(''),
   TRUST_PROXY: Joi.alternatives().try(Joi.boolean(), Joi.number(), Joi.string()).default(1),
   BODY_LIMIT: Joi.string().default('1mb'),
@@ -193,6 +202,11 @@ export const config = Object.freeze({
   },
   encryption: { currentKeyId, keys: encryptionKeys },
   blindIndex: { salt: env.BLIND_INDEX_SALT as string },
+  ai: {
+    provider: env.AI_PROVIDER as 'none' | 'ollama',
+    ollama: { baseUrl: String(env.OLLAMA_BASE_URL ?? '').replace(/\/+$/, ''), model: (env.OLLAMA_MODEL as string | undefined) ?? '' },
+    timeoutMs: (env.AI_TIMEOUT_SEC as number) * 1000,
+  },
   storage: {
     driver: env.STORAGE_DRIVER as 'local' | 'minio',
     localRoot: env.STORAGE_LOCAL_ROOT as string,

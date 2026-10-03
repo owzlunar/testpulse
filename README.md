@@ -57,6 +57,7 @@ container อ่านค่าจากสองไฟล์ผ่าน `env_f
 | `STORAGE_DRIVER` | `local` | `local` (เก็บที่โฟลเดอร์ `docker-data/uploads` ของ host) หรือ `minio` |
 | `MINIO_ENDPOINT` / `MINIO_PORT` / `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | host | ใช้เมื่อ `STORAGE_DRIVER=minio` (bucket ชื่อตาม `MINIO_BUCKET` จะถูกสร้างให้ถ้ายังไม่มี) |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` | host | ใช้ส่งอีเมลเชิญผู้ใช้ (ทดสอบด้วย Mailpit `:1025`) |
+| `AI_PROVIDER` / `OLLAMA_BASE_URL` / `OLLAMA_MODEL` / `AI_TIMEOUT_SEC` | `none` / (ว่าง) / (ว่าง) / `120` | ร่าง Test Case ด้วย AI จาก Ollama ที่ติดตั้งเอง ตั้ง `AI_PROVIDER=ollama` พร้อม URL ของ Ollama (เช่น `http://host.docker.internal:11434`) และชื่อ model ที่ pull ไว้แล้ว ถ้าเป็น `none` ปุ่ม AI จะถูกซ่อน |
 | `COOKIE_SECURE` | `false` | ตั้ง `true` เมื่อเปิดผ่าน https |
 | `TRUST_PROXY` | `loopback` | ถ้ามี reverse proxy ข้างหน้า ให้เพิ่ม address ของ proxy ด้วย (เช่น `loopback, 10.0.0.0/8`) เพื่อให้ IP ใน log และ rate limit ถูกต้อง |
 | `LOG_LEVEL` / `LOG_RETENTION_DAYS` | `info` / `14` | ระดับ log ที่ console และจำนวนวันที่เก็บไฟล์ log |

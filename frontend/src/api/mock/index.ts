@@ -1,6 +1,6 @@
 // The mock API: each contract module backed by the mock server in this folder (LocalStorage).
 import type * as Contract from '../contract'
-import { draftTestCases } from './ai'
+import { draftTestCases, fetchAiStatus } from './ai'
 import { createAuditLog, fetchAuditLogs } from './audit'
 import { addDefectComment, fetchDefects, saveDefect } from './defect'
 import {
@@ -108,4 +108,4 @@ export const notificationApi = {
   watchNotifications,
 } satisfies Contract.NotificationApi
 export const templateApi = { fetchTemplates, createTemplate, markTemplateUsed, deleteTemplate } satisfies Contract.TemplateApi
-export const aiApi = { draftTestCases } satisfies Contract.AiApi
+export const aiApi = { fetchAiStatus, draftTestCases } satisfies Contract.AiApi

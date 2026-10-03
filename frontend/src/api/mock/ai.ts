@@ -1,6 +1,11 @@
-import type { StepDraft, TestCaseDraft } from '@/types'
-import type { DraftOptions } from '@/domain/ai'
+import type { AiStatus, DraftOptions, StepDraft, TestCaseDraft } from '@/types'
 import { respond } from './http'
+
+// A stand-in for the language model: picks a scenario pack by keyword so the review UI shows
+// realistic, domain-specific drafts (the backend asks a local model, Ollama)
+
+/** GET /ai/status */
+export const fetchAiStatus = () => respond((): AiStatus => ({ enabled: true, model: 'mock' }))
 
 const s = (action: string, testData: string, expectedResult: string): StepDraft => ({ action, testData, expectedResult })
 
