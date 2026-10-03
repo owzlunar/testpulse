@@ -77,14 +77,14 @@ function onDelete() {
 <template>
   <FoxPageHeader title="ศูนย์เอกสาร" :breadcrumbs="[{ title: 'เอกสาร' }]">
     <template #actions>
-      <v-btn v-if="auth.can('document.create')" color="primary" prepend-icon="tabler:file-plus" @click="create()">สร้างเอกสาร</v-btn>
+      <v-btn v-can="'document.create'" color="primary" prepend-icon="tabler:file-plus" @click="create()">สร้างเอกสาร</v-btn>
     </template>
   </FoxPageHeader>
 
   <FoxPageSkeleton v-if="!loaded" :stats="4" :rows="1" />
   <div v-else class="fox-stack">
     <!-- one-click create -->
-    <v-row v-if="auth.can('document.create')" class="fox-grid">
+    <v-row v-can="'document.create'" class="fox-grid">
       <v-col v-for="t in DOCUMENT_TYPES" :key="t.value" cols="12" sm="6" lg="3">
         <v-card class="fox-card-body h-100 doc-quick" @click="create(t.value)">
           <div class="d-flex align-center ga-3 mb-3">

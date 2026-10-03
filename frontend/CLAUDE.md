@@ -25,14 +25,19 @@ Design reference: Fox admin dashboard (`../../fox`, light + dark, blue primary).
 9. Sidebar: `<v-navigation-drawer class="fox-nav">`.
 10. Calendar events use `tone` (`primary|secondary|info|success|warning|caution|error`), not custom colors.
 11. Status / priority / role / project-status / milestone / audit-action colors and icons come from the `Option` lists in `domain/*.ts` (`statusOf`, `priorityOf`, `roleOf`, ...). Never write a `switch (status)` color map in a component.
-12. Gate actions by permission, never by role name: `auth.can('module.action')` (`useTestCasePermissions()` for test-case actions), `permission` / `adminOnly` on items in `router/navigation.ts`. Permission keys and their labels live in `PERMISSION_GROUPS` (`role.service.ts`); managing users, roles, teams and projects is `auth.isAdmin`. People pickers use the role's discipline (`auth.usersIn('qa' | 'dev')`).
+12. Gate by permission, never by role name. Roles and their permissions come from the backend; `src/auth/Authorization.ts` (`auth.authorization`) answers every check:
+    - pages: `meta.permissions` (all needed) and `meta.roles` (a hard restriction, e.g. `['admin']` = the built-in Admin only) on routes in `router/index.ts`, checked on every matched record by the guard; the sidebar (`router/navigation.ts`) shows an item when its page's rules allow it, so items carry no rules of their own
+    - actions: `v-can="'module.action'"` (or a list: any of them) on an element that needs one permission; `v-if="auth.can(...)"` when it is one condition among others or on a `<template>`; `useTestCasePermissions()` for test-case actions
+    - permission keys and their labels live in `PERMISSION_GROUPS` (`types/index.ts`); managing users, roles, teams and projects is `auth.isAdmin`. People pickers use the role's discipline (`auth.usersIn('qa' | 'dev')`).
 
 ## Structures
 
 src
 |--- assets  
+|--- auth <-- Authorization (roles / permissions checks)
 |--- components
 |--- composables
+|--- directives <-- v-can
 |--- layouts
 |--- plugins <-- vuetify
 |--- router <-- vue-router

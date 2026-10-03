@@ -285,7 +285,7 @@ function exportRtm() {
                       @click="openEdit(r)"
                     />
                     <v-btn
-                      v-if="auth.can('requirement.delete')"
+                      v-can="'requirement.delete'"
                       icon="tabler:trash"
                       variant="text"
                       size="small"

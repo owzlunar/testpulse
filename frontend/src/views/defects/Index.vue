@@ -139,7 +139,7 @@ watch(
 <template>
   <FoxPageHeader sticky title="Defects" :breadcrumbs="[{ title: 'Defects' }]">
     <template #actions>
-      <v-btn v-if="auth.can('defect.report')" color="error" prepend-icon="tabler:bug" @click="openCreate">รายงาน Defect</v-btn>
+      <v-btn v-can="'defect.report'" color="error" prepend-icon="tabler:bug" @click="openCreate">รายงาน Defect</v-btn>
     </template>
   </FoxPageHeader>
 
@@ -255,7 +255,7 @@ watch(
       <div class="defect-head">
         <span class="text-h5 text-error fox-num">{{ detail.id }}</span>
         <div>
-          <v-btn v-if="auth.can('defect.report')" icon="tabler:pencil" variant="text" size="small" aria-label="แก้ไข" @click="openEdit(detail)" />
+          <v-btn v-can="'defect.report'" icon="tabler:pencil" variant="text" size="small" aria-label="แก้ไข" @click="openEdit(detail)" />
           <v-btn icon="tabler:x" variant="text" size="small" aria-label="ปิด" @click="detail = null" />
         </div>
       </div>

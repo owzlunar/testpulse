@@ -16,12 +16,14 @@ const auth = useAuthStore()
 const layout = useLayoutStore()
 const { currentCases } = storeToRefs(useProjectStore())
 
-// hide items (and section headers) the current role has no permission for
+// an item shows when the guard would let the user open its page: the API modules behind it are on (rest mode
+// hides the ones the backend lacks) and its roles / permissions allow them
 const router = useRouter()
-/** the API modules behind the page an item opens are on (rest mode hides the ones the backend lacks) */
-const moduleOn = (item: (typeof navigation)[number]) => !('to' in item) || apiAllOn(router.resolve(item.to).meta.api)
-const allowed = (item: (typeof navigation)[number]) =>
-  (!item.adminOnly || auth.isAdmin) && (!item.permission || auth.can(item.permission)) && moduleOn(item)
+const allowed = (item: (typeof navigation)[number]) => {
+  if (!('to' in item)) return true
+  const page = router.resolve(item.to)
+  return apiAllOn(page.meta.api) && auth.canOpen(page)
+}
 // drop items the role may not open, then section headers left with nothing under them
 const items = computed(() => {
   const visible = navigation.filter(allowed)

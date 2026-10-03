@@ -4,6 +4,7 @@ import type { Option, PermissionKey, Project, RegisterInput, Role, RoleDisciplin
 import { authApi, canSwitchUser, roleApi, teamApi, userApi } from '@/api'
 import { useAuditStore } from './audit.store'
 import { NO_ROLE } from '@/domain/role'
+import { Authorization, type GuardedRoute } from '@/auth/Authorization'
 
 /** stands in until the session has loaded */
 const SIGNED_OUT: User = { id: '', name: '', email: '', roleId: null, avatar: '' }
@@ -18,8 +19,10 @@ export const useAuthStore = defineStore('auth', () => {
   const roleById = (id: string | null | undefined) => (id ? (roles.value.find((r) => r.id === id) ?? null) : null)
   /** null: a new user without a role (sees only the dashboard and settings) */
   const currentRole = computed(() => roleById(currentUser.value.roleId))
+  /** what the signed-in user may do (route guard, sidebar, `v-can`, `can()`), from their role */
+  const authorization = computed(() => new Authorization(currentRole.value ? [currentRole.value] : []))
   /** the built-in Admin role: every permission, and the only one that manages users, roles, teams and projects */
-  const isAdmin = computed(() => currentRole.value?.builtIn === 'admin')
+  const isAdmin = computed(() => authorization.value.hasRole('admin'))
   const hasRole = computed(() => !!currentRole.value)
 
   /** the session first (401 without one: the app shows the login page), then the people data */
@@ -33,9 +36,11 @@ export const useAuthStore = defineStore('auth', () => {
     currentUser.value = list.find((u) => u.id === session.id) ?? session
   }
 
-  function can(key: PermissionKey): boolean {
-    return isAdmin.value || !!currentRole.value?.permissions.includes(key)
-  }
+  const can = (key: PermissionKey) => authorization.value.hasPermission(key)
+  const canAny = (keys: readonly PermissionKey[]) => authorization.value.hasAnyPermission(keys)
+  const canAll = (keys: readonly PermissionKey[]) => authorization.value.hasAllPermissions(keys)
+  /** the route's `meta.roles` / `meta.permissions` allow the signed-in user in */
+  const canOpen = (route: GuardedRoute) => authorization.value.canOpen(route)
 
   /** how a user's role is shown (chip label, tone, icon) */
   function roleOf(user: Pick<User, 'roleId'>): Option {
@@ -210,11 +215,15 @@ export const useAuthStore = defineStore('auth', () => {
     saveTeam,
     deleteTeam,
     currentRole,
+    authorization,
     isAdmin,
     hasRole,
     roleOptions,
     load,
     can,
+    canAny,
+    canAll,
+    canOpen,
     roleOf,
     roleById,
     usersIn,

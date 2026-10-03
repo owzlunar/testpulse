@@ -54,7 +54,7 @@ function reset() {
     <v-col cols="12" md="6">
       <div class="fox-stack">
         <!-- each section shows only for roles that use it -->
-        <v-card v-if="auth.can('notification.receive')" class="fox-card-body">
+        <v-card v-can="'notification.receive'" class="fox-card-body">
           <FoxCardHeader title="การแจ้งเตือน" subtitle="เลือกเหตุการณ์ที่ต้องการรับแจ้งเตือน" />
           <div class="d-flex flex-column ga-1 mt-4">
             <v-switch v-model="settings.alertOnModification" label="เมื่อ Test Case ถูกแก้ไขหรือเพิ่มใหม่" />
@@ -77,7 +77,7 @@ function reset() {
           </div>
         </v-card>
 
-        <v-card v-if="auth.can('case.view')" class="fox-card-body">
+        <v-card v-can="'case.view'" class="fox-card-body">
           <FoxCardHeader title="ส่งออก Obsidian (.md)" subtitle="รูปแบบไฟล์ Markdown ที่ส่งออก" />
           <div class="d-flex flex-column mt-4">
             <v-checkbox v-model="settings.obsidianFrontmatter" label="ใส่ YAML Frontmatter (tags, metadata, สถิติ)" />

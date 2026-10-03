@@ -45,9 +45,7 @@ export type PermissionKey =
   | 'notification.receive'
   | 'audit.view'
 
-export type NavItem =
-  | { header: string; permission?: PermissionKey; adminOnly?: boolean }
-  | { title: string; icon: string; to: string; badge?: string; permission?: PermissionKey; adminOnly?: boolean }
+export type NavItem = { header: string } | { title: string; icon: string; to: string; badge?: string }
 
 export interface Breadcrumb {
   title: string
