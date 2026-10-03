@@ -230,7 +230,9 @@ describe('archive, delete and impact', () => {
 
   it('tells what archiving touches: requirements left without a case', async () => {
     const res = await as('user-qa-1').get('/projects/proj-1/test-cases/TC-101/impact')
-    expect(res.body.data).toMatchObject({ caseIds: ['TC-101', 'TC-101-1'], runs: [], openDefects: [] })
+    expect(res.body.data).toMatchObject({ caseIds: ['TC-101', 'TC-101-1'], openDefects: [] })
+    // the runs that hold it come from the run module
+    expect(res.body.data.runs).toContainEqual({ name: 'Sprint 42 · Regression', round: 2, open: true })
     expect(res.body.data.requirements).toContainEqual(expect.objectContaining({ code: 'REQ-PAY-01' }))
   })
 })

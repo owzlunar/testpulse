@@ -43,7 +43,7 @@ declare module '#core/events/event-bus.js' {
 }
 
 /** what the person a change is from looks like on the case ("editing now") */
-type Actor = Pick<Principal, 'id' | 'name'>
+export type Actor = Pick<Principal, 'id' | 'name'>
 
 const notFound = (id: string) => ApiError.notFound(`ไม่พบ ${id}`)
 const archivedError = (id: string) => ApiError.conflict(`${id} อยู่ในคลังเก็บ กู้คืนก่อนจึงแก้ไขได้`)
@@ -269,7 +269,7 @@ async function announceUpdate({ testCase: tc, before: old, statusChanged, newVer
 }
 
 /** load, patch (applyCasePatch) and save one case; the change is announced (audit, notifications) */
-async function patchCase(projectId: string, id: string, patch: Partial<TestCaseInput>, actor: Actor, expected?: CaseExpectation) {
+export async function patchCase(projectId: string, id: string, patch: Partial<TestCaseInput>, actor: Actor, expected?: CaseExpectation) {
   const old = await found(projectId, id)
   assertFresh(old, expected)
   if (old.archivedAt) throw archivedError(id)
