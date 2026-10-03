@@ -34,6 +34,11 @@ SMTP_HOST=
 SMTP_USER=
 SMTP_PASSWORD=
 
+# AI test case drafts from a local Ollama (leave AI_PROVIDER=none until the server is ready)
+# AI_PROVIDER=ollama
+# OLLAMA_BASE_URL=http://host.docker.internal:11434
+# OLLAMA_MODEL=qwen2.5:14b
+
 # first start on an empty database: the first Admin (remove the password after the first sign-in)
 INITIAL_ADMIN_EMAIL=
 INITIAL_ADMIN_PASSWORD=

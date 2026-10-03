@@ -1,4 +1,5 @@
 // The real API: modules the backend implements so far. Each satisfies its contract interface.
+export { aiApi } from './ai'
 export { auditApi } from './audit'
 export { authApi } from './auth'
 export { defectApi } from './defect'

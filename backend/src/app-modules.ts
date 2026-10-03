@@ -1,4 +1,5 @@
 import type { AppModule } from '#core/module.js'
+import { aiModule } from '#modules/ai/index.js'
 import { auditLogModule } from '#modules/audit-log/index.js'
 import { authModule } from '#modules/auth/index.js'
 import { defectModule } from '#modules/defect/index.js'
@@ -35,4 +36,5 @@ export const appModules: AppModule[] = [
   defectModule,
   documentModule,
   reportModule,
+  aiModule,
 ]
