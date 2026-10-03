@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useAiStore } from '@/stores/ai.store'
 import { storeToRefs } from 'pinia'
 import FoxPageHeader from '@/components/ui/FoxPageHeader.vue'
 import FoxPageSkeleton from '@/components/ui/FoxPageSkeleton.vue'
@@ -30,7 +31,10 @@ import {
 } from '@/domain/requirement'
 import { statusOf } from '@/domain/test-case'
 
+const aiStore = useAiStore()
+
 const router = useRouter()
+const route = useRoute()
 const store = useRequirementStore()
 const { current, loaded } = storeToRefs(store)
 const { currentProject, currentCases } = storeToRefs(useProjectStore())
@@ -79,7 +83,15 @@ const stats = computed(() => {
 })
 
 // --- filters -----------------------------------------------------------------
+// the universal search opens a requirement as /requirements?search=<code> (also while this page is open)
 const search = ref('')
+watch(
+  () => route.query.search,
+  (q) => {
+    if (typeof q === 'string') search.value = q
+  },
+  { immediate: true },
+)
 const status = ref<RequirementStatus | null>(null)
 const coverage = ref<CoverageStatus | null>(null)
 const filtered = computed(() => {
@@ -272,7 +284,13 @@ function exportRtm() {
                     </v-chip>
                   </div>
                   <div class="d-flex flex-wrap ga-2">
-                    <v-btn v-if="canCreate" variant="tonal" color="primary" size="small" prepend-icon="tabler:sparkles" @click="draftFor(r)"
+                    <v-btn
+                      v-if="canCreate && aiStore.available"
+                      variant="tonal"
+                      color="primary"
+                      size="small"
+                      prepend-icon="tabler:sparkles"
+                      @click="draftFor(r)"
                       >ร่างเคสด้วย AI</v-btn
                     >
                     <v-btn

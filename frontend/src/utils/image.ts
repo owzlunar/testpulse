@@ -1,7 +1,7 @@
 /**
  * Read an image file as a data URL, scaled down to `maxSide` px and re-encoded as JPEG.
  * Screenshots shrink from ~1–3 MB to ~100–300 KB, which keeps the mock storage usable.
- * (With the real backend this becomes a multipart upload that returns a file URL.)
+ * Uploads (POST /files) send the result, so the server stores the smaller image too.
  */
 export async function compressImage(file: File, maxSide = 1600, quality = 0.8): Promise<string> {
   const source = await new Promise<string>((resolve, reject) => {
@@ -29,6 +29,13 @@ export async function compressImage(file: File, maxSide = 1600, quality = 0.8): 
 }
 
 /** Images on the clipboard (Ctrl/Cmd+V of a screenshot) */
+/** a data URL (e.g. from compressImage) as a file to upload */
+export async function dataUrlToFile(dataUrl: string, name: string): Promise<File> {
+  const blob = await (await fetch(dataUrl)).blob()
+  const ext = blob.type.split('/')[1] ?? 'jpg'
+  return new File([blob], name.replace(/\.[^.]+$/, '') + `.${ext === 'jpeg' ? 'jpg' : ext}`, { type: blob.type })
+}
+
 export const imagesFromClipboard = (e: ClipboardEvent): File[] =>
   [...(e.clipboardData?.items ?? [])]
     .filter((i) => i.type.startsWith('image/'))

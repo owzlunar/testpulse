@@ -3,6 +3,7 @@ import { computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import FoxCardHeader from '@/components/ui/FoxCardHeader.vue'
 import FoxEmptyState from '@/components/ui/FoxEmptyState.vue'
+import { apiOn } from '@/api'
 import { useAuthStore } from '@/stores/auth.store'
 import { useDefectStore } from '@/stores/defect.store'
 import { useDocumentStore } from '@/stores/document.store'
@@ -21,8 +22,17 @@ const runStore = useRunStore()
 const defectStore = useDefectStore()
 const documentStore = useDocumentStore()
 
-onMounted(() => Promise.all([runStore.ensureLoaded(), defectStore.ensureLoaded(), documentStore.ensureLoaded()]).catch(() => {}))
-const ready = computed(() => runStore.loaded && defectStore.loaded && documentStore.loaded)
+// runs, defects and documents count once the backend has them (apiOn)
+const sources = [
+  { on: apiOn.run, store: runStore },
+  { on: apiOn.defect, store: defectStore },
+  { on: apiOn.document, store: documentStore },
+].filter((s) => s.on)
+onMounted(() => Promise.all(sources.map((s) => s.store.ensureLoaded())).catch(() => {}))
+const ready = computed(() => sources.every((s) => s.store.loaded))
+const runs = computed(() => (apiOn.run ? runStore.current : []))
+const defects = computed(() => (apiOn.defect ? defectStore.current : []))
+const documents = computed(() => (apiOn.document ? documentStore.current : []))
 
 interface Todo {
   icon: string
@@ -50,7 +60,7 @@ const todos = computed<Todo[]>(() => {
         text: ready.map((c) => c.id).join(', '),
         to: '/test-cases',
       })
-    runStore.current
+    runs.value
       .filter((r) => r.status !== 'completed')
       .forEach((r) => {
         const left = runCounts(r).untested
@@ -63,7 +73,7 @@ const todos = computed<Todo[]>(() => {
             to: `/test-runs/${r.id}`,
           })
       })
-    const retest = defectStore.current.filter((d) => d.status === 'retest')
+    const retest = defects.value.filter((d) => d.status === 'retest')
     if (retest.length)
       list.push({
         icon: 'tabler:refresh',
@@ -83,7 +93,7 @@ const todos = computed<Todo[]>(() => {
         text: mine.map((c) => c.id).join(', '),
         to: '/test-cases',
       })
-    const bugs = defectStore.current.filter((d) => isOpenDefect(d) && d.status !== 'retest' && (everyone || d.assignee === me))
+    const bugs = defects.value.filter((d) => isOpenDefect(d) && d.status !== 'retest' && (everyone || d.assignee === me))
     if (bugs.length)
       list.push({
         icon: 'tabler:bug',
@@ -102,7 +112,7 @@ const todos = computed<Todo[]>(() => {
       text: 'ขอขยายเวลาหรือเร่งดำเนินการ',
       to: '/calendar',
     })
-  const waiting = documentStore.current.filter((d) => d.status === 'pending_signoff')
+  const waiting = documents.value.filter((d) => d.status === 'pending_signoff')
   if (waiting.length)
     list.push({
       icon: 'tabler:signature',

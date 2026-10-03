@@ -1,4 +1,7 @@
-import type { CoverageStatus, Option, Requirement, RequirementStatus, RequirementType, TestCase } from '@/types'
+import type { CoverageStatus, Option, RequirementStatus, RequirementType } from '@/types'
+
+// Rules the backend shares (links between requirements and cases) live in ./rules/requirement.ts
+export * from './rules/requirement'
 
 export const REQUIREMENT_TYPES: Option<RequirementType>[] = [
   { value: 'functional', label: 'Functional', hint: 'ความสามารถของระบบ', tone: 'primary', icon: 'tabler:puzzle' },
@@ -26,37 +29,3 @@ export const requirementTypeOf = (v: RequirementType) => REQUIREMENT_TYPES.find(
 export const requirementStatusOf = (v: RequirementStatus) => REQUIREMENT_STATUSES.find((s) => s.value === v) ?? REQUIREMENT_STATUSES[0]
 
 export const coverageOf = (v: CoverageStatus) => COVERAGE.find((c) => c.value === v) ?? COVERAGE[0]
-
-/** the text starts with the whole code: "REQ-PAY-1: …" mentions REQ-PAY-1 but not REQ-PAY-10 */
-const mentionsCode = (text: string, code: string) => text.startsWith(code) && !/^[\w-]/.test(text.slice(code.length))
-
-/** linked explicitly; cases without links (imported / legacy) fall back to text that starts with the code */
-const isLinked = (req: Requirement, tc: TestCase) =>
-  tc.projectId === req.projectId &&
-  (tc.requirementIds?.length ? tc.requirementIds.includes(req.id) : mentionsCode(tc.requirement?.trim() ?? '', req.code))
-
-export const casesForRequirement = (req: Requirement, cases: TestCase[]): TestCase[] => cases.filter((c) => isLinked(req, c))
-
-export const requirementsForCase = (tc: TestCase, requirements: Requirement[]): Requirement[] => requirements.filter((r) => isLinked(r, tc))
-
-/**
- * What a case shows as its requirement: the linked records ("CODE: title", always current),
- * then the case's own note when it adds something. Unlinked cases show their free text.
- */
-export function requirementText(tc: TestCase, requirements: Requirement[]): string {
-  const linked = requirementsForCase(tc, requirements)
-  const note = tc.requirement?.trim() ?? ''
-  if (!linked.length) return note
-  const lines = linked.map((r) => `${r.code}: ${r.title}`)
-  // text auto-filled from a link, or legacy text naming the code, only repeats the link
-  if (note && !linked.some((r) => mentionsCode(note, r.code))) lines.push(note)
-  return lines.join('\n')
-}
-
-export function coverageStatus(cases: TestCase[]): CoverageStatus {
-  if (!cases.length) return 'not_covered'
-  if (cases.some((c) => c.status === 'failed' || c.status === 'blocked')) return 'failed'
-  if (cases.every((c) => c.status === 'passed')) return 'passed'
-  if (cases.some((c) => c.status === 'passed' || c.status === 'in_progress')) return 'in_progress'
-  return 'not_run'
-}

@@ -1,4 +1,8 @@
-import type { Option, ResultStatus, RunResult, RunStatus, RunType, StepResult, TestCase, TestRun } from '@/types'
+import type { Option, ResultStatus, RunStatus, RunType } from '@/types'
+import { RESULT_LABELS, RESULT_TONES } from './rules/run'
+
+// Rules the backend shares (snapshots, verdict -> case status, counts) live in ./rules/run.ts
+export * from './rules/run'
 
 export const RUN_TYPES: Option<RunType>[] = [
   { value: 'smoke', label: 'Smoke', hint: 'ตรวจฟังก์ชันหลักหลัง Deploy', tone: 'info', icon: 'tabler:flame' },
@@ -14,11 +18,11 @@ export const RUN_STATUSES: Option<RunStatus>[] = [
 ]
 
 export const RESULT_STATUSES: Option<ResultStatus>[] = [
-  { value: 'passed', label: 'Pass', hint: 'ผ่าน', tone: 'success', icon: 'tabler:circle-check' },
-  { value: 'failed', label: 'Fail', hint: 'ไม่ผ่าน', tone: 'error', icon: 'tabler:circle-x' },
-  { value: 'blocked', label: 'Blocked', hint: 'ทดสอบไม่ได้', tone: 'caution', icon: 'tabler:ban' },
-  { value: 'skipped', label: 'Skip', hint: 'ข้าม', tone: 'secondary', icon: 'tabler:player-skip-forward' },
-  { value: 'untested', label: 'ยังไม่ทดสอบ', tone: 'secondary', icon: 'tabler:circle-dashed' },
+  { value: 'passed', label: RESULT_LABELS.passed, hint: 'ผ่าน', tone: RESULT_TONES.passed, icon: 'tabler:circle-check' },
+  { value: 'failed', label: RESULT_LABELS.failed, hint: 'ไม่ผ่าน', tone: RESULT_TONES.failed, icon: 'tabler:circle-x' },
+  { value: 'blocked', label: RESULT_LABELS.blocked, hint: 'ทดสอบไม่ได้', tone: RESULT_TONES.blocked, icon: 'tabler:ban' },
+  { value: 'skipped', label: RESULT_LABELS.skipped, hint: 'ข้าม', tone: RESULT_TONES.skipped, icon: 'tabler:player-skip-forward' },
+  { value: 'untested', label: RESULT_LABELS.untested, tone: RESULT_TONES.untested, icon: 'tabler:circle-dashed' },
 ]
 
 export const runTypeOf = (v: RunType) => RUN_TYPES.find((t) => t.value === v) ?? RUN_TYPES[1]
@@ -26,57 +30,3 @@ export const runTypeOf = (v: RunType) => RUN_TYPES.find((t) => t.value === v) ??
 export const runStatusOf = (v: RunStatus) => RUN_STATUSES.find((s) => s.value === v) ?? RUN_STATUSES[0]
 
 export const resultOf = (v: ResultStatus) => RESULT_STATUSES.find((r) => r.value === v) ?? RESULT_STATUSES[4]
-
-/** overall case result from its step results: any fail > any block > all pass/skip */
-export function deriveResult(steps: StepResult[]): ResultStatus {
-  if (!steps.length || steps.every((s) => s.status === 'untested')) return 'untested'
-  if (steps.some((s) => s.status === 'failed')) return 'failed'
-  if (steps.some((s) => s.status === 'blocked')) return 'blocked'
-  if (steps.some((s) => s.status === 'untested')) return 'untested'
-  return steps.every((s) => s.status === 'skipped') ? 'skipped' : 'passed'
-}
-
-export function runCounts(run: TestRun): Record<ResultStatus, number> & { total: number; executed: number; passRate: number } {
-  const c = { passed: 0, failed: 0, blocked: 0, skipped: 0, untested: 0 } as Record<ResultStatus, number>
-  run.results.forEach((r) => c[r.status]++)
-  const total = run.results.length
-  return { ...c, total, executed: total - c.untested, passRate: total ? (c.passed / total) * 100 : 0 }
-}
-
-/** snapshot of a case for a run */
-export const resultFor = (tc: TestCase, assignee?: string): RunResult => ({
-  caseId: tc.id,
-  caseName: tc.name,
-  caseVersion: tc.version,
-  priority: tc.priority,
-  steps: tc.steps,
-  assignee: assignee ?? tc.assignedTo,
-  status: 'untested',
-  stepResults: tc.steps.map((s) => ({ stepId: s.id, status: 'untested', actual: '', evidence: [] })),
-  actualResults: '',
-  evidence: [],
-  defectIds: [],
-  notes: '',
-})
-
-/**
- * Why a verdict in this run must not change the case's current status, or null when it may.
- * The case status is "the latest result for the current spec": a closed run, a deleted case,
- * a result for an older version or a run that a newer one has superseded only keep their history.
- * Used by the server (saveResult) and by Execute to explain it.
- */
-export function caseSyncBlock(run: TestRun, result: RunResult, tc: TestCase | undefined, allRuns: TestRun[]): string | null {
-  if (result.caseDeleted) return 'Test Case นี้ถูกลบแล้ว'
-  if (run.status === 'completed') return 'รอบนี้ปิดแล้ว'
-  if (!tc) return 'ไม่พบ Test Case'
-  if (tc.archivedAt) return 'Test Case นี้อยู่ในคลังเก็บ'
-  if (tc.version !== result.caseVersion) return `ผลนี้ทดสอบกับ ${result.caseVersion} แต่เคสเป็น ${tc.version} แล้ว`
-  const newer = allRuns.find(
-    (r) =>
-      r.projectId === run.projectId &&
-      r.id !== run.id &&
-      r.createdAt > run.createdAt &&
-      r.results.some((x) => x.caseId === result.caseId && !x.caseDeleted && x.status !== 'untested'),
-  )
-  return newer ? `มีผลที่ใหม่กว่าใน ${newer.name} รอบที่ ${newer.round}` : null
-}

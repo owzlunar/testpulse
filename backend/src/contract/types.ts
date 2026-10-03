@@ -151,7 +151,8 @@ export interface RegisterInput {
 export type UserInviteInput = Pick<User, 'name' | 'email' | 'roleId'> & Partial<Pick<User, 'title' | 'avatar'>>
 
 /** what an upload is for: decides who may upload it */
-export type FileCategory = 'avatar' | 'project-logo'
+/** avatar / project-logo / document-logo: public pictures; case-image: test evidence (expected / actual results), behind a long random id */
+export type FileCategory = 'avatar' | 'project-logo' | 'document-logo' | 'case-image'
 
 /** GET /auth/invites/:token: who the invite is for (shown on the set-password page) */
 export interface InviteInfo {
@@ -488,6 +489,22 @@ export interface TestCaseDraft {
   requirementIds?: string[]
 }
 
+/** what to ask the AI for (AI drafts) */
+export interface DraftOptions {
+  positive: boolean
+  negative: boolean
+  boundary: boolean
+  /** extra context, e.g. platform or business rules */
+  context?: string
+}
+
+/** whether the server has a language model set up for drafts (the AI buttons show only then) */
+export interface AiStatus {
+  enabled: boolean
+  /** the model drafts come from, e.g. "qwen2.5:14b" */
+  model?: string
+}
+
 export interface TestCaseTemplate {
   id: string
   name: string
@@ -750,3 +767,34 @@ export interface DocumentTemplate {
   footerNote: string
   defaultSignatories: Pick<Signatory, 'role' | 'position'>[]
 }
+
+// =============================================================================
+// Reports (aggregates the server computes from a project's active cases, runs and defects)
+// =============================================================================
+
+export interface ProjectReport {
+  projectId: string
+  generatedAt: string
+  stats: ProjectStats
+  mainCases: number
+  subCases: number
+  /** test steps of every case */
+  steps: number
+  overdue: number
+  /** bounced between Failed and Ready for Test more than once */
+  highChurn: number
+  byPriority: Record<TestCasePriority, number>
+  /** most frequent first */
+  rootCauses: { tag: string; count: number }[]
+  runs: {
+    total: number
+    /** planned or in progress */
+    open: number
+    /** the newest run */
+    latest?: Pick<TestRun, 'id' | 'name' | 'round' | 'status'> & { total: number; executed: number; passRate: number }
+  }
+  defects: { total: number; open: number; openBySeverity: Record<DefectSeverity, number> }
+}
+
+/** files made in the browser from a project's data (the server records that they were made) */
+export type ExportFormat = 'markdown'

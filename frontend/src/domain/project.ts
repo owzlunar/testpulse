@@ -1,5 +1,4 @@
-import type { MilestoneType, Option, ProjectStats, ProjectStatus, TestCase, TestCaseStatus } from '@/types'
-import { STATUSES, isDueSoon, isOverdue } from '@/domain/test-case'
+import type { MilestoneType, Option, ProjectStatus } from '@/types'
 
 export const PROJECT_STATUSES: Option<ProjectStatus>[] = [
   { value: 'active', label: 'Active', hint: 'กำลังดำเนินการ', tone: 'success', icon: 'tabler:player-play' },
@@ -19,20 +18,4 @@ export const MILESTONE_TYPES: Option<MilestoneType>[] = [
 
 export const milestoneTypeOf = (type: MilestoneType): Option<MilestoneType> => MILESTONE_TYPES.find((m) => m.value === type) ?? MILESTONE_TYPES[0]
 
-/** case counts by status (+ overdue / due soon), for a project card or the current project */
-export function caseStatsOf(cases: TestCase[]): ProjectStats {
-  const byStatus = Object.fromEntries(STATUSES.map((s) => [s.value, 0])) as Record<TestCaseStatus, number>
-  cases.forEach((tc) => byStatus[tc.status]++)
-  const total = cases.length
-  return {
-    total,
-    passed: byStatus.passed,
-    failed: byStatus.failed,
-    blocked: byStatus.blocked,
-    inProgress: byStatus.in_progress,
-    untested: byStatus.untested,
-    passRate: total ? (byStatus.passed / total) * 100 : 0,
-    byStatus,
-    attention: cases.filter((tc) => isOverdue(tc) || isDueSoon(tc)).length,
-  }
-}
+export { caseStatsOf } from './rules/test-case'

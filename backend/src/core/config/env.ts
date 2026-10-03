@@ -55,6 +55,8 @@ const schema = Joi.object({
   MAX_PAGE_SIZE: Joi.number().integer().min(1).default(100),
   /** 0 keeps audit entries forever */
   AUDIT_RETENTION_DAYS: Joi.number().integer().min(0).default(0),
+  /** notifications are deleted this many days after they were sent */
+  NOTIFICATION_RETENTION_DAYS: Joi.number().integer().min(1).default(90),
   CRON_TIMEZONE: Joi.string().default('Asia/Bangkok'),
 
   JWT_PRIVATE_KEY: Joi.string().required(),
@@ -98,6 +100,15 @@ const schema = Joi.object({
   SMTP_SECURE: Joi.boolean().default(false),
   SMTP_USER: Joi.string().allow('').optional(),
   SMTP_PASSWORD: Joi.string().allow('').optional(),
+
+  /** AI test case drafts: none (the AI actions stay hidden) · ollama: a local Ollama server */
+  AI_PROVIDER: Joi.string().valid('none', 'ollama').default('none'),
+  OLLAMA_BASE_URL: Joi.string()
+    .uri({ scheme: ['http', 'https'] })
+    .when('AI_PROVIDER', { is: 'ollama', then: Joi.required(), otherwise: Joi.optional() }),
+  OLLAMA_MODEL: Joi.string().when('AI_PROVIDER', { is: 'ollama', then: Joi.required(), otherwise: Joi.optional() }),
+  /** how long a draft may take (a local model on a CPU is slow) */
+  AI_TIMEOUT_SEC: Joi.number().integer().min(5).max(600).default(120),
 
   CORS_ORIGINS: Joi.string().allow('').default(''),
   TRUST_PROXY: Joi.alternatives().try(Joi.boolean(), Joi.number(), Joi.string()).default(1),
@@ -152,6 +163,10 @@ if (isProduction) {
   }
 }
 
+// calendar dates (due dates, "today", the shared rules in #contract/rules) follow the app's time zone,
+// not the machine's; a TZ set in the environment wins
+process.env.TZ ||= env.CRON_TIMEZONE as string
+
 export const config = Object.freeze({
   env: env.NODE_ENV as 'development' | 'production' | 'test',
   isProduction,
@@ -172,6 +187,7 @@ export const config = Object.freeze({
   mongo: { uri: env.MONGODB_URI as string },
   pagination: { maxPageSize: env.MAX_PAGE_SIZE as number },
   audit: { retentionDays: env.AUDIT_RETENTION_DAYS as number },
+  notifications: { retentionDays: env.NOTIFICATION_RETENTION_DAYS as number },
   cron: { timezone: env.CRON_TIMEZONE as string },
   auth: {
     privateKey: pem(env.JWT_PRIVATE_KEY),
@@ -186,6 +202,11 @@ export const config = Object.freeze({
   },
   encryption: { currentKeyId, keys: encryptionKeys },
   blindIndex: { salt: env.BLIND_INDEX_SALT as string },
+  ai: {
+    provider: env.AI_PROVIDER as 'none' | 'ollama',
+    ollama: { baseUrl: String(env.OLLAMA_BASE_URL ?? '').replace(/\/+$/, ''), model: (env.OLLAMA_MODEL as string | undefined) ?? '' },
+    timeoutMs: (env.AI_TIMEOUT_SEC as number) * 1000,
+  },
   storage: {
     driver: env.STORAGE_DRIVER as 'local' | 'minio',
     localRoot: env.STORAGE_LOCAL_ROOT as string,

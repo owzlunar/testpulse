@@ -32,5 +32,15 @@ export default defineConfigWithVueTs(
       'no-restricted-imports': ['error', { patterns: [{ regex: '^@/api(/|$)', message: 'domain helpers never call the API' }] }],
     },
   },
+  // rules shared with the backend (npm run contract:sync copies them there): types and each other only
+  {
+    files: ['src/domain/rules/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: [{ regex: '^(?!@/types$|\\./[\\w-]+\\.js$)', message: "shared rules import only type-only '@/types' and './<rule>.js'" }] },
+      ],
+    },
+  },
   skipFormatting,
 )

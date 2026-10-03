@@ -1,5 +1,8 @@
-import type { DocumentStatus, DocumentTemplate, DocumentType, Option, UatDecision } from '@/types'
+import type { DocumentStatus, DocumentType, Option, UatDecision } from '@/types'
 import { todayISO } from '@/utils/date'
+
+// Rules the backend shares (the snapshot a document freezes, the release gatekeeper) live in ./rules/document.ts
+export * from './rules/document'
 
 export const DOCUMENT_TYPES: (Option<DocumentType> & { description: string; code: string })[] = [
   {
@@ -64,20 +67,6 @@ export const documentTypeOf = (v: DocumentType) => DOCUMENT_TYPES.find((t) => t.
 export const documentStatusOf = (v: DocumentStatus) => DOCUMENT_STATUSES.find((s) => s.value === v) ?? DOCUMENT_STATUSES[0]
 
 export const uatDecisionOf = (v: UatDecision) => UAT_DECISIONS.find((d) => d.value === v) ?? UAT_DECISIONS[0]
-
-export const DEFAULT_TEMPLATE: DocumentTemplate = {
-  companyName: 'บริษัท เทสต์พัลส์ เทคโนโลยี จำกัด',
-  companyAddress: '999 อาคารดิจิทัล ชั้น 12 ถนนพระราม 9 กรุงเทพฯ 10310',
-  logo: '',
-  docNumberPattern: '{TYPE}-{KEY}-{YYYYMMDD}-{NN}',
-  headerNote: 'เอกสารนี้จัดทำโดยระบบ TestPulse จากผลการทดสอบจริงในระบบ',
-  footerNote: 'เอกสารภายใน · ห้ามเผยแพร่โดยไม่ได้รับอนุญาต',
-  defaultSignatories: [
-    { role: 'ผู้จัดทำ (ผู้ส่งมอบ)', position: 'QA Lead' },
-    { role: 'ผู้ตรวจสอบ', position: 'Project Manager' },
-    { role: 'ผู้อนุมัติ (ผู้รับมอบ)', position: 'Product Owner' },
-  ],
-}
 
 /** "{TYPE}-{KEY}-{YYYYMMDD}-{NN}" -> "UAT-PAY-20261001-01" */
 export function formatDocNumber(pattern: string, type: DocumentType, key: string, seq: number): string {

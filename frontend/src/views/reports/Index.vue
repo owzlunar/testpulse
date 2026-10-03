@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import FoxPageHeader from '@/components/ui/FoxPageHeader.vue'
+import FoxPageSkeleton from '@/components/ui/FoxPageSkeleton.vue'
 import FoxCardHeader from '@/components/ui/FoxCardHeader.vue'
 import FoxStatCard from '@/components/ui/FoxStatCard.vue'
 import FoxEmptyState from '@/components/ui/FoxEmptyState.vue'
@@ -10,14 +11,28 @@ import FoxChartLegend from '@/components/charts/FoxChartLegend.vue'
 import TestCaseProgress from '@/components/test-cases/TestCaseProgress.vue'
 import { useSnackbar } from '@/composables/useSnackbar'
 import { useProjectStore } from '@/stores/project.store'
+import { useReportStore } from '@/stores/report.store'
 import type { Tone } from '@/types'
 import { formatPercent } from '@/utils/format'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { PRIORITIES, STATUSES, isHighChurn, isOverdue } from '@/domain/test-case'
+import { SEVERITIES } from '@/domain/defect'
+import { runStatusOf } from '@/domain/run'
+import { PRIORITIES, STATUSES } from '@/domain/test-case'
 
 const projectStore = useProjectStore()
-const { currentProject, currentCases: cases, currentStats: stats } = storeToRefs(projectStore)
+const { currentProject } = storeToRefs(projectStore)
+const reportStore = useReportStore()
 const { snackbar, notify } = useSnackbar()
+const { run } = useAsyncAction()
+
+// computed by the server for the selected project, fetched on every visit
+watch(
+  () => currentProject.value?.id,
+  (id) => id && run(() => reportStore.load(id)),
+  { immediate: true },
+)
+const report = computed(() => (reportStore.report?.projectId === currentProject.value?.id ? reportStore.report : null))
+const stats = computed(() => report.value!.stats)
 
 const verdict = computed<{ tone: Tone; text: string; icon: string }>(() =>
   stats.value.passRate >= 80
@@ -33,32 +48,20 @@ const statusSegments = computed(() =>
 
 const pct = (n: number) => (stats.value.total ? (n / stats.value.total) * 100 : 0)
 
-const priorities = computed(() => PRIORITIES.map((p) => ({ ...p, count: cases.value.filter((c) => c.priority === p.value).length })))
+const priorities = computed(() => PRIORITIES.map((p) => ({ ...p, count: report.value!.byPriority[p.value] })))
 
-const rootCauses = computed(() => {
-  const counts = new Map<string, number>()
-  cases.value.forEach((c) => c.rootCauseTag && counts.set(c.rootCauseTag, (counts.get(c.rootCauseTag) ?? 0) + 1))
-  return [...counts.entries()].sort((a, b) => b[1] - a[1])
+const severities = computed(() => SEVERITIES.map((s) => ({ ...s, count: report.value!.defects.openBySeverity[s.value] })))
+
+const kpis = computed(() => {
+  const r = report.value!
+  return [
+    { label: 'เคสหลัก', value: r.mainCases, icon: 'tabler:flask', tone: 'primary' as Tone },
+    { label: 'Sub-cases', value: r.subCases, icon: 'tabler:subtask', tone: 'info' as Tone },
+    { label: 'ขั้นตอนทดสอบทั้งหมด', value: r.steps, icon: 'tabler:list-numbers', tone: 'success' as Tone },
+    { label: 'เลยกำหนด / แก้ซ้ำ', value: `${r.overdue} / ${r.highChurn}`, icon: 'tabler:alert-triangle', tone: 'error' as Tone },
+  ]
 })
 
-const kpis = computed(() => [
-  { label: 'เคสหลัก', value: cases.value.filter((c) => !c.parentId).length, icon: 'tabler:flask', tone: 'primary' as Tone },
-  { label: 'Sub-cases', value: cases.value.filter((c) => !!c.parentId).length, icon: 'tabler:subtask', tone: 'info' as Tone },
-  {
-    label: 'ขั้นตอนทดสอบทั้งหมด',
-    value: cases.value.reduce((sum, c) => sum + c.steps.length, 0),
-    icon: 'tabler:list-numbers',
-    tone: 'success' as Tone,
-  },
-  {
-    label: 'เลยกำหนด / แก้ซ้ำ',
-    value: `${cases.value.filter(isOverdue).length} / ${cases.value.filter(isHighChurn).length}`,
-    icon: 'tabler:alert-triangle',
-    tone: 'error' as Tone,
-  },
-])
-
-const { run } = useAsyncAction()
 function exportReport() {
   run(
     () => projectStore.exportMarkdown(),
@@ -77,7 +80,8 @@ function exportReport() {
     </template>
   </FoxPageHeader>
 
-  <div class="fox-stack">
+  <FoxPageSkeleton v-if="!report" :stats="4" :rows="2" />
+  <div v-else class="fox-stack">
     <v-row class="fox-grid">
       <!-- pass rate -->
       <v-col cols="12" md="5" lg="4">
@@ -132,6 +136,48 @@ function exportReport() {
     </v-row>
 
     <v-row class="fox-grid">
+      <!-- latest run -->
+      <v-col cols="12" md="6">
+        <v-card class="fox-card-body h-100 report-runs">
+          <FoxCardHeader title="รอบการทดสอบ" :subtitle="`ทั้งหมด ${report.runs.total} รอบ · กำลังดำเนินการ ${report.runs.open} รอบ`" />
+          <template v-if="report.runs.latest">
+            <div class="d-flex align-center justify-space-between mt-6 mb-2">
+              <span class="text-subtitle-2">{{ report.runs.latest.name }} รอบที่ {{ report.runs.latest.round }}</span>
+              <v-chip :color="runStatusOf(report.runs.latest.status).tone" size="small" variant="tonal">{{
+                runStatusOf(report.runs.latest.status).label
+              }}</v-chip>
+            </div>
+            <v-progress-linear :model-value="report.runs.latest.passRate" color="success" height="8" rounded />
+            <div class="d-flex justify-space-between text-body-2 text-muted mt-2">
+              <span class="fox-num">ทดสอบแล้ว {{ report.runs.latest.executed }}/{{ report.runs.latest.total }} เคส</span>
+              <span class="fox-num">Pass {{ formatPercent(report.runs.latest.passRate) }}</span>
+            </div>
+          </template>
+          <FoxEmptyState v-else icon="tabler:player-play" title="ยังไม่มีรอบการทดสอบ" text="สร้างรอบการทดสอบเพื่อติดตามผล" />
+        </v-card>
+      </v-col>
+
+      <!-- open defects -->
+      <v-col cols="12" md="6">
+        <v-card class="fox-card-body h-100 report-defects">
+          <FoxCardHeader title="Defect ที่ยังเปิดอยู่" :subtitle="`${report.defects.open} จาก ${report.defects.total} รายการ`" />
+          <div v-if="report.defects.open" class="fox-stack mt-6">
+            <div v-for="sv in severities" :key="sv.value">
+              <div class="d-flex align-center justify-space-between mb-2">
+                <span class="d-inline-flex align-center ga-2 text-subtitle-2"
+                  ><v-icon :icon="sv.icon" :color="sv.tone" size="18" />{{ sv.label }}</span
+                >
+                <span class="text-body-2 fox-num">{{ sv.count }} รายการ</span>
+              </div>
+              <v-progress-linear :model-value="(sv.count / report.defects.open) * 100" :color="sv.tone" height="8" rounded />
+            </div>
+          </div>
+          <FoxEmptyState v-else icon="tabler:bug-off" title="ไม่มี Defect ค้าง" text="Defect ทั้งหมดถูกปิดหรือปฏิเสธแล้ว" />
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <v-row class="fox-grid">
       <v-col cols="12" md="6">
         <v-card class="fox-card-body h-100">
           <FoxCardHeader title="ระดับความสำคัญ" subtitle="Priority breakdown" />
@@ -150,13 +196,13 @@ function exportReport() {
       <v-col cols="12" md="6">
         <v-card class="fox-card-body h-100">
           <FoxCardHeader title="สาเหตุของปัญหา" subtitle="Root cause tagging" />
-          <div v-if="rootCauses.length" class="fox-stack mt-6">
-            <div v-for="[cause, count] in rootCauses" :key="cause">
+          <div v-if="report.rootCauses.length" class="fox-stack mt-6">
+            <div v-for="c in report.rootCauses" :key="c.tag">
               <div class="d-flex align-center justify-space-between mb-2">
-                <span class="d-inline-flex align-center ga-2 text-subtitle-2"><v-icon icon="tabler:tag" color="caution" size="18" />{{ cause }}</span>
-                <span class="text-body-2 fox-num">{{ count }} เคส</span>
+                <span class="d-inline-flex align-center ga-2 text-subtitle-2"><v-icon icon="tabler:tag" color="caution" size="18" />{{ c.tag }}</span>
+                <span class="text-body-2 fox-num">{{ c.count }} เคส</span>
               </div>
-              <v-progress-linear :model-value="pct(count)" color="caution" height="8" rounded />
+              <v-progress-linear :model-value="pct(c.count)" color="caution" height="8" rounded />
             </div>
           </div>
           <FoxEmptyState v-else icon="tabler:tag" title="ยังไม่มีการระบุ Root Cause" text="ระบุสาเหตุได้จากหน้าปฏิทินหรือฟอร์ม Test Case" />

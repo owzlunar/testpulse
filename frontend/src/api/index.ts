@@ -2,39 +2,33 @@
 // mock server (src/api/mock); callers never know which. The choice is made at build time
 // (vite.config.ts: VITE_API_MODE=rest|mock, VITE_API_REST=<modules on>) into constants like
 // __API_MOCK_PROJECT__, so a build that is all rest contains no mock code.
-import { withMockCaseStats, withMockSession } from './bridge'
 import type * as Contract from './contract'
 import * as mock from './mock'
 import * as rest from './rest'
 
-/** true while any module runs on the mock (bridges in bridge.ts keep it consistent with the rest ones) */
+/** true while any module runs on the mock (the demo-data reset is offered then) */
 const anyMock = __API_ANY_MOCK__
 
 export type * from './contract'
 export { ApiError, errorMessage } from './errors'
 
-export const authApi: Contract.AuthApi = __API_MOCK_AUTH__ ? mock.authApi : anyMock ? withMockSession(rest.authApi) : rest.authApi
+export const authApi: Contract.AuthApi = __API_MOCK_AUTH__ ? mock.authApi : rest.authApi
 export const userApi: Contract.UserApi = __API_MOCK_USER__ ? mock.userApi : rest.userApi
 export const roleApi: Contract.RoleApi = __API_MOCK_ROLE__ ? mock.roleApi : rest.roleApi
 export const teamApi: Contract.TeamApi = __API_MOCK_TEAM__ ? mock.teamApi : rest.teamApi
-// rest projects get case counts from the mock's cases only while test cases are on (on the mock)
-export const projectApi: Contract.ProjectApi = __API_MOCK_PROJECT__
-  ? mock.projectApi
-  : __API_MOCK_TEST_CASE__ && __API_ON_TEST_CASE__
-    ? withMockCaseStats(rest.projectApi)
-    : rest.projectApi
+export const projectApi: Contract.ProjectApi = __API_MOCK_PROJECT__ ? mock.projectApi : rest.projectApi
 export const settingsApi: Contract.SettingsApi = __API_MOCK_SETTINGS__ ? mock.settingsApi : rest.settingsApi
 export const auditApi: Contract.AuditApi = __API_MOCK_AUDIT__ ? mock.auditApi : rest.auditApi
 export const fileApi: Contract.FileApi = __API_MOCK_FILE__ ? mock.fileApi : rest.fileApi
-// no rest implementation yet: always the mock
-export const testCaseApi: Contract.TestCaseApi = mock.testCaseApi
-export const requirementApi: Contract.RequirementApi = mock.requirementApi
-export const runApi: Contract.RunApi = mock.runApi
-export const defectApi: Contract.DefectApi = mock.defectApi
-export const documentApi: Contract.DocumentApi = mock.documentApi
-export const notificationApi: Contract.NotificationApi = mock.notificationApi
-export const templateApi: Contract.TemplateApi = mock.templateApi
-export const aiApi: Contract.AiApi = mock.aiApi
+export const notificationApi: Contract.NotificationApi = __API_MOCK_NOTIFICATION__ ? mock.notificationApi : rest.notificationApi
+export const testCaseApi: Contract.TestCaseApi = __API_MOCK_TEST_CASE__ ? mock.testCaseApi : rest.testCaseApi
+export const requirementApi: Contract.RequirementApi = __API_MOCK_REQUIREMENT__ ? mock.requirementApi : rest.requirementApi
+export const templateApi: Contract.TemplateApi = __API_MOCK_TEMPLATE__ ? mock.templateApi : rest.templateApi
+export const runApi: Contract.RunApi = __API_MOCK_RUN__ ? mock.runApi : rest.runApi
+export const defectApi: Contract.DefectApi = __API_MOCK_DEFECT__ ? mock.defectApi : rest.defectApi
+export const documentApi: Contract.DocumentApi = __API_MOCK_DOCUMENT__ ? mock.documentApi : rest.documentApi
+export const reportApi: Contract.ReportApi = __API_MOCK_REPORT__ ? mock.reportApi : rest.reportApi
+export const aiApi: Contract.AiApi = __API_MOCK_AI__ ? mock.aiApi : rest.aiApi
 
 export type ApiModule =
   | 'ai'
@@ -45,6 +39,7 @@ export type ApiModule =
   | 'file'
   | 'notification'
   | 'project'
+  | 'report'
   | 'requirement'
   | 'role'
   | 'run'
@@ -67,6 +62,7 @@ export const apiOn: Readonly<Record<ApiModule, boolean>> = {
   file: __API_ON_FILE__,
   notification: __API_ON_NOTIFICATION__,
   project: __API_ON_PROJECT__,
+  report: __API_ON_REPORT__,
   requirement: __API_ON_REQUIREMENT__,
   role: __API_ON_ROLE__,
   run: __API_ON_RUN__,
@@ -79,6 +75,12 @@ export const apiOn: Readonly<Record<ApiModule, boolean>> = {
 
 /** every module the page or widget needs is on */
 export const apiAllOn = (modules: readonly ApiModule[] = []) => modules.every((m) => apiOn[m])
+
+/**
+ * The mock stores any notification the web app sends; the backend creates its own with each change
+ * (only a confirmation to oneself is posted), so the stores send the others only to the mock.
+ */
+export const clientSendsNotifications = __API_MOCK_NOTIFICATION__
 
 /** the demo login shortcut (switching user without a password) exists only with the mock sign-in */
 export const canSwitchUser = __API_MOCK_AUTH__

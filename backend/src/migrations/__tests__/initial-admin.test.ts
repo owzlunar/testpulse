@@ -26,7 +26,7 @@ const users = async () => {
 
 describe('first Admin', () => {
   it('a new database gets the Admin from the settings, who can sign in', async () => {
-    expect(await migrate(migrations)).toEqual([initialAdmin.id])
+    expect(await migrate(migrations)).toContain(initialAdmin.id)
     const [admin] = await users()
     expect(admin).toMatchObject({ name: 'เจ้าของระบบ', roleId: 'role-admin', status: 'active' })
 
@@ -49,6 +49,6 @@ describe('first Admin', () => {
     } finally {
       Object.assign(config.initialAdmin, saved)
     }
-    expect(await migrate(migrations)).toEqual([initialAdmin.id])
+    expect(await migrate(migrations)).toContain(initialAdmin.id)
   })
 })

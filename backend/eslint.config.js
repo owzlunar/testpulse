@@ -8,7 +8,7 @@ import tseslint from 'typescript-eslint'
 //   4. a service never imports a model, except for types (it goes through its repository)
 
 export default tseslint.config(
-  { ignores: ['dist', 'coverage', 'node_modules', 'src/contract/types.ts'] },
+  { ignores: ['dist', 'coverage', 'node_modules', 'src/contract/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

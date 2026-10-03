@@ -1,6 +1,6 @@
 // The mock API: each contract module backed by the mock server in this folder (LocalStorage).
 import type * as Contract from '../contract'
-import { draftTestCases } from './ai'
+import { draftTestCases, fetchAiStatus } from './ai'
 import { createAuditLog, fetchAuditLogs } from './audit'
 import { addDefectComment, fetchDefects, saveDefect } from './defect'
 import {
@@ -20,9 +20,11 @@ import {
   fetchNotifications,
   markAllNotificationsRead,
   markNotificationRead,
+  watchNotifications,
 } from './notification'
 import { createProject, deleteProject, fetchProjects, updateProject } from './project'
-import { deleteRequirement, fetchRequirements, saveRequirement } from './requirement'
+import { fetchProjectReport, recordExport } from './report'
+import { deleteRequirement, fetchRequirements, saveRequirement, searchRequirements } from './requirement'
 import { deleteRole, fetchRoles, saveRole } from './role'
 import { createRun, deleteRun, fetchRuns, saveResult, updateRun } from './run'
 import { fetchSettings, saveSettings } from './settings'
@@ -57,8 +59,6 @@ import {
 } from './user'
 import { upload } from './file'
 export { resetDemoData } from './storage'
-export { adoptSession } from './user'
-export { mockCaseStats } from './project'
 
 export const authApi = { fetchSession, login, logout, register, fetchInvite, acceptInvite, changePassword } satisfies Contract.AuthApi
 export const userApi = { fetchUsers, inviteUser, updateUser, resendInvite } satisfies Contract.UserApi
@@ -82,7 +82,7 @@ export const testCaseApi = {
   deleteTestCase,
   reorderTestCases,
 } satisfies Contract.TestCaseApi
-export const requirementApi = { fetchRequirements, saveRequirement, deleteRequirement } satisfies Contract.RequirementApi
+export const requirementApi = { fetchRequirements, saveRequirement, deleteRequirement, searchRequirements } satisfies Contract.RequirementApi
 export const runApi = { fetchRuns, createRun, updateRun, saveResult, deleteRun } satisfies Contract.RunApi
 export const defectApi = { fetchDefects, saveDefect, addDefectComment } satisfies Contract.DefectApi
 export const documentApi = {
@@ -95,6 +95,7 @@ export const documentApi = {
   fetchDocumentTemplate,
   saveDocumentTemplate,
 } satisfies Contract.DocumentApi
+export const reportApi = { fetchProjectReport, recordExport } satisfies Contract.ReportApi
 export const notificationApi = {
   fetchNotifications,
   createNotification,
@@ -102,6 +103,7 @@ export const notificationApi = {
   markAllNotificationsRead,
   deleteNotification,
   clearNotifications,
+  watchNotifications,
 } satisfies Contract.NotificationApi
 export const templateApi = { fetchTemplates, createTemplate, markTemplateUsed, deleteTemplate } satisfies Contract.TemplateApi
-export const aiApi = { draftTestCases } satisfies Contract.AiApi
+export const aiApi = { fetchAiStatus, draftTestCases } satisfies Contract.AiApi

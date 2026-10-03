@@ -89,7 +89,7 @@ const routes: RouteRecordRaw[] = [
     path: '/reports',
     name: 'reports',
     component: () => import('@/views/reports/Index.vue'),
-    meta: { title: 'รายงาน', permissions: ['report.view'], api: ['test-case', 'run', 'defect'] },
+    meta: { title: 'รายงาน', permissions: ['report.view'], api: ['report', 'test-case'] },
   },
   {
     path: '/audit-trail',

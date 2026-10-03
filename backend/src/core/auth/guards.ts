@@ -15,16 +15,19 @@ import { verifyAccessToken } from './tokens.js'
 export const authenticate: RequestHandler = async (req, _res, next) => {
   const [scheme, token] = (req.get('authorization') ?? '').split(' ')
   if (scheme !== 'Bearer' || !token) return next(ApiError.unauthorized())
-  let userId: string
+  let claims: { sub: string; exp: number }
   try {
-    userId = verifyAccessToken(token).sub
+    claims = verifyAccessToken(token)
   } catch {
     return next(ApiError.unauthorized('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่'))
   }
-  const principal = await resolvePrincipal(userId)
+  const principal = await resolvePrincipal(claims.sub)
   if (!principal) return next(ApiError.unauthorized('บัญชีนี้ใช้งานไม่ได้แล้ว'))
   const context = requestContext()
-  if (context) context.principal = principal
+  if (context) {
+    context.principal = principal
+    context.tokenExpiresAt = claims.exp * 1000
+  }
   next()
 }
 

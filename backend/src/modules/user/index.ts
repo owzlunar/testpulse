@@ -18,6 +18,7 @@ export const accounts = {
   register: userService.register,
   setPassword: userService.setPassword,
   existingIds: (ids: string[]) => userRepository.existingIds(ids),
+  idsByName: (names: string[]) => userRepository.idsByName(names),
   hasActiveAdmin: userService.hasActiveAdmin,
   createAdmin: userService.createAdmin,
 }
