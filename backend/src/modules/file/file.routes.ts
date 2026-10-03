@@ -27,5 +27,5 @@ fileRouter.post(
   }),
   fileController.upload,
 )
-// public: <img src> can't send a Bearer token (only public categories exist so far)
+// public: <img src> can't send a Bearer token; case images are protected by their unguessable id (file.service)
 fileRouter.get('/files/:id/content', validate({ params: idParams }), fileController.content)

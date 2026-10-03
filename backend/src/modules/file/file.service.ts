@@ -1,6 +1,7 @@
 import type { Readable } from 'node:stream'
 import type { UploadedFile } from '#contract/types.js'
-import type { Principal } from '#core/auth/principal.js'
+import { randomBytes } from 'node:crypto'
+import { can, type Principal } from '#core/auth/principal.js'
 import { config } from '#core/config/env.js'
 import { logger } from '#core/config/logger.js'
 import { newId } from '#core/database/ids.js'
@@ -28,10 +29,19 @@ const toUploaded = (f: { _id: string; name: string; contentType: string; size: n
   size: f.size,
 })
 
-/** avatars: anyone signed in; project logos: the Admin (who manages projects) */
+/** avatars: anyone signed in; project logos: the Admin (who manages projects); case images: who writes or tests cases */
 function assertMayUpload(principal: Principal, category: FileCategory) {
   if (category === 'project-logo' && !principal.isAdmin) throw ApiError.forbidden('เฉพาะ Admin เท่านั้น')
+  if (category === 'case-image' && !can(principal, 'case.edit') && !can(principal, 'run.execute')) {
+    throw ApiError.forbidden('ต้องมีสิทธิ์แก้ไข Test Case หรือบันทึกผลการทดสอบ')
+  }
 }
+
+/**
+ * File content is served without a token (<img src> can't send one), so the id is what protects it:
+ * test evidence gets 128 random bits, unguessable; pictures meant to be seen keep the short id.
+ */
+const fileIdFor = (category: FileCategory) => (category === 'case-image' ? `file-${randomBytes(16).toString('base64url')}` : newId('file'))
 
 export const fileService = {
   /** stores an image; the file record is saved only after the bytes are (no record without a file) */
@@ -39,7 +49,7 @@ export const fileService = {
     assertMayUpload(principal, category)
     const type = detectImage(upload.buffer)
     if (!type) throw ApiError.unprocessable('รองรับเฉพาะรูปภาพ PNG, JPEG, GIF หรือ WebP')
-    const id = newId('file')
+    const id = fileIdFor(category)
     const key = `${category}/${id}.${type.extension}`
     await storage().put({ key, body: upload.buffer, contentType: type.contentType })
     try {
