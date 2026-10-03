@@ -4,6 +4,7 @@ import { can, type Principal } from '#core/auth/principal.js'
 import { assertCan } from '#core/auth/guards.js'
 import { emit } from '#core/events/event-bus.js'
 import { ApiError } from '#core/http/errors.js'
+import { searchPattern } from '#core/http/search.js'
 import { notify } from '#core/notify/notify-sink.js'
 import { projectAccess } from '#modules/project/index.js'
 import { accounts } from '#modules/user/index.js'
@@ -26,8 +27,6 @@ const MEANING_FIELDS: { field: 'title' | 'description' | 'acceptanceCriteria'; l
   { field: 'description', label: 'รายละเอียด' },
   { field: 'acceptanceCriteria', label: 'เกณฑ์การยอมรับ' },
 ]
-
-const escapeRegex = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 async function assertCodeFree(projectId: string, code: string, exceptId?: string) {
   const other = await requirementRepository.findOne({ projectId, code })
@@ -73,16 +72,22 @@ export const requirementService = {
   },
 
   /** GET /requirements/search: code, title or description contains the text */
-  async search(p: Principal, q: string, limit: number): Promise<{ requirements: Requirement[]; total: number }> {
+  async search(p: Principal, q: string, limit: number, offset = 0): Promise<{ requirements: Requirement[]; total: number }> {
     const text = q.trim()
     if (!text || !p.roleId || !can(p, 'requirement.view')) return { requirements: [], total: 0 }
-    const pattern = new RegExp(escapeRegex(text), 'i')
+    const pattern = searchPattern(text)
     const projectIds = [...(await projectAccess.accessibleIds(p))]
-    return requirementRepository.search(
+    const { items, total } = await requirementRepository.findPage(
       { projectId: { $in: projectIds }, $or: [{ code: pattern }, { title: pattern }, { description: pattern }] },
+      { projectId: 1, code: 1 },
       limit,
+      offset,
     )
+    return { requirements: items, total }
   },
+
+  /** ids of the projects' requirements whose "CODE: title" (as a case shows it) has the text, in one query */
+  idsMatching: (projectIds: string[], text: string): Promise<string[]> => requirementRepository.idsMatching(projectIds, text),
 
   /** a project's requirements (other modules: links, coverage) */
   ofProject: (projectId: string) => requirementRepository.ofProject(projectId),

@@ -1,8 +1,11 @@
-import type { DocumentRecord, DocumentRequest, DocumentTemplate } from '@/types'
+import type { DocumentRecord, DocumentRequest, DocumentSearchHit, DocumentTemplate } from '@/types'
 
 export interface DocumentApi {
   /** GET /documents */
   fetchDocuments(): Promise<DocumentRecord[]>
+
+  /** GET /documents/search?q=:q&limit=:limit&offset=:offset (document number or title, in the projects the user may open; latest change first) */
+  searchDocuments(q: string, limit?: number, offset?: number): Promise<{ documents: DocumentSearchHit[]; total: number }>
 
   /** POST /documents (the server collects the data and freezes it in `snapshot`) */
   generateDocument(req: DocumentRequest, createdBy: string): Promise<DocumentRecord>

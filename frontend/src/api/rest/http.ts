@@ -231,6 +231,8 @@ export async function startSession<U>(method: string, path: string, body?: unkno
 
 export const get = <T>(path: string) => request<T>('GET', path)
 export const post = <T>(path: string, body?: unknown) => request<T>('POST', path, { body })
+/** "?q=…&limit=…&offset=…" of a search */
+export const searchQuery = (q: string, limit: number, offset: number) => `?q=${encodeURIComponent(q)}&limit=${limit}&offset=${offset}`
 export const put = <T>(path: string, body?: unknown) => request<T>('PUT', path, { body })
 export const patch = <T>(path: string, body?: unknown) => request<T>('PATCH', path, { body })
 export const del = <T>(path: string) => request<T>('DELETE', path)

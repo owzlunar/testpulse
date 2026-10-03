@@ -10,10 +10,10 @@ const expectedOf = (req: Request) => (req.body as { expected?: CaseExpectation }
 export const testCaseController = {
   /** GET /projects/:projectId/test-cases */
   list: async (req: Request, res: Response) => send(res, await testCaseService.list(principal(), params(req).projectId)),
-  /** GET /test-cases?search=:q&limit=:n */
+  /** GET /test-cases?search=:q&limit=:n&offset=:n */
   search: async (req: Request, res: Response) => {
-    const { search, limit } = req.query as unknown as { search: string; limit: number }
-    return send(res, await testCaseService.search(principal(), search, limit))
+    const { search, limit, offset } = req.query as unknown as { search: string; limit: number; offset: number }
+    return send(res, await testCaseService.search(principal(), search, limit, offset))
   },
   /** POST /projects/:projectId/test-cases */
   create: async (req: Request, res: Response) =>

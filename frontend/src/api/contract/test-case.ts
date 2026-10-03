@@ -14,8 +14,8 @@ export interface TestCaseApi {
   /** GET /projects/:projectId/test-cases (archived included; the client loads one project at a time) */
   fetchTestCases(projectId: string): Promise<TestCase[]>
 
-  /** GET /test-cases?search=:q (active cases of every project the user may open; id, name, requirement, scenario) */
-  searchTestCases(q: string, limit?: number): Promise<{ cases: TestCase[]; total: number }>
+  /** GET /test-cases?search=:q&limit=:limit&offset=:offset (active cases of every project the user may open; id, name, requirement, scenario) */
+  searchTestCases(q: string, limit?: number, offset?: number): Promise<{ cases: TestCase[]; total: number }>
 
   /**
    * POST /projects/:projectId/test-cases (accepts several for import / AI drafts)

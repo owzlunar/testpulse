@@ -136,7 +136,7 @@ export const fetchTestCases = (projectId: string) =>
   })
 
 /** GET /test-cases?search=:q (active cases of every project the user may open; id, name, requirement, scenario) */
-export const searchTestCases = (q: string, limit = 20) =>
+export const searchTestCases = (q: string, limit = 20, offset = 0) =>
   respond(() => {
     const text = q.trim().toLowerCase()
     if (!text || !sessionCan('case.view')) return { cases: [] as TestCase[], total: 0 }
@@ -147,7 +147,7 @@ export const searchTestCases = (q: string, limit = 20) =>
         projects.has(c.projectId) &&
         `${c.id} ${c.name} ${requirementText(c, requirementsOf(c.projectId))} ${c.testScenario}`.toLowerCase().includes(text),
     )
-    return { cases: found.slice(0, limit), total: found.length }
+    return { cases: found.slice(offset, offset + limit), total: found.length }
   })
 
 /**

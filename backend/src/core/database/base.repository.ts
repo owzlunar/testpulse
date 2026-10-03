@@ -81,6 +81,15 @@ export class BaseRepository<TDoc, TApi = TDoc> {
     return { items: this.toApiList(docs), page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) }
   }
 
+  /** one page of a search: `limit` matches from `offset` on, and how many there are in all */
+  async findPage(filter: FilterQuery<TDoc>, sort: Sort, limit: number, offset = 0, projection?: string): Promise<{ items: TApi[]; total: number }> {
+    const [docs, total] = await Promise.all([
+      this.model.find(filter, projection).sort(sort).skip(offset).limit(limit),
+      this.model.countDocuments(filter),
+    ])
+    return { items: this.toApiList(docs), total }
+  }
+
   /** $set of the given fields; returns the updated document, or null when it doesn't exist */
   async updateById(id: string, set: Partial<TDoc>, session?: ClientSession): Promise<TApi | null> {
     const update = { $set: set } as UpdateQuery<TDoc>

@@ -1,8 +1,11 @@
-import type { Actor, RunResult, RunResultSaveResult, TestCase, TestRun, TestRunInput } from '@/types'
+import type { Actor, RunResult, RunResultSaveResult, RunSearchHit, TestCase, TestRun, TestRunInput } from '@/types'
 
 export interface RunApi {
   /** GET /test-runs (of the projects the signed-in user may open) */
   fetchRuns(): Promise<TestRun[]>
+
+  /** GET /test-runs/search?q=:q&limit=:limit&offset=:offset (name, environment or build, in the projects the user may open; newest first) */
+  searchRuns(q: string, limit?: number, offset?: number): Promise<{ runs: RunSearchHit[]; total: number }>
 
   /** POST /projects/:projectId/test-runs (the server snapshots the selected cases) */
   createRun(input: TestRunInput, cases: TestCase[], createdBy: string): Promise<TestRun>

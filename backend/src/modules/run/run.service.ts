@@ -1,4 +1,5 @@
 import type {
+  RunSearchHit,
   PermissionKey,
   ResultStatus,
   RunResult,
@@ -13,6 +14,7 @@ import { recordAudit } from '#core/audit/audit-sink.js'
 import { assertCan } from '#core/auth/guards.js'
 import { can, type Principal } from '#core/auth/principal.js'
 import { ApiError } from '#core/http/errors.js'
+import { searchPattern } from '#core/http/search.js'
 import { projectAccess } from '#modules/project/index.js'
 import { testCases } from '#modules/test-case/index.js'
 import { runRepository } from './run.repository.js'
@@ -44,6 +46,21 @@ export const runService = {
   async list(p: Principal): Promise<TestRun[]> {
     if (!p.roleId || !can(p, 'run.view')) return []
     return runRepository.ofProjects([...(await projectAccess.accessibleIds(p))])
+  },
+
+  /** GET /test-runs/search: name, environment or build, in the projects the user may open; newest first (without results) */
+  async search(p: Principal, q: string, limit: number, offset: number): Promise<{ runs: RunSearchHit[]; total: number }> {
+    const text = q.trim()
+    if (!text || !p.roleId || !can(p, 'run.view')) return { runs: [], total: 0 }
+    const pattern = searchPattern(text)
+    const { items, total } = await runRepository.findPage(
+      { projectId: { $in: [...(await projectAccess.accessibleIds(p))] }, $or: [{ name: pattern }, { environment: pattern }, { build: pattern }] },
+      { createdAt: -1 },
+      limit,
+      offset,
+      'projectId name round type status environment build createdAt',
+    )
+    return { runs: items as RunSearchHit[], total }
   },
 
   /** POST /projects/:projectId/test-runs: snapshots the chosen active cases as they are now */

@@ -8,7 +8,8 @@ const caseUrl = (projectId: string, id: string) => `${casesOf(projectId)}/${enco
 
 export const testCaseApi: TestCaseApi = {
   fetchTestCases: (projectId) => get<TestCase[]>(casesOf(projectId)),
-  searchTestCases: (q, limit = 20) => get<{ cases: TestCase[]; total: number }>(`/test-cases?search=${encodeURIComponent(q)}&limit=${limit}`),
+  searchTestCases: (q, limit = 20, offset = 0) =>
+    get<{ cases: TestCase[]; total: number }>(`/test-cases?search=${encodeURIComponent(q)}&limit=${limit}&offset=${offset}`),
   createTestCases: (projectId, inputs) =>
     post<TestCase[]>(casesOf(projectId), {
       // the server owns these: a new case (also a clone or an import) starts fresh at v1.0

@@ -1,5 +1,5 @@
-import type { FilterQuery } from 'mongoose'
 import type { Requirement } from '#contract/types.js'
+import { searchPattern } from '#core/http/search.js'
 import { BaseRepository } from '#core/database/base.repository.js'
 import { RequirementModel, type RequirementDoc } from './requirement.model.js'
 
@@ -28,12 +28,14 @@ class RequirementRepository extends BaseRepository<RequirementDoc, Requirement> 
     return RequirementModel.deleteMany({ projectId })
   }
 
-  async search(filter: FilterQuery<RequirementDoc>, limit: number): Promise<{ requirements: Requirement[]; total: number }> {
-    const [docs, total] = await Promise.all([
-      RequirementModel.find(filter).sort({ projectId: 1, code: 1 }).limit(limit),
-      RequirementModel.countDocuments(filter),
-    ])
-    return { requirements: this.toApiList(docs), total }
+  /** ids whose "CODE: title" contains the text (case-insensitive, literally) */
+  async idsMatching(projectIds: string[], text: string): Promise<string[]> {
+    const regex = searchPattern(text).source
+    const docs = await RequirementModel.find(
+      { projectId: { $in: projectIds }, $expr: { $regexMatch: { input: { $concat: ['$code', ': ', '$title'] }, regex, options: 'i' } } },
+      { _id: 1 },
+    ).lean()
+    return docs.map((d) => String(d._id))
   }
 }
 
