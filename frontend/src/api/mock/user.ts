@@ -112,17 +112,3 @@ export const acceptInvite = (token: string, _password: string): Promise<User> =>
 export const changePassword = (_currentPassword: string, _newPassword: string) => respond(() => undefined)
 
 export { MOCK_USERS }
-
-/**
- * Transition bridge (src/api/bridge.ts): signed in with the real backend while other modules still
- * run on this mock, the mock acts for the same person (its access checks read the session user).
- */
-export function adoptSession(user: User | null): void {
-  if (!user) return void localStorage.removeItem(STORAGE_KEYS.currentUser)
-  const list = users()
-  const i = list.findIndex((u) => u.id === user.id)
-  if (i >= 0) list[i] = { ...list[i], ...user }
-  else list.push(user)
-  save(STORAGE_KEYS.users, list)
-  save(STORAGE_KEYS.currentUser, user)
-}

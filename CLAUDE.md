@@ -39,6 +39,6 @@ One git repository (github.com/owzlunar/testpulse). Each side keeps its own `CLA
 - Release: a PR `dev` -> `main`, then a tag on `main`. Urgent fixes: `hotfix/<what>` from `main`, merged into `main` and `dev`.
 - Never commit straight to `main` or `dev`.
 - Feature order (each depends on the ones before): notification, test-case (requirement + test-case + template, search, calendar, project case stats), test-run, defect, document, report (server-side aggregates), ai.
-- Every feature: the server records audit entries and notifications in the same request as the change (not the client); a module reacts to another's changes through the event bus (e.g. renumbered cases re-keyed by runs / defects), never by importing a later module. `frontend/src/api/bridge.ts` goes once every module is real.
+- Every feature: the server records audit entries and notifications in the same request as the change (not the client); a module reacts to another's changes through the event bus (e.g. renumbered cases re-keyed by runs / defects), never by importing a later module.
 - When a backend module and its real frontend module change, run `npm run test:e2e:real` in `frontend/` (the app against the real backend; local only, needs MongoDB and Mailpit).
 - When unsure whether a change belongs to the frontend, the backend or the contract, ask.
