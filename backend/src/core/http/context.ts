@@ -9,6 +9,8 @@ export interface RequestContext {
   ip?: string
   userAgent?: string
   principal?: Principal
+  /** when the access token of the request runs out (ms since the epoch): long-lived streams end there */
+  tokenExpiresAt?: number
 }
 
 const storage = new AsyncLocalStorage<RequestContext>()

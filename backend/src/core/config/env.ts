@@ -55,6 +55,8 @@ const schema = Joi.object({
   MAX_PAGE_SIZE: Joi.number().integer().min(1).default(100),
   /** 0 keeps audit entries forever */
   AUDIT_RETENTION_DAYS: Joi.number().integer().min(0).default(0),
+  /** notifications are deleted this many days after they were sent */
+  NOTIFICATION_RETENTION_DAYS: Joi.number().integer().min(1).default(90),
   CRON_TIMEZONE: Joi.string().default('Asia/Bangkok'),
 
   JWT_PRIVATE_KEY: Joi.string().required(),
@@ -172,6 +174,7 @@ export const config = Object.freeze({
   mongo: { uri: env.MONGODB_URI as string },
   pagination: { maxPageSize: env.MAX_PAGE_SIZE as number },
   audit: { retentionDays: env.AUDIT_RETENTION_DAYS as number },
+  notifications: { retentionDays: env.NOTIFICATION_RETENTION_DAYS as number },
   cron: { timezone: env.CRON_TIMEZONE as string },
   auth: {
     privateKey: pem(env.JWT_PRIVATE_KEY),

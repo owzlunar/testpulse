@@ -4,6 +4,7 @@ import { createApp } from './app.js'
 import { connectDatabase, disconnectDatabase } from './config/db.js'
 import { config } from './config/env.js'
 import { logger } from './config/logger.js'
+import { closeEventStreams } from './http/event-stream.js'
 import { startJobs, stopJobs } from './jobs/scheduler.js'
 import type { AppModule } from './module.js'
 import { assertPreflight } from './preflight.js'
@@ -33,6 +34,8 @@ export async function startServer(modules: AppModule[]): Promise<Server> {
       process.exit(exitCode || 1)
     }, SHUTDOWN_TIMEOUT_MS).unref()
     void stopJobs()
+    // open event streams would hold the server open until the timeout
+    closeEventStreams()
     server.closeIdleConnections()
     server.close(async () => {
       await disconnectDatabase().catch((err: Error) => logger.error(`Closing MongoDB failed: ${err.message}`))
