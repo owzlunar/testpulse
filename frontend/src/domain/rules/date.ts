@@ -9,6 +9,13 @@ export const toISODate = (d: Date): string => `${d.getFullYear()}-${pad(d.getMon
 /** Today as 'YYYY-MM-DD' */
 export const todayISO = (): string => toISODate(new Date())
 
+/** 'YYYY-MM-DD' + n days */
+export function addDays(iso: string, n: number): string {
+  const d = new Date(`${iso.slice(0, 10)}T00:00`)
+  d.setDate(d.getDate() + n)
+  return toISODate(d)
+}
+
 /** Whole days from `from` to `to` (both 'YYYY-MM-DD'); negative when `to` is earlier */
 export function daysBetween(from: string, to: string): number {
   const a = new Date(`${from.slice(0, 10)}T00:00`).getTime()

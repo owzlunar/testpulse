@@ -1,17 +1,18 @@
 import type { Option, TestCasePriority, TestCaseStatus, Tone } from '@/types'
+import { STATUS_LABELS } from './rules/test-case'
 
 // Rules the backend shares (versions, spec changes, SLA, stats) live in ./rules/test-case.ts
 export * from './rules/test-case'
 
 // Dev <-> QA lifecycle: Pending Dev -> Ready for Test -> (QA) -> Passed | Failed -> back to Dev
 export const STATUSES: Option<TestCaseStatus>[] = [
-  { value: 'pending', label: 'Pending Dev', hint: 'รอ Dev พัฒนา', tone: 'primary', icon: 'tabler:code' },
-  { value: 'ready_for_test', label: 'Ready for Test', hint: 'พร้อมให้ QA ทดสอบ', tone: 'info', icon: 'tabler:send' },
-  { value: 'untested', label: 'Untested', hint: 'ยังไม่ได้ทดสอบ', tone: 'secondary', icon: 'tabler:circle-dashed' },
-  { value: 'in_progress', label: 'In Progress', hint: 'กำลังทดสอบ', tone: 'warning', icon: 'tabler:progress' },
-  { value: 'passed', label: 'Passed', hint: 'ผ่านการทดสอบ', tone: 'success', icon: 'tabler:circle-check' },
-  { value: 'failed', label: 'Failed', hint: 'ไม่ผ่าน / พบ Bug', tone: 'error', icon: 'tabler:circle-x' },
-  { value: 'blocked', label: 'Blocked', hint: 'ติดปัญหาภายนอก', tone: 'caution', icon: 'tabler:ban' },
+  { value: 'pending', label: STATUS_LABELS.pending, hint: 'รอ Dev พัฒนา', tone: 'primary', icon: 'tabler:code' },
+  { value: 'ready_for_test', label: STATUS_LABELS.ready_for_test, hint: 'พร้อมให้ QA ทดสอบ', tone: 'info', icon: 'tabler:send' },
+  { value: 'untested', label: STATUS_LABELS.untested, hint: 'ยังไม่ได้ทดสอบ', tone: 'secondary', icon: 'tabler:circle-dashed' },
+  { value: 'in_progress', label: STATUS_LABELS.in_progress, hint: 'กำลังทดสอบ', tone: 'warning', icon: 'tabler:progress' },
+  { value: 'passed', label: STATUS_LABELS.passed, hint: 'ผ่านการทดสอบ', tone: 'success', icon: 'tabler:circle-check' },
+  { value: 'failed', label: STATUS_LABELS.failed, hint: 'ไม่ผ่าน / พบ Bug', tone: 'error', icon: 'tabler:circle-x' },
+  { value: 'blocked', label: STATUS_LABELS.blocked, hint: 'ติดปัญหาภายนอก', tone: 'caution', icon: 'tabler:ban' },
 ]
 
 export const statusOf = (status: TestCaseStatus): Option<TestCaseStatus> => STATUSES.find((s) => s.value === status) ?? STATUSES[2]

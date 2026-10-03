@@ -1,14 +1,5 @@
-import { toISODate } from '@/domain/rules/date'
-
 // the calendar-date rules the backend shares live in domain/rules/date.ts
-export { daysBetween, daysFromToday, toISODate, todayISO } from '@/domain/rules/date'
-
-/** 'YYYY-MM-DD' + n days */
-export function addDays(iso: string, n: number): string {
-  const d = new Date(`${iso.slice(0, 10)}T00:00`)
-  d.setDate(d.getDate() + n)
-  return toISODate(d)
-}
+export { addDays, daysBetween, daysFromToday, toISODate, todayISO } from '@/domain/rules/date'
 
 /** 'YYYY-MM-DD' -> "1 ม.ค. 2569" */
 export const formatDateTH = (iso: string, options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' }): string =>

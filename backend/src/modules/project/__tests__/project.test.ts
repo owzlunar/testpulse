@@ -36,9 +36,15 @@ describe('project access', () => {
     expect(await idsFor('user-qa-2')).toEqual([])
   })
 
-  it('lists come with case counts (zero until the test-case module provides them)', async () => {
-    const res = await client(app).as('user-admin').get('/projects')
-    expect(res.body.data[0].caseStats).toMatchObject({ total: 0, passRate: 0, byStatus: { passed: 0 } })
+  it('lists come with the counts of their active cases (the test-case module provides them)', async () => {
+    const stats = Object.fromEntries(
+      ((await client(app).as('user-admin').get('/projects')).body.data as { id: string; caseStats: { total: number } }[]).map((p) => [
+        p.id,
+        p.caseStats,
+      ]),
+    )
+    expect(stats['proj-1']).toMatchObject({ total: 4, byStatus: { passed: 2 } })
+    expect(stats['proj-3']).toMatchObject({ total: 0, passRate: 0 })
   })
 })
 

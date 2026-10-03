@@ -2,6 +2,17 @@ import type { ProjectStats, Requirement, TestCase, TestCaseSpec, TestCaseStatus 
 import { daysFromToday } from './date.js'
 import { requirementsForCase } from './requirement.js'
 
+/** how a status is named (UI, audit entries, notifications) */
+export const STATUS_LABELS: Record<TestCaseStatus, string> = {
+  pending: 'Pending Dev',
+  ready_for_test: 'Ready for Test',
+  untested: 'Untested',
+  in_progress: 'In Progress',
+  passed: 'Passed',
+  failed: 'Failed',
+  blocked: 'Blocked',
+}
+
 /** every case status, in the lifecycle's order */
 export const TEST_CASE_STATUSES: TestCaseStatus[] = ['pending', 'ready_for_test', 'untested', 'in_progress', 'passed', 'failed', 'blocked']
 
