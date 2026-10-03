@@ -1,6 +1,7 @@
 // The real API: modules the backend implements so far. Each satisfies its contract interface.
 export { auditApi } from './audit'
 export { authApi } from './auth'
+export { defectApi } from './defect'
 export { fileApi } from './file'
 export { notificationApi } from './notification'
 export { projectApi } from './project'

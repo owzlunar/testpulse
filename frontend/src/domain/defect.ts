@@ -1,4 +1,7 @@
-import type { Defect, DefectSeverity, DefectStatus, Option } from '@/types'
+import type { DefectSeverity, DefectStatus, Option } from '@/types'
+
+// Rules the backend shares (what counts as open) live in ./rules/defect.ts
+export * from './rules/defect'
 
 export const SEVERITIES: Option<DefectSeverity>[] = [
   { value: 'critical', label: 'Critical', hint: 'ระบบใช้งานไม่ได้ / ข้อมูลเสียหาย', tone: 'error', icon: 'tabler:alert-octagon' },
@@ -20,6 +23,3 @@ export const DEFECT_STATUSES: Option<DefectStatus>[] = [
 export const severityOf = (v: DefectSeverity) => SEVERITIES.find((s) => s.value === v) ?? SEVERITIES[2]
 
 export const defectStatusOf = (v: DefectStatus) => DEFECT_STATUSES.find((s) => s.value === v) ?? DEFECT_STATUSES[0]
-/** still affects a release */
-
-export const isOpenDefect = (d: Defect) => !['closed', 'rejected'].includes(d.status)
