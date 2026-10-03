@@ -65,7 +65,7 @@ const schema = Joi.object({
     .integer()
     .min(60)
     .default(15 * 60),
-  REFRESH_TOKEN_TTL_DAYS: Joi.number().integer().min(1).default(14),
+  REFRESH_TOKEN_TTL_DAYS: Joi.number().integer().min(1).default(7),
   /** a just-rotated refresh token still works this long (lost responses, two tabs at once) */
   REFRESH_REUSE_GRACE_SEC: Joi.number().integer().min(0).max(300).default(30),
   INVITE_TTL_HOURS: Joi.number().integer().min(1).default(72),

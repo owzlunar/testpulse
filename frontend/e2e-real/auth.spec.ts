@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { ACCOUNTS, signIn } from './helpers'
+import { ACCOUNTS, signIn, toast } from './helpers'
 
 // Sign-in, the session (access token in memory, refresh cookie) and project access, against the backend
 
@@ -46,4 +46,20 @@ test('modules the backend lacks are off: no menu, and their pages lead back to t
   for (const item of ['Test Cases', 'Requirements', 'Defects', 'รอบการทดสอบ']) await expect(page.locator('.fox-nav').getByText(item)).toHaveCount(0)
   await page.goto('/test-cases')
   await page.waitForURL('**/dashboard')
+})
+
+test('the access token is renewed before it expires (silent refresh): no request meets a 401', async ({ page }) => {
+  test.setTimeout(150_000)
+  const unauthorized: string[] = []
+  page.on('response', (r) => r.status() === 401 && unauthorized.push(r.url()))
+  await signIn(page, ACCOUNTS.admin.email)
+  // the e2e backend issues 60 s access tokens: the app renews them 15 s before they run out
+  const renewed = await page.waitForResponse((r) => r.url().endsWith('/auth/refresh'), { timeout: 60_000 })
+  expect(renewed.status()).toBe(200)
+  // past the first token's life: a change made without reloading goes through with the renewed one
+  await page.waitForTimeout(20_000)
+  await page.locator('.fox-nav').getByText('ตั้งค่า', { exact: true }).click()
+  await page.getByLabel('เมื่อสถานะเปลี่ยน (Passed, Failed, Blocked)').click()
+  await expect(toast(page)).toContainText('บันทึกการตั้งค่าแล้ว')
+  expect(unauthorized).toEqual([])
 })

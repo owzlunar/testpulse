@@ -4,14 +4,39 @@ import { SESSION_EXPIRED } from '@/api/session'
 // HTTP client of the real backend. Every response is { status: true, data } or
 // { status: false, message, code?, requestId }. The access token lives in memory only (never in
 // storage scripts can read); the refresh token is an httpOnly cookie the browser sends to
-// /auth/* by itself. A 401 refreshes once and retries; when that fails the session is over.
+// /auth/* by itself.
+// Silent refresh: the access token (15 min) is renewed shortly before it expires, and as soon as the tab
+// is back if its timer was held up while hidden, so requests rarely meet an expired token. A 401 still
+// refreshes once and retries. When the refresh token (7 days, renewed by every refresh) is refused the
+// session is over (SESSION_EXPIRED); when the server can't be reached it tries again later.
 
 /** the API, relative to the app's public path (<base href>): works behind the dev proxy and any sub path */
 const apiUrl = (path: string) => new URL(`api/v1${path}`, document.baseURI).toString()
 
 let accessToken: string | null = null
-export const setAccessToken = (token: string | null) => {
+/** when to renew the access token (ms since epoch) */
+let renewAt = 0
+let renewTimer: ReturnType<typeof setTimeout> | undefined
+
+/** renew this long before expiry: a minute, or a quarter of a short token's life */
+const renewAhead = (ttlMs: number) => Math.min(60_000, ttlMs / 4)
+/** wait before trying again when the server couldn't be reached */
+const RETRY_OFFLINE_MS = 30_000
+
+function scheduleRenew(delayMs: number) {
+  clearTimeout(renewTimer)
+  renewAt = Date.now() + delayMs
+  renewTimer = setTimeout(silentRefresh, delayMs)
+}
+
+/** keep the access token of a new session (null: signed out) and plan its renewal */
+export function setSession(token: string | null, expiresIn = 0) {
   accessToken = token
+  clearTimeout(renewTimer)
+  renewAt = 0
+  if (!token) return
+  const ttl = expiresIn * 1000
+  scheduleRenew(ttl - renewAhead(ttl))
 }
 
 interface Envelope<T> {
@@ -40,23 +65,45 @@ interface AuthResult {
   expiresIn: number
 }
 
-let refreshing: Promise<boolean> | null = null
+/** ok: a new access token; expired: the refresh token was refused (sign in again); offline: no answer */
+type RefreshResult = 'ok' | 'expired' | 'offline'
+let refreshing: Promise<RefreshResult> | null = null
 
-/** POST /auth/refresh with the cookie; one at a time, shared by every request that hit a 401 */
-export function refreshSession(): Promise<boolean> {
+/** POST /auth/refresh with the cookie; one at a time, shared by the timer and every request that hit a 401 */
+function renew(): Promise<RefreshResult> {
   refreshing ??= fetch(apiUrl('/auth/refresh'), { method: 'POST', credentials: 'same-origin' })
     .then((res) => parse<AuthResult>(res))
-    .then((session) => {
-      setAccessToken(session.accessToken)
-      return true
+    .then((session): RefreshResult => {
+      setSession(session.accessToken, session.expiresIn)
+      return 'ok'
     })
-    .catch(() => {
-      setAccessToken(null)
-      return false
+    .catch((e: unknown): RefreshResult => {
+      // 4xx: the server refused the refresh token; anything else (network, 5xx): try again later
+      if (e instanceof ApiError && e.status >= 400 && e.status < 500) {
+        setSession(null)
+        return 'expired'
+      }
+      return 'offline'
     })
     .finally(() => (refreshing = null))
   return refreshing
 }
+
+/** restore or renew the session from the refresh cookie (app start); true when there is one */
+export const refreshSession = () => renew().then((result) => result === 'ok')
+
+/** the timer (or the tab coming back) renews the token before it runs out */
+async function silentRefresh() {
+  if (!accessToken) return
+  const result = await renew()
+  if (result === 'expired') window.dispatchEvent(new Event(SESSION_EXPIRED))
+  else if (result === 'offline' && accessToken) scheduleRenew(RETRY_OFFLINE_MS)
+}
+
+// a hidden tab's timers are held up (the computer slept, the browser throttled them): renew on return
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && accessToken && Date.now() >= renewAt) void silentRefresh()
+})
 
 interface RequestOptions {
   /** JSON body, or FormData for uploads */
@@ -85,8 +132,10 @@ export async function request<T>(method: string, path: string, options: RequestO
     throw new ApiError('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาตรวจสอบเครือข่าย', 0, 'network')
   }
   if (res.status === 401 && options.retry !== false) {
-    if (await refreshSession()) res = await send()
-    else window.dispatchEvent(new Event(SESSION_EXPIRED))
+    const result = await renew()
+    if (result === 'offline') throw new ApiError('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาตรวจสอบเครือข่าย', 0, 'network')
+    if (result === 'expired') window.dispatchEvent(new Event(SESSION_EXPIRED))
+    else res = await send()
   }
   return parse<T>(res)
 }
@@ -94,7 +143,7 @@ export async function request<T>(method: string, path: string, options: RequestO
 /** sign-in endpoints answer with a session: keep its token, return the user */
 export async function startSession<U>(method: string, path: string, body?: unknown): Promise<U> {
   const session = await request<AuthResult>(method, path, { body, retry: false })
-  setAccessToken(session.accessToken)
+  setSession(session.accessToken, session.expiresIn)
   return session.user as U
 }
 

@@ -110,7 +110,7 @@ npm run make:module -- test-case
 - สำเร็จ: `{ "status": true, "data": ... }`
 - ผิดพลาด: `{ "status": false, "message": "ข้อความภาษาไทย", "code": "stale", "errors": [...], "requestId": "..." }`
   - 400 ข้อมูลไม่ถูกต้อง · 401 ยังไม่เข้าสู่ระบบ / token หมดอายุ · 403 ไม่มีสิทธิ์ · 404 ไม่พบ · 409 ซ้ำหรือข้อมูลเปลี่ยนไปแล้ว (`code`) · 413 ใหญ่เกินไป · 422 ทำตามที่ขอไม่ได้ · 429 เรียกถี่เกินไป
-- การเข้าสู่ระบบ: `POST /auth/login` คืน `accessToken` (ส่งเป็น `Authorization: Bearer ...` อายุ 15 นาที) และตั้ง refresh token ใน cookie httpOnly (`tp_refresh`) เมื่อ access token หมดอายุให้เรียก `POST /auth/refresh` (ต้องส่ง cookie: `credentials: 'include'`)
+- การเข้าสู่ระบบ: `POST /auth/login` คืน `accessToken` (ส่งเป็น `Authorization: Bearer ...` อายุ 15 นาที) และตั้ง refresh token ใน cookie httpOnly (`tp_refresh`, อายุ 7 วัน นับใหม่ทุกครั้งที่ refresh) ก่อน access token หมดอายุให้เรียก `POST /auth/refresh` (ต้องส่ง cookie: `credentials: 'include'`) เว็บแอปทำให้เองแบบ silent refresh ราว 1 นาทีก่อนหมดอายุ ปรับได้ด้วย `ACCESS_TOKEN_TTL_SEC` และ `REFRESH_TOKEN_TTL_DAYS`
 - ไฟล์: `POST /files` (multipart `file`, `category`) คืน `url` ไปใส่ใน `Project.logo` หรือ `User.avatar`
 
 ระหว่างพัฒนาแนะนำให้ Vite proxy `/api` ไปที่ `http://localhost:4000` เพื่อให้ cookie และ URL ของไฟล์อยู่ origin เดียวกับเว็บ

@@ -1,6 +1,6 @@
 import type { AuthApi } from '@/api/contract'
 import type { InviteInfo, RegisterInput, User } from '@/types'
-import { get, put, refreshSession, request, setAccessToken, startSession } from './http'
+import { get, put, refreshSession, request, setSession, startSession } from './http'
 
 export const authApi: AuthApi = {
   async fetchSession() {
@@ -12,14 +12,14 @@ export const authApi: AuthApi = {
   login: (email, password) => startSession<User>('POST', '/auth/login', { email, password }),
   async logout() {
     await request('POST', '/auth/logout', { retry: false }).catch(() => undefined)
-    setAccessToken(null)
+    setSession(null)
   },
   register: (input: RegisterInput) => startSession<User>('POST', '/auth/register', input),
   fetchInvite: (token) => get<InviteInfo>(`/auth/invites/${encodeURIComponent(token)}`),
   acceptInvite: (token, password) => startSession<User>('POST', `/auth/invites/${encodeURIComponent(token)}/accept`, { password }),
   async changePassword(currentPassword, newPassword) {
     // the server signs out every other session and starts a new one for this tab
-    const session = await put<{ accessToken: string }>('/me/password', { currentPassword, newPassword })
-    setAccessToken(session.accessToken)
+    const session = await put<{ accessToken: string; expiresIn: number }>('/me/password', { currentPassword, newPassword })
+    setSession(session.accessToken, session.expiresIn)
   },
 }

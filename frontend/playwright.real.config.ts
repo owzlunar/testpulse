@@ -27,6 +27,8 @@ const backendEnv = {
   LOG_LEVEL: 'warn',
   RATE_LIMIT_AUTH: '10000',
   RATE_LIMIT_GLOBAL: '100000',
+  // short access tokens (the shortest allowed) so the silent refresh happens within a test
+  ACCESS_TOKEN_TTL_SEC: '60',
 }
 
 export default defineConfig({
