@@ -6,6 +6,7 @@ import { documentModule } from '#modules/document/index.js'
 import { fileModule } from '#modules/file/index.js'
 import { notificationModule } from '#modules/notification/index.js'
 import { projectModule } from '#modules/project/index.js'
+import { reportModule } from '#modules/report/index.js'
 import { requirementModule } from '#modules/requirement/index.js'
 import { roleModule } from '#modules/role/index.js'
 import { runModule } from '#modules/run/index.js'
@@ -33,4 +34,5 @@ export const appModules: AppModule[] = [
   runModule,
   defectModule,
   documentModule,
+  reportModule,
 ]

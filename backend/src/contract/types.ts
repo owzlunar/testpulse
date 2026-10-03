@@ -751,3 +751,34 @@ export interface DocumentTemplate {
   footerNote: string
   defaultSignatories: Pick<Signatory, 'role' | 'position'>[]
 }
+
+// =============================================================================
+// Reports (aggregates the server computes from a project's active cases, runs and defects)
+// =============================================================================
+
+export interface ProjectReport {
+  projectId: string
+  generatedAt: string
+  stats: ProjectStats
+  mainCases: number
+  subCases: number
+  /** test steps of every case */
+  steps: number
+  overdue: number
+  /** bounced between Failed and Ready for Test more than once */
+  highChurn: number
+  byPriority: Record<TestCasePriority, number>
+  /** most frequent first */
+  rootCauses: { tag: string; count: number }[]
+  runs: {
+    total: number
+    /** planned or in progress */
+    open: number
+    /** the newest run */
+    latest?: Pick<TestRun, 'id' | 'name' | 'round' | 'status'> & { total: number; executed: number; passRate: number }
+  }
+  defects: { total: number; open: number; openBySeverity: Record<DefectSeverity, number> }
+}
+
+/** files made in the browser from a project's data (the server records that they were made) */
+export type ExportFormat = 'markdown'
