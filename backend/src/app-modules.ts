@@ -6,6 +6,7 @@ import { notificationModule } from '#modules/notification/index.js'
 import { projectModule } from '#modules/project/index.js'
 import { requirementModule } from '#modules/requirement/index.js'
 import { roleModule } from '#modules/role/index.js'
+import { runModule } from '#modules/run/index.js'
 import { settingsModule } from '#modules/settings/index.js'
 import { teamModule } from '#modules/team/index.js'
 import { templateModule } from '#modules/template/index.js'
@@ -27,4 +28,5 @@ export const appModules: AppModule[] = [
   requirementModule,
   testCaseModule,
   templateModule,
+  runModule,
 ]
