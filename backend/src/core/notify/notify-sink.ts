@@ -5,7 +5,12 @@ import { logger } from '../config/logger.js'
 // comes from the request. Where it goes is up to the notification module, which registers itself as
 // the sink at start-up. Without it (an app built without that module) notifying is a no-op.
 
-export type NotifyEvent = Pick<NotificationItem, 'type' | 'title' | 'message' | 'severity' | 'projectId' | 'testCaseId' | 'to'>
+export type NotifyEvent = Pick<NotificationItem, 'type' | 'title' | 'message' | 'severity' | 'projectId' | 'testCaseId' | 'to'> & {
+  /** due-date alerts: days left (negative = overdue); shown to the people who want to hear this early (their expiryDaysThreshold) */
+  dueInDays?: number
+  /** at most one notification per key and day (e.g. a daily job's alert about one case) */
+  dailyKey?: string
+}
 
 export interface NotifySink {
   send(event: NotifyEvent): Promise<void>

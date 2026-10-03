@@ -11,6 +11,8 @@ export interface AuditEvent {
   targetId: string
   targetTitle: string
   projectId?: string
+  /** the target (a case) was deleted for good: its id may be reused */
+  targetDeleted?: boolean
   /** human-readable summary (Thai); the sink writes a default one when it is missing */
   details?: string
   changes?: AuditChange[]

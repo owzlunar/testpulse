@@ -3,7 +3,7 @@ import { stringId } from '#core/database/ids.js'
 import { toJSONPlugin } from '#core/database/plugins/to-json.js'
 
 /** what an upload is for: decides who may upload it and who may read it */
-export const FILE_CATEGORIES = ['avatar', 'project-logo'] as const
+export const FILE_CATEGORIES = ['avatar', 'project-logo', 'case-image'] as const
 export type FileCategory = (typeof FILE_CATEGORIES)[number]
 
 export interface FileDoc {

@@ -1,0 +1,134 @@
+import type { ProjectStats, Requirement, TestCase, TestCaseSpec, TestCaseStatus } from '@/types'
+import { daysFromToday } from './date.js'
+import { requirementsForCase } from './requirement.js'
+
+/** how a status is named (UI, audit entries, notifications) */
+export const STATUS_LABELS: Record<TestCaseStatus, string> = {
+  pending: 'Pending Dev',
+  ready_for_test: 'Ready for Test',
+  untested: 'Untested',
+  in_progress: 'In Progress',
+  passed: 'Passed',
+  failed: 'Failed',
+  blocked: 'Blocked',
+}
+
+/** every case status, in the lifecycle's order */
+export const TEST_CASE_STATUSES: TestCaseStatus[] = ['pending', 'ready_for_test', 'untested', 'in_progress', 'passed', 'failed', 'blocked']
+
+// --- SLA helpers ---------------------------------------------------------------
+/** Passed cases never count as overdue */
+export const isOverdue = (tc: TestCase): boolean => !!tc.expiryDate && tc.status !== 'passed' && daysFromToday(tc.expiryDate) < 0
+
+export const overdueDays = (tc: TestCase): number => (isOverdue(tc) ? -daysFromToday(tc.expiryDate) : 0)
+
+export const isDueSoon = (tc: TestCase, days = 3): boolean => {
+  if (!tc.expiryDate || tc.status === 'passed') return false
+  const left = daysFromToday(tc.expiryDate)
+  return left >= 0 && left <= days
+}
+
+/** Ping-pong: bounced between Failed and Ready for Test more than once */
+export const isHighChurn = (tc: TestCase): boolean => (tc.churnCount ?? 0) > 1
+
+/** fields that define what is tested; changing any of them makes a new version */
+const SPEC_FIELDS = [
+  'name',
+  'requirement',
+  'requirementIds',
+  'testScenario',
+  'description',
+  'prerequisite',
+  'steps',
+  'expectedResults',
+  'expectedImages',
+] as const satisfies readonly (keyof TestCase)[]
+
+/** comparable form of a spec field: steps by text and order, empty lists equal to missing */
+function specValue(tc: Partial<TestCase>, field: (typeof SPEC_FIELDS)[number]): string {
+  const value =
+    field === 'steps'
+      ? tc.steps?.map((s) => [s.action.trim(), s.testData.trim(), s.expectedResult.trim()]).filter((s) => s.some(Boolean))
+      : typeof tc[field] === 'string'
+        ? (tc[field] as string).trim()
+        : tc[field]
+  return JSON.stringify(Array.isArray(value) && !value.length ? null : (value ?? null))
+}
+
+/**
+ * Did the spec (what is tested) change? Status, due date, assignees and priority don't count:
+ * they are tracked in the audit trail, not as versions.
+ * Pass the requirements so a legacy case (linked by its text) compares with its effective links:
+ * saving those links explicitly is not a change.
+ */
+export function hasSpecChanges(old: TestCase, next: Partial<TestCase>, requirements: Requirement[] = []): boolean {
+  const base = old.requirementIds?.length ? old : { ...old, requirementIds: requirementsForCase(old, requirements).map((r) => r.id) }
+  return SPEC_FIELDS.some((f) => f in next && specValue(base, f) !== specValue(next, f))
+}
+
+/** spec fields shown when comparing versions (requirement links shown together with the requirement text) */
+export const SPEC_FIELD_LABELS: { field: keyof TestCaseSpec; label: string }[] = [
+  { field: 'name', label: 'ชื่อ Test Case' },
+  { field: 'requirement', label: 'Requirement' },
+  { field: 'testScenario', label: 'Test Scenario' },
+  { field: 'prerequisite', label: 'Prerequisite' },
+  { field: 'description', label: 'คำอธิบายเพิ่มเติม' },
+  { field: 'steps', label: 'ขั้นตอน' },
+  { field: 'expectedResults', label: 'ผลลัพธ์ที่คาดหวัง' },
+]
+
+/** the spec part of a case, as stored in a version snapshot */
+export const specOf = (tc: TestCaseSpec): TestCaseSpec => ({
+  name: tc.name,
+  requirement: tc.requirement,
+  requirementIds: [...(tc.requirementIds ?? [])],
+  testScenario: tc.testScenario,
+  description: tc.description,
+  prerequisite: tc.prerequisite,
+  steps: tc.steps.map((s) => ({ ...s })),
+  expectedResults: tc.expectedResults,
+})
+
+/** a spec whose requirement links are explicit: legacy text-linked specs get the links their text resolves to */
+export function withEffectiveLinks(spec: TestCaseSpec, projectId: string, requirements: Requirement[]): TestCaseSpec {
+  if (spec.requirementIds?.length || !requirements.length) return spec
+  const ids = requirementsForCase({ ...spec, projectId } as TestCase, requirements).map((r) => r.id)
+  return { ...spec, requirementIds: ids }
+}
+
+/**
+ * Fields (of SPEC_FIELD_LABELS) that differ between two specs; requirement covers the links too.
+ * Pass the project's requirements so text-linked and explicitly linked specs compare by their effective links.
+ */
+export function specDiff(a: TestCaseSpec, b: TestCaseSpec, projectId = '', requirements: Requirement[] = []): (keyof TestCaseSpec)[] {
+  const [x, y] = [withEffectiveLinks(a, projectId, requirements), withEffectiveLinks(b, projectId, requirements)]
+  const differs = (f: (typeof SPEC_FIELDS)[number]) => specValue(x as Partial<TestCase>, f) !== specValue(y as Partial<TestCase>, f)
+  return SPEC_FIELD_LABELS.map((l) => l.field).filter((f) => differs(f) || (f === 'requirement' && differs('requirementIds')))
+}
+
+/** v1.0 -> v1.1, or v2.0 when `major` */
+export function nextVersion(current = 'v1.0', major = false): string {
+  const [maj = 1, min = 0] = current
+    .replace(/^v/i, '')
+    .split('.')
+    .map((n) => parseInt(n, 10) || 0)
+  return major ? `v${maj + 1}.0` : `v${maj || 1}.${min + 1}`
+}
+
+/** case counts by status (+ overdue / due soon), for a project card or the current project */
+export function caseStatsOf(cases: TestCase[]): ProjectStats {
+  const byStatus = Object.fromEntries(TEST_CASE_STATUSES.map((s) => [s, 0])) as Record<TestCaseStatus, number>
+  cases.forEach((tc) => byStatus[tc.status]++)
+  const total = cases.length
+  return {
+    total,
+    passed: byStatus.passed,
+    failed: byStatus.failed,
+    blocked: byStatus.blocked,
+    inProgress: byStatus.in_progress,
+    untested: byStatus.untested,
+    passRate: total ? (byStatus.passed / total) * 100 : 0,
+    byStatus,
+    attention: cases.filter((tc) => isOverdue(tc) || isDueSoon(tc)).length,
+  }
+}

@@ -1,0 +1,123 @@
+import type { Requirement, RequirementChangeResult, RequirementInput, TestCase } from '#contract/types.js'
+import { recordAudit } from '#core/audit/audit-sink.js'
+import { can, type Principal } from '#core/auth/principal.js'
+import { assertCan } from '#core/auth/guards.js'
+import { emit } from '#core/events/event-bus.js'
+import { ApiError } from '#core/http/errors.js'
+import { notify } from '#core/notify/notify-sink.js'
+import { projectAccess } from '#modules/project/index.js'
+import { accounts } from '#modules/user/index.js'
+import { requirementRepository } from './requirement.repository.js'
+
+declare module '#core/events/event-bus.js' {
+  interface DomainEvents {
+    /** what a requirement says changed: handlers flag the cases that test it and return them */
+    'requirement.changed': { requirement: Requirement; reason: string }
+    /** a requirement was deleted: handlers flag the cases that tested it and return them */
+    'requirement.deleted': { requirement: Requirement; reason: string }
+  }
+}
+
+export type RequirementFields = Omit<RequirementInput, 'id' | 'projectId'>
+
+/** what a requirement says; a change here means the linked cases must be reviewed (type / priority / status don't) */
+const MEANING_FIELDS: { field: 'title' | 'description' | 'acceptanceCriteria'; label: string }[] = [
+  { field: 'title', label: 'ชื่อ' },
+  { field: 'description', label: 'รายละเอียด' },
+  { field: 'acceptanceCriteria', label: 'เกณฑ์การยอมรับ' },
+]
+
+const escapeRegex = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+async function assertCodeFree(projectId: string, code: string, exceptId?: string) {
+  const other = await requirementRepository.findOne({ projectId, code })
+  if (other && other.id !== exceptId) throw ApiError.conflict(`รหัส ${code} มีอยู่แล้ว`, 'duplicate')
+}
+
+async function found(id: string): Promise<Requirement> {
+  const requirement = await requirementRepository.findById(id)
+  if (!requirement) throw ApiError.notFound('ไม่พบ Requirement')
+  return requirement
+}
+
+async function guard(p: Principal, projectId: string, need: 'requirement.edit' | 'requirement.delete') {
+  assertCan(p, need)
+  await projectAccess.assert(p, projectId)
+}
+
+/** the cases the change flagged for review, and a word to the QA who test them (every QA when none is assigned) */
+async function flagCases(event: 'requirement.changed' | 'requirement.deleted', requirement: Requirement, reason: string, what: string) {
+  const flagged = (await emit(event, { requirement, reason })).flat() as TestCase[]
+  if (flagged.length) {
+    const qa = await accounts.idsByName([...new Set(flagged.map((c) => c.assignedTo).filter((n): n is string => !!n))])
+    await notify({
+      type: 'MODIFIED',
+      title: `Requirement ${requirement.code} ${what}`,
+      message: `Test Case ${flagged.length} รายการต้องทบทวน: ${flagged.map((c) => c.id).join(', ')}`,
+      projectId: requirement.projectId,
+      to: qa.length ? { userIds: qa } : { disciplines: ['qa'] },
+      severity: 'warning',
+    })
+  }
+  return flagged
+}
+
+const audit = (action: 'CREATE' | 'UPDATE' | 'DELETE', r: Requirement, details: string) =>
+  recordAudit({ action, targetType: 'PROJECT', targetId: r.code, projectId: r.projectId, targetTitle: r.title, details })
+
+export const requirementService = {
+  /** GET /requirements: of the projects the user may open */
+  async list(p: Principal): Promise<Requirement[]> {
+    if (!p.roleId || !can(p, 'requirement.view')) return []
+    return requirementRepository.ofProjects([...(await projectAccess.accessibleIds(p))])
+  },
+
+  /** GET /requirements/search: code, title or description contains the text */
+  async search(p: Principal, q: string, limit: number): Promise<{ requirements: Requirement[]; total: number }> {
+    const text = q.trim()
+    if (!text || !p.roleId || !can(p, 'requirement.view')) return { requirements: [], total: 0 }
+    const pattern = new RegExp(escapeRegex(text), 'i')
+    const projectIds = [...(await projectAccess.accessibleIds(p))]
+    return requirementRepository.search(
+      { projectId: { $in: projectIds }, $or: [{ code: pattern }, { title: pattern }, { description: pattern }] },
+      limit,
+    )
+  },
+
+  /** a project's requirements (other modules: links, coverage) */
+  ofProject: (projectId: string) => requirementRepository.ofProject(projectId),
+
+  async create(p: Principal, projectId: string, fields: RequirementFields): Promise<RequirementChangeResult> {
+    await guard(p, projectId, 'requirement.edit')
+    await assertCodeFree(projectId, fields.code)
+    const requirement = await requirementRepository.create({ ...fields, projectId })
+    await audit('CREATE', requirement, `เพิ่ม Requirement ${requirement.code}`)
+    return { requirement, flaggedCases: [] }
+  },
+
+  async update(p: Principal, id: string, fields: RequirementFields): Promise<RequirementChangeResult> {
+    const before = await found(id)
+    await guard(p, before.projectId, 'requirement.edit')
+    await assertCodeFree(before.projectId, fields.code, id)
+    const requirement = (await requirementRepository.update(id, fields))!
+    const changed = MEANING_FIELDS.filter((m) => JSON.stringify(before[m.field]) !== JSON.stringify(requirement[m.field])).map((m) => m.label)
+    const flaggedCases = changed.length
+      ? await flagCases('requirement.changed', requirement, `${requirement.code} แก้ไข: ${changed.join(', ')}`, 'ถูกแก้ไข')
+      : []
+    await audit('UPDATE', requirement, `แก้ไข Requirement ${requirement.code}`)
+    return { requirement, flaggedCases }
+  },
+
+  async remove(p: Principal, id: string): Promise<RequirementChangeResult> {
+    const target = await found(id)
+    await guard(p, target.projectId, 'requirement.delete')
+    await requirementRepository.remove(id)
+    const flaggedCases = await flagCases('requirement.deleted', target, `${target.code} ถูกลบ`, 'ถูกลบ')
+    await audit('DELETE', target, `ลบ Requirement ${target.code}`)
+    return { flaggedCases }
+  },
+
+  removeOfProject: async (projectId: string) => {
+    await requirementRepository.deleteOfProject(projectId)
+  },
+}

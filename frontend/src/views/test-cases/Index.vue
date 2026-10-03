@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { apiOn } from '@/api'
 import { storeToRefs } from 'pinia'
 import FoxPageHeader from '@/components/ui/FoxPageHeader.vue'
 import FoxPageSkeleton from '@/components/ui/FoxPageSkeleton.vue'
@@ -60,7 +61,10 @@ const aiOpen = ref(false)
 const createOptions = [
   { title: 'เริ่มจากฟอร์มว่าง', subtitle: 'กรอกเองทุกช่อง', icon: 'tabler:file-plus', action: () => openCreate() },
   { title: 'จาก Template', subtitle: 'รูปแบบการทดสอบที่ใช้บ่อย', icon: 'tabler:template', action: () => (templateOpen.value = true) },
-  { title: 'ร่างด้วย AI', subtitle: 'วาง Requirement แล้วให้ระบบร่างเคส', icon: 'tabler:sparkles', action: () => (aiOpen.value = true) },
+  // AI drafts wait for the backend's ai module
+  ...(apiOn.ai
+    ? [{ title: 'ร่างด้วย AI', subtitle: 'วาง Requirement แล้วให้ระบบร่างเคส', icon: 'tabler:sparkles', action: () => (aiOpen.value = true) }]
+    : []),
   { title: 'นำเข้าจาก Excel / CSV', subtitle: 'หลายเคสในครั้งเดียว', icon: 'tabler:file-import', action: () => (importOpen.value = true) },
 ]
 

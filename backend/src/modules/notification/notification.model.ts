@@ -12,6 +12,8 @@ export interface NotificationDoc extends Pick<
   timestamp: Date
   readBy: string[]
   hiddenFor: string[]
+  dueInDays?: number
+  dailyKey?: string
 }
 
 const audienceSchema = new Schema<NotificationAudience>(
@@ -32,6 +34,8 @@ const notificationSchema = new Schema<NotificationDoc>(
     // none: everyone who can open the project (or everyone, without a project)
     to: { type: audienceSchema, default: undefined },
     fromUserId: { type: String },
+    dueInDays: { type: Number },
+    dailyKey: { type: String },
     readBy: { type: [String], default: [] },
     hiddenFor: { type: [String], default: [] },
   },
@@ -40,6 +44,7 @@ const notificationSchema = new Schema<NotificationDoc>(
 
 notificationSchema.index({ projectId: 1, timestamp: -1 })
 notificationSchema.index({ 'to.userIds': 1, timestamp: -1 })
+notificationSchema.index({ dailyKey: 1, timestamp: -1 }, { sparse: true })
 notificationSchema.index({ timestamp: 1 }, { expireAfterSeconds: config.notifications.retentionDays * 24 * 60 * 60, name: 'retention' })
 
 export const NotificationModel = mongoose.model<NotificationDoc>('Notification', notificationSchema)

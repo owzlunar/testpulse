@@ -1,5 +1,5 @@
 dist
 coverage
 node_modules
-src/contract/types.ts
+src/contract/
 package-lock.json

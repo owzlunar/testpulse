@@ -26,6 +26,12 @@ class UserRepository extends BaseRepository<UserDoc, User> {
   }
 
   /** the ids among `ids` that belong to a user */
+  /** ids of the users with these names (cases name their assigned QA / developer) */
+  async idsByName(names: string[]): Promise<string[]> {
+    if (!names.length) return []
+    return (await UserModel.find({ name: { $in: names } }, { _id: 1 }).lean()).map((u) => u._id)
+  }
+
   async existingIds(ids: string[]): Promise<string[]> {
     const found = await UserModel.find({ _id: { $in: ids } }, { _id: 1 }).lean()
     return found.map((u) => u._id)

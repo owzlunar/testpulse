@@ -38,7 +38,12 @@ async function visibleTo(p: Principal): Promise<FilterQuery<NotificationDoc> | n
   if (p.discipline) audience.push({ ...notMine, 'to.disciplines': p.discipline })
   return {
     hiddenFor: { $ne: p.id },
-    $and: [{ $or: [{ projectId: null }, { projectId: { $in: [...projectIds] } }] }, { $or: audience }],
+    $and: [
+      { $or: [{ projectId: null }, { projectId: { $in: [...projectIds] } }] },
+      { $or: audience },
+      // a due-date alert reaches only the people who want to hear it this early
+      { $or: [{ dueInDays: null }, { dueInDays: { $lte: settings.expiryDaysThreshold } }] },
+    ],
     ...(muted.length ? { type: { $nin: muted } } : {}),
   }
 }
@@ -74,7 +79,12 @@ function announceChange(userId: string) {
   for (const stream of eventStreams(STREAM_TOPIC)) if (stream.userId === userId) stream.send('changed', {})
 }
 
-async function create(event: NotifyEvent, fromUserId: string | undefined): Promise<NotificationDoc> {
+async function create(event: NotifyEvent, fromUserId: string | undefined): Promise<NotificationDoc | null> {
+  if (event.dailyKey) {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    if (await notificationRepository.exists({ dailyKey: event.dailyKey, timestamp: { $gte: today } })) return null
+  }
   const doc = await notificationRepository.create({ ...event, fromUserId })
   // delivered after the response: the change and its notification are saved, streams follow
   void deliver(doc).catch((err: Error) => logger.error(`Notification ${doc._id} not delivered: ${err.message}`))
@@ -113,7 +123,7 @@ export const notificationService = {
   async createOwn(p: Principal, input: OwnNotification): Promise<NotificationItem> {
     if (input.projectId) await projectAccess.assert(p, input.projectId)
     const doc = await create({ ...input, type: 'SYSTEM', to: { userIds: [p.id] } }, p.id)
-    return toItem(doc, p.id)
+    return toItem(doc!, p.id)
   },
 
   markRead: (p: Principal, id: string) => markFor(p, [id], 'readBy'),

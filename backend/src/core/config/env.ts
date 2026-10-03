@@ -154,6 +154,10 @@ if (isProduction) {
   }
 }
 
+// calendar dates (due dates, "today", the shared rules in #contract/rules) follow the app's time zone,
+// not the machine's; a TZ set in the environment wins
+process.env.TZ ||= env.CRON_TIMEZONE as string
+
 export const config = Object.freeze({
   env: env.NODE_ENV as 'development' | 'production' | 'test',
   isProduction,

@@ -10,7 +10,7 @@ Stack: Node 22, TypeScript (ESM, `NodeNext`), Express 5, Mongoose 8 on a MongoDB
 src
 |--- core          infrastructure every module uses; never imports a module
 |--- modules/<m>   one feature each: model, repository, service, validation, controller, routes, seed, index.ts, __tests__
-|--- contract      types.ts: generated copy of frontend/src/types (npm run contract:sync), never edited here
+|--- contract      types.ts + rules/*.ts: generated copies of frontend/src/types and frontend/src/domain/rules (npm run contract:sync), never edited here; import rules as #contract/rules/<name>.js
 |--- app-modules.ts  the modules this API runs, in start-up order
 |--- index.ts      composition root (starts the server)
 |--- migrations    data migrations, listed in order in index.ts (core/database/migrations.ts runs them; the first one creates the first Admin from INITIAL_ADMIN_*)
