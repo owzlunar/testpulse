@@ -2,27 +2,21 @@
 // mock server (src/api/mock); callers never know which. The choice is made at build time
 // (vite.config.ts: VITE_API_MODE=rest|mock, VITE_API_REST=<modules on>) into constants like
 // __API_MOCK_PROJECT__, so a build that is all rest contains no mock code.
-import { withMockCaseStats, withMockSession } from './bridge'
 import type * as Contract from './contract'
 import * as mock from './mock'
 import * as rest from './rest'
 
-/** true while any module runs on the mock (bridges in bridge.ts keep it consistent with the rest ones) */
+/** true while any module runs on the mock (the demo-data reset is offered then) */
 const anyMock = __API_ANY_MOCK__
 
 export type * from './contract'
 export { ApiError, errorMessage } from './errors'
 
-export const authApi: Contract.AuthApi = __API_MOCK_AUTH__ ? mock.authApi : anyMock ? withMockSession(rest.authApi) : rest.authApi
+export const authApi: Contract.AuthApi = __API_MOCK_AUTH__ ? mock.authApi : rest.authApi
 export const userApi: Contract.UserApi = __API_MOCK_USER__ ? mock.userApi : rest.userApi
 export const roleApi: Contract.RoleApi = __API_MOCK_ROLE__ ? mock.roleApi : rest.roleApi
 export const teamApi: Contract.TeamApi = __API_MOCK_TEAM__ ? mock.teamApi : rest.teamApi
-// rest projects get case counts from the mock's cases only while test cases are on (on the mock)
-export const projectApi: Contract.ProjectApi = __API_MOCK_PROJECT__
-  ? mock.projectApi
-  : __API_MOCK_TEST_CASE__ && __API_ON_TEST_CASE__
-    ? withMockCaseStats(rest.projectApi)
-    : rest.projectApi
+export const projectApi: Contract.ProjectApi = __API_MOCK_PROJECT__ ? mock.projectApi : rest.projectApi
 export const settingsApi: Contract.SettingsApi = __API_MOCK_SETTINGS__ ? mock.settingsApi : rest.settingsApi
 export const auditApi: Contract.AuditApi = __API_MOCK_AUDIT__ ? mock.auditApi : rest.auditApi
 export const fileApi: Contract.FileApi = __API_MOCK_FILE__ ? mock.fileApi : rest.fileApi

@@ -59,8 +59,6 @@ import {
 } from './user'
 import { upload } from './file'
 export { resetDemoData } from './storage'
-export { adoptSession } from './user'
-export { mockCaseStats } from './project'
 
 export const authApi = { fetchSession, login, logout, register, fetchInvite, acceptInvite, changePassword } satisfies Contract.AuthApi
 export const userApi = { fetchUsers, inviteUser, updateUser, resendInvite } satisfies Contract.UserApi
