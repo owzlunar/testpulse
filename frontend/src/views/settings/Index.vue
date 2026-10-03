@@ -12,7 +12,7 @@ import { useSnackbar } from '@/composables/useSnackbar'
 import { useAuthStore } from '@/stores/auth.store'
 import { useDocumentStore } from '@/stores/document.store'
 import { useSettingsStore } from '@/stores/settings.store'
-import { demoData } from '@/api'
+import { apiOn, demoData } from '@/api'
 
 const auth = useAuthStore()
 const { currentUser, users } = storeToRefs(auth)
@@ -36,8 +36,8 @@ function switchUser(id: string) {
 }
 
 const documentStore = useDocumentStore()
-// the UAT document template is part of creating documents
-const canEditTemplate = computed(() => auth.can('document.create'))
+// the UAT document template is part of creating documents (while the module is on)
+const canEditTemplate = computed(() => apiOn.document && auth.can('document.create'))
 if (canEditTemplate.value) run(() => documentStore.ensureLoaded())
 
 const confirmReset = ref(false)
