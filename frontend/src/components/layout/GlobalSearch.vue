@@ -6,11 +6,13 @@ import ProjectAvatar from '@/components/projects/ProjectAvatar.vue'
 import TestCaseStatusChip from '@/components/test-cases/TestCaseStatusChip.vue'
 import { useProjectStore } from '@/stores/project.store'
 import { useRequirementStore } from '@/stores/requirement.store'
-import type { Project, TestCase } from '@/types'
-import { testCaseApi } from '@/api'
+import type { Project, Requirement, TestCase } from '@/types'
+import { apiOn, requirementApi, testCaseApi } from '@/api'
+import { useAuthStore } from '@/stores/auth.store'
 
-// Universal search: projects (already loaded) and the test cases of every project (asked from the
-// server, since cases load one project at a time). Before typing it shows the current project's cases.
+// Universal search: projects (already loaded), and the test cases and requirements of every project
+// (asked from the server, since they load one project at a time). Before typing it shows the current
+// project's cases.
 const router = useRouter()
 const projectStore = useProjectStore()
 const { projects, currentCases } = storeToRefs(projectStore)
@@ -19,6 +21,10 @@ const requirementStore = useRequirementStore()
 const open = ref(false)
 const query = ref('')
 const found = ref<{ cases: TestCase[]; total: number }>({ cases: [], total: 0 })
+const foundRequirements = ref<{ requirements: Requirement[]; total: number }>({ requirements: [], total: 0 })
+const none = { requirements: [] as Requirement[], total: 0 }
+const auth = useAuthStore()
+const searchesRequirements = computed(() => apiOn.requirement && auth.can('requirement.view'))
 
 // ask once typing pauses; ignore answers to an older query
 let timer: ReturnType<typeof setTimeout> | undefined
@@ -27,11 +33,17 @@ watch(query, (q) => {
   const text = q?.trim() ?? ''
   if (!text) {
     found.value = { cases: [], total: 0 }
+    foundRequirements.value = none
     return
   }
   timer = setTimeout(async () => {
-    const result = await testCaseApi.searchTestCases(text, 6).catch(() => ({ cases: [], total: 0 }))
-    if ((query.value?.trim() ?? '') === text) found.value = result
+    const [cases, requirements] = await Promise.all([
+      testCaseApi.searchTestCases(text, 6).catch(() => ({ cases: [], total: 0 })),
+      searchesRequirements.value ? requirementApi.searchRequirements(text, 4).catch(() => none) : none,
+    ])
+    if ((query.value?.trim() ?? '') !== text) return
+    found.value = cases
+    foundRequirements.value = requirements
   }, 250)
 })
 
@@ -39,13 +51,25 @@ const results = computed(() => {
   const q = query.value?.trim().toLowerCase() ?? ''
   const projs = q ? projects.value.filter((p) => `${p.name} ${p.key} ${p.description}`.toLowerCase().includes(q)) : projects.value
   const cases = q ? found.value : { cases: currentCases.value, total: currentCases.value.length }
-  return { cases: cases.cases.slice(0, 6), projects: projs.slice(0, 3), total: cases.total + projs.length }
+  const requirements = q ? foundRequirements.value : none
+  return {
+    cases: cases.cases.slice(0, 6),
+    requirements: requirements.requirements.slice(0, 4),
+    projects: projs.slice(0, 3),
+    total: cases.total + requirements.total + projs.length,
+  }
 })
 
 function goToCase(tc: TestCase) {
   projectStore.select(tc.projectId)
   open.value = false
   router.push({ path: '/test-cases', query: { caseId: tc.id } })
+}
+
+function goToRequirement(r: Requirement) {
+  projectStore.select(r.projectId)
+  open.value = false
+  router.push({ path: '/requirements', query: { search: r.code } })
 }
 
 function goToProject(p: Project) {
@@ -90,6 +114,15 @@ function goToProject(p: Project) {
             <template #append>
               <TestCaseStatusChip :status="tc.status" size="x-small" class="ml-2" />
             </template>
+          </v-list-item>
+        </template>
+        <template v-if="results.requirements.length">
+          <v-list-subheader>Requirements</v-list-subheader>
+          <v-list-item v-for="r in results.requirements" :key="r.id" class="py-2" @click="goToRequirement(r)">
+            <v-list-item-title class="text-subtitle-2">
+              <span class="text-primary fox-num mr-1">{{ r.code }}</span> {{ r.title }}
+            </v-list-item-title>
+            <v-list-item-subtitle class="text-caption">{{ projects.find((p) => p.id === r.projectId)?.name }}</v-list-item-subtitle>
           </v-list-item>
         </template>
         <template v-if="results.projects.length">

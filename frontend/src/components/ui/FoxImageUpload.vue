@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { compressImage, imagesFromClipboard } from '@/utils/image'
+import { fileApi } from '@/api'
+import { useAppStore } from '@/stores/app.store'
+import { compressImage, dataUrlToFile, imagesFromClipboard } from '@/utils/image'
 
-// Thumbnail grid + upload / paste screenshot / URL + lightbox. v-model = list of image URLs (or data URLs).
+// Thumbnail grid + upload / paste screenshot / URL + lightbox. v-model = list of image URLs: pictures are
+// shrunk, then uploaded as test evidence (POST /files, case-image); the mock keeps them as data URLs.
 // Paste works while the drop zone has focus (click it, then Ctrl/Cmd+V).
 const images = defineModel<string[]>({ default: () => [] })
 withDefaults(defineProps<{ readonly?: boolean }>(), { readonly: false })
@@ -19,7 +22,12 @@ async function addFiles(files: File[]) {
   if (!imgs.length) return
   processing.value = true
   try {
-    images.value = [...images.value, ...(await Promise.all(imgs.map((f) => compressImage(f))))]
+    const urls = await Promise.all(
+      imgs.map(async (f) => (await fileApi.upload(await dataUrlToFile(await compressImage(f), f.name), 'case-image')).url),
+    )
+    images.value = [...images.value, ...urls]
+  } catch (e) {
+    useAppStore().showError(e)
   } finally {
     processing.value = false
   }
