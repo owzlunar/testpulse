@@ -33,6 +33,7 @@ export const templateApi: Contract.TemplateApi = __API_MOCK_TEMPLATE__ ? mock.te
 export const runApi: Contract.RunApi = __API_MOCK_RUN__ ? mock.runApi : rest.runApi
 export const defectApi: Contract.DefectApi = __API_MOCK_DEFECT__ ? mock.defectApi : rest.defectApi
 export const documentApi: Contract.DocumentApi = __API_MOCK_DOCUMENT__ ? mock.documentApi : rest.documentApi
+export const reportApi: Contract.ReportApi = __API_MOCK_REPORT__ ? mock.reportApi : rest.reportApi
 // no rest implementation yet: always the mock
 export const aiApi: Contract.AiApi = mock.aiApi
 
@@ -45,6 +46,7 @@ export type ApiModule =
   | 'file'
   | 'notification'
   | 'project'
+  | 'report'
   | 'requirement'
   | 'role'
   | 'run'
@@ -67,6 +69,7 @@ export const apiOn: Readonly<Record<ApiModule, boolean>> = {
   file: __API_ON_FILE__,
   notification: __API_ON_NOTIFICATION__,
   project: __API_ON_PROJECT__,
+  report: __API_ON_REPORT__,
   requirement: __API_ON_REQUIREMENT__,
   role: __API_ON_ROLE__,
   run: __API_ON_RUN__,
