@@ -26,13 +26,13 @@ export const projectApi: Contract.ProjectApi = __API_MOCK_PROJECT__
 export const settingsApi: Contract.SettingsApi = __API_MOCK_SETTINGS__ ? mock.settingsApi : rest.settingsApi
 export const auditApi: Contract.AuditApi = __API_MOCK_AUDIT__ ? mock.auditApi : rest.auditApi
 export const fileApi: Contract.FileApi = __API_MOCK_FILE__ ? mock.fileApi : rest.fileApi
+export const notificationApi: Contract.NotificationApi = __API_MOCK_NOTIFICATION__ ? mock.notificationApi : rest.notificationApi
 // no rest implementation yet: always the mock
 export const testCaseApi: Contract.TestCaseApi = mock.testCaseApi
 export const requirementApi: Contract.RequirementApi = mock.requirementApi
 export const runApi: Contract.RunApi = mock.runApi
 export const defectApi: Contract.DefectApi = mock.defectApi
 export const documentApi: Contract.DocumentApi = mock.documentApi
-export const notificationApi: Contract.NotificationApi = mock.notificationApi
 export const templateApi: Contract.TemplateApi = mock.templateApi
 export const aiApi: Contract.AiApi = mock.aiApi
 
@@ -79,6 +79,12 @@ export const apiOn: Readonly<Record<ApiModule, boolean>> = {
 
 /** every module the page or widget needs is on */
 export const apiAllOn = (modules: readonly ApiModule[] = []) => modules.every((m) => apiOn[m])
+
+/**
+ * The mock stores any notification the web app sends; the backend creates its own with each change
+ * (only a confirmation to oneself is posted), so the stores send the others only to the mock.
+ */
+export const clientSendsNotifications = __API_MOCK_NOTIFICATION__
 
 /** the demo login shortcut (switching user without a password) exists only with the mock sign-in */
 export const canSwitchUser = __API_MOCK_AUTH__

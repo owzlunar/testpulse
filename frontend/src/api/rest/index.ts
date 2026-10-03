@@ -2,6 +2,7 @@
 export { auditApi } from './audit'
 export { authApi } from './auth'
 export { fileApi } from './file'
+export { notificationApi } from './notification'
 export { projectApi } from './project'
 export { roleApi } from './role'
 export { settingsApi } from './settings'

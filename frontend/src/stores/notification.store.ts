@@ -2,15 +2,17 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import type { NotificationItem } from '@/types'
 import { useAuthStore } from './auth.store'
-import { notificationApi as api } from '@/api'
+import { clientSendsNotifications, notificationApi as api } from '@/api'
 import { notificationIsFor } from '@/domain/notification'
 import { newId } from '@/utils/ids'
 
 export type NotificationInput = Omit<NotificationItem, 'id' | 'timestamp' | 'read'>
 
-// Updates are optimistic: the list changes at once and the request runs in the background
+// Updates are optimistic: the list changes at once and the request runs in the background. With the
+// backend, new notifications arrive over its event stream (watch).
 export const useNotificationStore = defineStore('notification', () => {
   const notifications = ref<NotificationItem[]>([])
+  let stopWatching: (() => void) | null = null
 
   const unreadCount = computed(() => notifications.value.filter((n) => !n.read).length)
 
@@ -18,12 +20,39 @@ export const useNotificationStore = defineStore('notification', () => {
     notifications.value = await api.fetchNotifications()
   }
 
+  /** a new one for me, from the stream or a save (each at most once) */
+  function receive(item: NotificationItem) {
+    if (!notifications.value.some((n) => n.id === item.id)) notifications.value.unshift(item)
+  }
+
+  /** follow the server's stream from now on (reloads on every (re)connect) */
+  function watch() {
+    stopWatching ??= api.watchNotifications({
+      connected: () => void load().catch(() => {}),
+      added: receive,
+      changed: () => void load().catch(() => {}),
+    })
+  }
+
   function add(input: NotificationInput): NotificationItem {
     const auth = useAuthStore()
     const item: NotificationItem = { ...input, id: newId('notif'), timestamp: new Date().toISOString(), read: false, fromUserId: auth.currentUser.id }
+    // the backend makes the others itself, with the change; it takes only a confirmation to oneself
+    const own = item.type === 'SYSTEM' && item.to?.userIds?.length === 1 && item.to.userIds[0] === auth.currentUser.id
+    if (!clientSendsNotifications && !own) return item
     // stored for its audience; shown here only if the signed-in user is part of it
     if (notificationIsFor(item, auth.currentUser, auth.currentRole)) notifications.value.unshift(item)
-    api.createNotification(item).catch(() => {})
+    api
+      .createNotification(item)
+      .then((saved) => {
+        // the server's id replaces ours, in place (unless the stream brought it already)
+        if (saved.id === item.id) return
+        const i = notifications.value.findIndex((n) => n.id === item.id)
+        if (i < 0) return
+        if (notifications.value.some((n) => n.id === saved.id)) notifications.value.splice(i, 1)
+        else notifications.value[i] = saved
+      })
+      .catch(() => {})
     return item
   }
 
@@ -63,5 +92,5 @@ export const useNotificationStore = defineStore('notification', () => {
     })
   }
 
-  return { notifications, unreadCount, load, add, markAsRead, markAllAsRead, remove, clearAll, renameCases, detachCases }
+  return { notifications, unreadCount, load, watch, add, markAsRead, markAllAsRead, remove, clearAll, renameCases, detachCases }
 })
