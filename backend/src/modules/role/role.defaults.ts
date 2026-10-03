@@ -1,0 +1,72 @@
+import type { PermissionKey, RoleDiscipline, Tone } from '#contract/types.js'
+
+// The roles every installation starts with besides Admin (a migration adds the missing ones; the demo
+// seed resets them). Admins change or delete them in the app like any other role.
+const VIEW_ALL: PermissionKey[] = [
+  'requirement.view',
+  'case.view',
+  'run.view',
+  'defect.view',
+  'calendar.view',
+  'document.view',
+  'report.view',
+  'notification.receive',
+]
+
+export interface DefaultRole {
+  _id: string
+  name: string
+  description: string
+  discipline: RoleDiscipline
+  tone: Tone
+  icon: string
+  permissions: PermissionKey[]
+}
+
+/** QA Lead, QA Tester, Developer: the same ids as the web app's mock data */
+export const DEFAULT_ROLES: DefaultRole[] = [
+  {
+    _id: 'role-qa-lead',
+    name: 'QA Lead',
+    description: 'หัวหน้าทีมทดสอบ วางแผนรอบทดสอบ ดูแล Requirement จัดลำดับเคส ปิด Defect และลงนามเอกสาร',
+    discipline: 'qa',
+    tone: 'success',
+    icon: 'tabler:crown',
+    permissions: [
+      ...VIEW_ALL,
+      'requirement.edit',
+      'requirement.delete',
+      'case.edit',
+      'case.archive',
+      'case.delete',
+      'case.reorder',
+      'case.restoreVersion',
+      'run.create',
+      'run.execute',
+      'run.close',
+      'defect.report',
+      'defect.resolve',
+      'document.create',
+      'document.sign',
+      'audit.view',
+    ],
+  },
+  {
+    _id: 'role-qa-tester',
+    name: 'QA Tester',
+    description: 'ผู้ทดสอบ เขียนและแก้ Test Case บันทึกผลการทดสอบ รายงาน Defect และออกเอกสาร UAT',
+    discipline: 'qa',
+    tone: 'info',
+    icon: 'tabler:flask',
+    permissions: [...VIEW_ALL, 'case.edit', 'case.archive', 'run.execute', 'defect.report', 'document.create'],
+  },
+  {
+    _id: 'role-dev',
+    name: 'Developer',
+    description: 'นักพัฒนา ดูขั้นตอนทดสอบ ส่งมอบงานพร้อมเทส และอัปเดตความคืบหน้าของ Defect',
+    discipline: 'dev',
+    tone: 'warning',
+    icon: 'tabler:code',
+    permissions: [...VIEW_ALL, 'case.handoff', 'defect.report'],
+  },
+]

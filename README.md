@@ -20,6 +20,8 @@
 - supervisor รัน nginx และ API ส่วน API, ขั้นตรวจระบบ และ nginx workers รันเป็น user `testpulse` (ไม่ใช่ root)
 - ตอนเริ่ม container จะตรวจ MongoDB, ที่เก็บไฟล์ (MinIO หรือโฟลเดอร์ local), SMTP และโฟลเดอร์ log ก่อน ถ้าส่วนไหนเชื่อมต่อไม่ได้ container จะไม่ start และจะเขียนสาเหตุไว้ใน `docker logs testpulse`
 - จากนั้นสร้าง index และรัน migration ที่ค้าง แล้วจึงเปิดให้ใช้งาน (ปิดได้ด้วย `RUN_DB_INDEXES=false` / `RUN_MIGRATIONS=false`)
+  - ฐานใหม่จะได้ Role Admin และ Admin คนแรก (จาก `INITIAL_ADMIN_*`), Role เริ่มต้น QA Lead / QA Tester / Developer พร้อมสิทธิ์ตามค่ามาตรฐาน และ Test Case template ของระบบ
+  - Role เริ่มต้นจะถูกเพิ่มเฉพาะตัวที่ยังไม่มี ถ้า Admin แก้ไขหรือสร้าง Role ชื่อเดียวกันไว้แล้วจะไม่ถูกทับ
 - ถ้าฐานยังไม่มี Admin จะสร้างคนแรกจาก `INITIAL_ADMIN_EMAIL` และ `INITIAL_ADMIN_PASSWORD` ถ้าไม่ได้ตั้งไว้ container จะไม่ start เพราะถ้าขึ้นมาก็จะไม่มีใครเข้าระบบได้
 - ถ้า API หรือ nginx ล้มซ้ำ 3 ครั้ง container จะหยุดตัวเองเพื่อให้ Docker หรือ orchestrator เริ่มใหม่
 

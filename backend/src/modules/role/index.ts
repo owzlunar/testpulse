@@ -10,6 +10,8 @@ export const roles = {
   findById: roleService.findById,
   /** the built-in Admin role exists and has every permission (migrations, start-up) */
   ensureAdminRole: roleService.ensureAdminRole,
+  /** the default roles (QA Lead, QA Tester, Developer) that are missing (migrations) */
+  ensureDefaultRoles: roleService.ensureDefaultRoles,
 }
 
 export const roleModule: AppModule = {
