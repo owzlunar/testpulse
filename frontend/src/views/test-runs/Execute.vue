@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useLeaveGuard } from '@/composables/useUnsavedChanges'
 import { useRoute } from 'vue-router'
+import { apiOn } from '@/api'
 import { storeToRefs } from 'pinia'
 import FoxPageHeader from '@/components/ui/FoxPageHeader.vue'
 import FoxPageSkeleton from '@/components/ui/FoxPageSkeleton.vue'
@@ -35,7 +36,9 @@ const { snackbar, notify } = useSnackbar()
 const loader = useAsyncAction()
 const saver = useAsyncAction()
 
-onMounted(() => loader.run(() => Promise.all([runStore.ensureLoaded(), defectStore.ensureLoaded()])))
+// defects show once the backend has them (apiOn)
+const defectsOn = apiOn.defect
+onMounted(() => loader.run(() => Promise.all([runStore.ensureLoaded(), defectsOn ? defectStore.ensureLoaded() : undefined])))
 
 const run = computed(() => runStore.getById(String(route.params.id)))
 const readonly = computed(() => !canExecute.value || run.value?.status === 'completed')
@@ -260,7 +263,7 @@ function complete() {
                   ><span v-if="r.caseDeleted" class="text-caption text-muted"> (ลบแล้ว)</span>
                 </v-list-item-title>
                 <v-list-item-subtitle class="text-caption">{{ r.caseName }}</v-list-item-subtitle>
-                <template v-if="r.defectIds.length" #append>
+                <template v-if="defectsOn && r.defectIds.length" #append>
                   <v-chip size="x-small" color="error" variant="tonal" prepend-icon="tabler:bug">{{ r.defectIds.length }}</v-chip>
                 </template>
               </v-list-item>
@@ -360,7 +363,7 @@ function complete() {
                     <div class="fox-label mt-3">หลักฐาน</div>
                     <FoxImageUpload v-model="draft.stepResults[i].evidence" :readonly="readonly" />
                     <v-btn
-                      v-if="!readonly && draft.stepResults[i].status === 'failed' && auth.can('defect.report')"
+                      v-if="defectsOn && !readonly && draft.stepResults[i].status === 'failed' && auth.can('defect.report')"
                       class="mt-3"
                       color="error"
                       variant="tonal"
