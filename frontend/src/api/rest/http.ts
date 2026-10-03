@@ -140,6 +140,88 @@ export async function request<T>(method: string, path: string, options: RequestO
   return parse<T>(res)
 }
 
+// --- event streams (server-sent events) --------------------------------------------------------
+// Read with fetch rather than EventSource, which can't send the access token. The server ends a
+// stream when the token it was opened with runs out; it is reopened with the renewed one. Lost
+// connections (network, backend restart) are retried, waiting longer each time (up to 30 s).
+
+export interface StreamHandlers {
+  /** connected (again): anything sent meanwhile was missed */
+  open(): void
+  event(name: string, data: unknown): void
+}
+
+const STREAM_RETRY_MIN_MS = 1_000
+const STREAM_RETRY_MAX_MS = 30_000
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+/** the `event:` / `data:` blocks of a stream, until it ends */
+async function readEvents(body: ReadableStream<Uint8Array>, onEvent: StreamHandlers['event']) {
+  const reader = body.pipeThrough(new TextDecoderStream()).getReader()
+  let buffer = ''
+  for (;;) {
+    const { value, done } = await reader.read()
+    if (done) return
+    buffer += value
+    let end: number
+    while ((end = buffer.indexOf('\n\n')) >= 0) {
+      const block = buffer.slice(0, end)
+      buffer = buffer.slice(end + 2)
+      let name = 'message'
+      const data: string[] = []
+      for (const line of block.split('\n')) {
+        if (line.startsWith('event:')) name = line.slice(6).trim()
+        else if (line.startsWith('data:')) data.push(line.slice(5).trimStart())
+      }
+      // comment-only blocks (": ping") carry no data
+      if (data.length) onEvent(name, JSON.parse(data.join('\n')))
+    }
+  }
+}
+
+/** keep a stream of GET `path` open until stop() is called; returns stop */
+export function openStream(path: string, handlers: StreamHandlers): () => void {
+  let stopped = false
+  let controller: AbortController | null = null
+  let wait = STREAM_RETRY_MIN_MS
+
+  async function run() {
+    while (!stopped) {
+      controller = new AbortController()
+      try {
+        const res = await fetch(apiUrl(path), {
+          headers: { Accept: 'text/event-stream', ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) },
+          credentials: 'same-origin',
+          signal: controller.signal,
+        })
+        if (res.status === 401) {
+          const result = await renew()
+          if (result === 'expired') {
+            window.dispatchEvent(new Event(SESSION_EXPIRED))
+            return
+          }
+          if (result === 'ok') continue
+        } else if (res.ok && res.body) {
+          wait = STREAM_RETRY_MIN_MS
+          handlers.open()
+          await readEvents(res.body, handlers.event)
+        }
+      } catch {
+        // network error, or stop() aborted it
+      }
+      if (stopped) return
+      await pause(wait)
+      wait = Math.min(wait * 2, STREAM_RETRY_MAX_MS)
+    }
+  }
+
+  void run()
+  return () => {
+    stopped = true
+    controller?.abort()
+  }
+}
+
 /** sign-in endpoints answer with a session: keep its token, return the user */
 export async function startSession<U>(method: string, path: string, body?: unknown): Promise<U> {
   const session = await request<AuthResult>(method, path, { body, retry: false })

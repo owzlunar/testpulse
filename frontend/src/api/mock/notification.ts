@@ -1,3 +1,4 @@
+import type { NotificationWatch } from '@/api/contract'
 import type { NotificationItem } from '@/types'
 import { notificationIsFor } from '@/domain/notification'
 import { respond } from './http'
@@ -50,9 +51,16 @@ const addTo = (list: string[] | undefined, userId: string) => [...new Set([...(l
 /** GET /notifications (the signed-in user's, read state per person) */
 export const fetchNotifications = () => respond(mine)
 
-/** POST /notifications (on the real backend the server creates these itself) */
+/** POST /notifications (the mock takes any; the backend only a confirmation to oneself) */
 export const createNotification = (item: NotificationItem) =>
-  respond(() => void write((items) => [{ ...item, read: false, readBy: [], hiddenFor: [] }, ...items]), 50)
+  respond(() => {
+    const saved: NotificationItem = { ...item, read: false, readBy: [], hiddenFor: [] }
+    write((items) => [saved, ...items])
+    return { ...item, read: false }
+  }, 50)
+
+/** GET /notifications/stream: the mock pushes nothing (everything happens in this tab) */
+export const watchNotifications = (_watch: NotificationWatch) => () => {}
 
 /** PATCH /notifications/:id/read (for the signed-in user only) */
 export const markNotificationRead = (id: string) => respond(() => forMe([id], (n, me) => (n.readBy = addTo(n.readBy, me))), 100)

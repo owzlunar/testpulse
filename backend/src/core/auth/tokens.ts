@@ -9,6 +9,8 @@ const ALGORITHM = 'RS256'
 
 export interface AccessTokenClaims {
   sub: string
+  /** expiry, seconds since the epoch */
+  exp: number
 }
 
 export function signAccessToken(userId: string): { token: string; expiresIn: number } {
@@ -31,8 +33,8 @@ export function verifyAccessToken(token: string): AccessTokenClaims {
     audience: config.auth.audience,
     clockTolerance: 5,
   })
-  if (typeof payload === 'string' || !payload.sub) throw new Error('token without subject')
-  return { sub: payload.sub }
+  if (typeof payload === 'string' || !payload.sub || !payload.exp) throw new Error('token without subject or expiry')
+  return { sub: payload.sub, exp: payload.exp }
 }
 
 export const randomToken = () => randomBytes(32).toString('base64url')

@@ -3,6 +3,7 @@ import type { Project, ProjectInput, ProjectStats, TestCaseStatus } from '#contr
 import type { Principal } from '#core/auth/principal.js'
 import { emit } from '#core/events/event-bus.js'
 import { ApiError } from '#core/http/errors.js'
+import { notify } from '#core/notify/notify-sink.js'
 import { teams } from '#modules/team/index.js'
 import { projectRepository } from './project.repository.js'
 
@@ -77,6 +78,14 @@ export const projectService = {
   async create(fields: ProjectFields): Promise<Project> {
     await assertKeyFree(fields.key)
     const [project] = await withStats([await projectRepository.create(fields)])
+    // everyone who can open it, but the Admin who made it
+    await notify({
+      type: 'MODIFIED',
+      title: 'สร้างโปรเจกต์ใหม่',
+      message: `โปรเจกต์ "${project!.name}" ถูกสร้างแล้ว`,
+      projectId: project!.id,
+      severity: 'info',
+    })
     return project!
   },
 

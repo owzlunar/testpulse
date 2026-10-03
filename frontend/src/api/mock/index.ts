@@ -20,6 +20,7 @@ import {
   fetchNotifications,
   markAllNotificationsRead,
   markNotificationRead,
+  watchNotifications,
 } from './notification'
 import { createProject, deleteProject, fetchProjects, updateProject } from './project'
 import { deleteRequirement, fetchRequirements, saveRequirement } from './requirement'
@@ -102,6 +103,7 @@ export const notificationApi = {
   markAllNotificationsRead,
   deleteNotification,
   clearNotifications,
+  watchNotifications,
 } satisfies Contract.NotificationApi
 export const templateApi = { fetchTemplates, createTemplate, markTemplateUsed, deleteTemplate } satisfies Contract.TemplateApi
 export const aiApi = { draftTestCases } satisfies Contract.AiApi
