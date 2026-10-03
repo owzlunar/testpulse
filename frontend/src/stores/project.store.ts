@@ -8,7 +8,7 @@ import { useAuthStore } from './auth.store'
 import { useNotificationStore } from './notification.store'
 import { useRequirementStore } from './requirement.store'
 import { useTestCaseStore } from './test-case.store'
-import { projectApi as api } from '@/api'
+import { apiOn, projectApi as api, reportApi } from '@/api'
 import { caseStatsOf } from '@/domain/project'
 import { loadSelectedProjectId, saveSelectedProjectId } from '@/utils/preferences'
 import { downloadMarkdownFile, generateProjectMarkdown } from '@/domain/export'
@@ -132,6 +132,8 @@ export const useProjectStore = defineStore('project', () => {
     await testCaseStore.ensureProject(projectId)
     const cases = testCaseStore.casesOf(projectId)
     const filename = `${project.key}_TestCases_${todayISO()}.md`
+    // recorded by the server before the file is handed out
+    if (apiOn.report) await reportApi.recordExport(project.id, 'markdown', filename)
     downloadMarkdownFile(filename, generateProjectMarkdown(project, cases, statsOf(cases), useRequirementStore().textFor))
 
     audit.record({

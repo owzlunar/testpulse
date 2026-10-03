@@ -23,6 +23,7 @@ import {
   watchNotifications,
 } from './notification'
 import { createProject, deleteProject, fetchProjects, updateProject } from './project'
+import { fetchProjectReport, recordExport } from './report'
 import { deleteRequirement, fetchRequirements, saveRequirement, searchRequirements } from './requirement'
 import { deleteRole, fetchRoles, saveRole } from './role'
 import { createRun, deleteRun, fetchRuns, saveResult, updateRun } from './run'
@@ -96,6 +97,7 @@ export const documentApi = {
   fetchDocumentTemplate,
   saveDocumentTemplate,
 } satisfies Contract.DocumentApi
+export const reportApi = { fetchProjectReport, recordExport } satisfies Contract.ReportApi
 export const notificationApi = {
   fetchNotifications,
   createNotification,
