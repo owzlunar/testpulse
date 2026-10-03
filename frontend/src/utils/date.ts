@@ -1,11 +1,7 @@
-const pad = (n: number) => String(n).padStart(2, '0')
-const DAY = 86_400_000
+import { toISODate } from '@/domain/rules/date'
 
-/** Date -> 'YYYY-MM-DD' in local time */
-export const toISODate = (d: Date): string => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-
-/** Today as 'YYYY-MM-DD' */
-export const todayISO = (): string => toISODate(new Date())
+// the calendar-date rules the backend shares live in domain/rules/date.ts
+export { daysBetween, daysFromToday, toISODate, todayISO } from '@/domain/rules/date'
 
 /** 'YYYY-MM-DD' + n days */
 export function addDays(iso: string, n: number): string {
@@ -13,16 +9,6 @@ export function addDays(iso: string, n: number): string {
   d.setDate(d.getDate() + n)
   return toISODate(d)
 }
-
-/** Whole days from `from` to `to` (both 'YYYY-MM-DD'); negative when `to` is earlier */
-export function daysBetween(from: string, to: string): number {
-  const a = new Date(`${from.slice(0, 10)}T00:00`).getTime()
-  const b = new Date(`${to.slice(0, 10)}T00:00`).getTime()
-  return Math.round((b - a) / DAY)
-}
-
-/** Days until `iso` from today (0 = today, negative = past) */
-export const daysFromToday = (iso: string): number => daysBetween(todayISO(), iso)
 
 /** 'YYYY-MM-DD' -> "1 ม.ค. 2569" */
 export const formatDateTH = (iso: string, options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' }): string =>
