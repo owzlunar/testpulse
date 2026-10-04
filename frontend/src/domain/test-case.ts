@@ -27,6 +27,15 @@ export const PRIORITIES: Option<TestCasePriority>[] = [
   { value: 'low', label: 'Low', hint: 'ต่ำ', tone: 'secondary', icon: 'tabler:chevron-down' },
 ]
 
+/** a priority as people write it in a spreadsheet ("High", "สูง", "P2" …); anything else is medium */
+export function priorityFromText(v: string): TestCasePriority {
+  const s = v.toLowerCase()
+  if (/crit|วิกฤต|p1|blocker/.test(s)) return 'critical'
+  if (/high|สูง|p2|major/.test(s)) return 'high'
+  if (/low|ต่ำ|p4|trivial/.test(s)) return 'low'
+  return 'medium'
+}
+
 export const priorityOf = (priority: TestCasePriority): Option<TestCasePriority> => PRIORITIES.find((p) => p.value === priority) ?? PRIORITIES[2]
 
 export const ROOT_CAUSES: string[] = [

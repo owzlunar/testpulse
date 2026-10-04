@@ -9,6 +9,7 @@ import FoxStatCard from '@/components/ui/FoxStatCard.vue'
 import FoxEmptyState from '@/components/ui/FoxEmptyState.vue'
 import FoxConfirmDialog from '@/components/ui/FoxConfirmDialog.vue'
 import RequirementDialog from '@/components/requirements/RequirementDialog.vue'
+import RequirementImportDialog from '@/components/requirements/RequirementImportDialog.vue'
 import TestCaseAiDraftDialog from '@/components/test-cases/TestCaseAiDraftDialog.vue'
 import TestCasePriorityChip from '@/components/test-cases/TestCasePriorityChip.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
@@ -17,7 +18,7 @@ import { useTestCasePermissions } from '@/composables/useTestCasePermissions'
 import { useAuthStore } from '@/stores/auth.store'
 import { useProjectStore } from '@/stores/project.store'
 import { useRequirementStore } from '@/stores/requirement.store'
-import type { CoverageStatus, Requirement, RequirementInput, RequirementOrigin, RequirementStatus, Tone } from '@/types'
+import type { CoverageStatus, Requirement, RequirementImportResult, RequirementInput, RequirementOrigin, RequirementStatus, Tone } from '@/types'
 import { formatPercent } from '@/utils/format'
 import { downloadText, toCsv } from '@/utils/table'
 import {
@@ -154,6 +155,14 @@ function onDelete() {
     )
 }
 
+// --- import from Excel / CSV ------------------------------------------------------------
+const importOpen = ref(false)
+function onImported(r: RequirementImportResult) {
+  importOpen.value = false
+  const parts = [`เพิ่ม ${r.created.length}`, r.updated.length && `อัปเดต ${r.updated.length}`, r.skipped.length && `ข้าม ${r.skipped.length}`]
+  notify(`นำเข้า Requirement แล้ว: ${parts.filter(Boolean).join(' · ')}${r.flaggedCases.length ? ` · ${r.flaggedCases.length} เคสต้องทบทวน` : ''}`)
+}
+
 // --- AI drafts for one requirement ---------------------------------------------------
 const aiOpen = ref(false)
 const aiFor = ref<Requirement | null>(null)
@@ -190,6 +199,7 @@ function exportRtm() {
   <FoxPageHeader sticky :breadcrumbs="[{ title: 'Requirements' }]">
     <template #actions>
       <v-btn variant="outlined" prepend-icon="tabler:file-spreadsheet" @click="exportRtm">ส่งออก RTM</v-btn>
+      <v-btn v-if="canEditRequirement" variant="outlined" prepend-icon="tabler:file-import" @click="importOpen = true">นำเข้า</v-btn>
       <v-btn v-if="canEditRequirement" color="primary" prepend-icon="tabler:plus" @click="openCreate">เพิ่ม Requirement</v-btn>
     </template>
   </FoxPageHeader>
@@ -425,6 +435,7 @@ function exportRtm() {
     :loading="saving"
     @save="onSave"
   />
+  <RequirementImportDialog v-if="currentProject" v-model="importOpen" @imported="onImported" />
   <TestCaseAiDraftDialog
     v-model="aiOpen"
     :requirement="aiText"

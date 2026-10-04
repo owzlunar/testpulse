@@ -2,6 +2,7 @@ import type { Request, Response } from 'express'
 import { principal } from '#core/auth/guards.js'
 import type { SearchRequest } from '#core/http/search.js'
 import { created, send } from '#core/http/response.js'
+import type { RequirementImportRow } from '#contract/types.js'
 import { requirementService, type RequirementFields } from './requirement.service.js'
 
 export const requirementController = {
@@ -15,6 +16,11 @@ export const requirementController = {
   /** POST /projects/:projectId/requirements */
   create: async (req: Request, res: Response) =>
     created(res, await requirementService.create(principal(), req.params.projectId as string, req.body as RequirementFields)),
+  /** POST /projects/:projectId/requirements/import */
+  importMany: async (req: Request, res: Response) => {
+    const { requirements, updateExisting } = req.body as { requirements: RequirementImportRow[]; updateExisting: boolean }
+    return send(res, await requirementService.importMany(principal(), req.params.projectId as string, requirements, updateExisting))
+  },
   /** PUT /requirements/:id */
   update: async (req: Request, res: Response) =>
     send(res, await requirementService.update(principal(), req.params.id as string, req.body as RequirementFields)),

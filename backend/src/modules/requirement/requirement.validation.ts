@@ -2,7 +2,7 @@ import Joi from 'joi'
 import { searchQuery } from '#core/http/search.js'
 import { idParams, idSchema } from '#core/http/validate.js'
 
-const requirementBody = Joi.object({
+const fields = {
   code: Joi.string().trim().min(1).max(40).required(),
   title: Joi.string().trim().min(1).max(300).required(),
   description: Joi.string().allow('').max(5000).default(''),
@@ -19,11 +19,18 @@ const requirementBody = Joi.object({
   }),
   source: Joi.string().allow('').max(300),
   acceptanceCriteria: Joi.array().items(Joi.string().trim().max(1000)).max(100).default([]),
-})
+}
+const requirementBody = Joi.object(fields)
+/** an imported row: without a code it gets the next free one */
+const importRow = Joi.object({ ...fields, code: Joi.string().trim().max(40).allow('') })
 
 export const requirementValidation = {
   search: { query: searchQuery },
   create: { params: Joi.object({ projectId: idSchema.required() }), body: requirementBody },
   update: { params: idParams, body: requirementBody },
+  import: {
+    params: Joi.object({ projectId: idSchema.required() }),
+    body: Joi.object({ requirements: Joi.array().items(importRow).min(1).max(1000).required(), updateExisting: Joi.boolean().default(false) }),
+  },
   remove: { params: idParams },
 }

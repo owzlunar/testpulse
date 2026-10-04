@@ -1,5 +1,5 @@
 import type { RequirementApi } from '@/api/contract'
-import type { Requirement, RequirementChangeResult } from '@/types'
+import type { Requirement, RequirementChangeResult, RequirementImportResult } from '@/types'
 import { del, get, post, put, searchQuery } from './http'
 
 const path = (id: string) => `/requirements/${encodeURIComponent(id)}`
@@ -12,5 +12,7 @@ export const requirementApi: RequirementApi = {
     id
       ? put<RequirementChangeResult>(path(id), fields)
       : post<RequirementChangeResult>(`/projects/${encodeURIComponent(projectId)}/requirements`, fields),
+  importRequirements: (projectId, requirements, updateExisting) =>
+    post<RequirementImportResult>(`/projects/${encodeURIComponent(projectId)}/requirements/import`, { requirements, updateExisting }),
   deleteRequirement: (id) => del<RequirementChangeResult>(path(id)),
 }

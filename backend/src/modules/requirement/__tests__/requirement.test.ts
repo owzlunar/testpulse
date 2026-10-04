@@ -102,4 +102,46 @@ describe('requirements', () => {
     // the rest keep theirs
     expect((await RequirementModel.findOne({ code: 'REQ-SHOP-01' }).lean())?.origin).toBe('tor')
   })
+
+  describe('import', () => {
+    const row = (over: Record<string, unknown> = {}) => ({
+      title: 'นำเข้า',
+      description: '',
+      type: 'functional',
+      priority: 'medium',
+      status: 'draft',
+      origin: 'additional',
+      acceptanceCriteria: [],
+      ...over,
+    })
+    const importAs = (userId: string, requirements: unknown[], updateExisting = false) =>
+      as(userId).post('/projects/proj-1/requirements/import').send({ requirements, updateExisting })
+
+    it('numbers rows without a code after the highest one; existing codes are skipped', async () => {
+      const res = await importAs('user-qa-1', [
+        row({ title: 'TOR ข้อ 7.1', origin: 'tor', torClause: '7.1' }),
+        row({ code: 'REQ-PAY-01', title: 'ชื่อใหม่' }),
+        row({ code: 'REQ-PAY-50', title: 'มีรหัสเอง' }),
+        row({ title: 'ไม่มีรหัส' }),
+      ])
+      expect(res.status).toBe(200)
+      expect(res.body.data.created.map((r: Requirement) => r.code)).toEqual(['REQ-PAY-07', 'REQ-PAY-50', 'REQ-PAY-51'])
+      expect(res.body.data.created[0]).toMatchObject({ origin: 'tor', torClause: '7.1' })
+      expect(res.body.data).toMatchObject({ updated: [], skipped: ['REQ-PAY-01'], flaggedCases: [] })
+      expect((await as('user-qa-1').get('/requirements')).body.data.find((r: Requirement) => r.code === 'REQ-PAY-01').title).not.toBe('ชื่อใหม่')
+    })
+
+    it('updates existing codes when asked: a new meaning flags their cases, once for the import', async () => {
+      const res = await importAs('user-qa-1', [row({ code: 'REQ-PAY-01', title: 'สร้าง QR แบบใหม่', origin: 'tor', torClause: '4.1.1' })], true)
+      expect(res.body.data.updated[0]).toMatchObject({ code: 'REQ-PAY-01', title: 'สร้าง QR แบบใหม่' })
+      expect((res.body.data.flaggedCases as TestCase[]).map((c) => c.id)).toContain('TC-101')
+    })
+
+    it('refuses the same code twice, a TOR row without a clause, and people without requirement.edit', async () => {
+      expect((await importAs('user-qa-1', [row({ code: 'X-1' }), row({ code: 'X-1' })])).status).toBe(422)
+      expect((await importAs('user-qa-1', [row({ origin: 'tor' })])).status).toBe(400)
+      expect((await importAs('user-dev-1', [row()])).status).toBe(403)
+      expect((await importAs('user-qa-2', [row()])).status).toBe(403)
+    })
+  })
 })

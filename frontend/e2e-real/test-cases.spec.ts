@@ -95,6 +95,31 @@ test('a TOR requirement keeps its clause; the list filters by origin and finds t
   await page.waitForURL(/\/requirements\?search=/)
 })
 
+test('requirements pasted from Excel: TOR rows by their clause, new codes from the server', async ({ page }) => {
+  await openPaymentCases(page)
+  await page.locator('.fox-nav').getByText('Requirements', { exact: true }).click()
+  await page.getByRole('button', { name: 'นำเข้า' }).click()
+  const dialog = page.locator('.v-dialog')
+  const table = [
+    ['ข้อใน TOR', 'ชื่อ', 'Acceptance Criteria', 'Priority'],
+    ['8.1', 'ส่งออกรายงานภาษีนำเข้า', 'ส่งออกเป็น PDF', 'High'],
+    ['', 'แจ้งเตือนทาง LINE นำเข้า', '', 'Low'],
+  ]
+  await dialog.locator('#imp-paste').fill(table.map((r) => r.join('\t')).join('\n'))
+  await dialog.getByRole('button', { name: 'ถัดไป' }).click()
+  await dialog.getByRole('button', { name: 'ตรวจสอบ' }).click()
+  await expect(dialog.locator('.v-chip', { hasText: 'เพิ่มใหม่ 2' })).toBeVisible()
+  await dialog.getByRole('button', { name: 'นำเข้า 2 รายการ' }).click()
+  await expect(dialog).toBeHidden()
+
+  await page.reload()
+  const tor = page.locator('.v-window-item--active .v-card', { hasText: 'ส่งออกรายงานภาษีนำเข้า' })
+  await expect(tor.locator('.v-chip', { hasText: 'TOR 8.1' })).toBeVisible()
+  await expect(tor.locator('.v-chip', { hasText: /^REQ-PAY-\d+$/ })).toBeVisible()
+  const extra = page.locator('.v-window-item--active .v-card', { hasText: 'แจ้งเตือนทาง LINE นำเข้า' })
+  await expect(extra.locator('.v-chip', { hasText: 'เพิ่มเติม' })).toBeVisible()
+})
+
 test('AI drafts stay hidden while the server has no model set up', async ({ page }) => {
   const status = page.waitForResponse((r) => r.url().endsWith('/ai/status'))
   await page.reload()

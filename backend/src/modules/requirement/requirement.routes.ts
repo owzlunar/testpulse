@@ -17,5 +17,12 @@ requirementRouter.post(
   validate(requirementValidation.create),
   requirementController.create,
 )
+requirementRouter.post(
+  '/projects/:projectId/requirements/import',
+  authenticate,
+  requireRole,
+  validate(requirementValidation.import),
+  requirementController.importMany,
+)
 requirementRouter.put('/requirements/:id', authenticate, requireRole, validate(requirementValidation.update), requirementController.update)
 requirementRouter.delete('/requirements/:id', authenticate, requireRole, validate(requirementValidation.remove), requirementController.remove)

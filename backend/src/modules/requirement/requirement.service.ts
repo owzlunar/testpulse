@@ -1,4 +1,12 @@
-import type { Requirement, RequirementChangeResult, RequirementInput, TestCase } from '#contract/types.js'
+import { meaningChanges, nextRequirementCode } from '#contract/rules/requirement.js'
+import type {
+  Requirement,
+  RequirementChangeResult,
+  RequirementImportResult,
+  RequirementImportRow,
+  RequirementInput,
+  TestCase,
+} from '#contract/types.js'
 import { recordAudit } from '#core/audit/audit-sink.js'
 import { can, type Principal } from '#core/auth/principal.js'
 import { assertCan } from '#core/auth/guards.js'
@@ -21,13 +29,6 @@ declare module '#core/events/event-bus.js' {
 
 export type RequirementFields = Omit<RequirementInput, 'id' | 'projectId'>
 
-/** what a requirement says; a change here means the linked cases must be reviewed (type / priority / status don't) */
-const MEANING_FIELDS: { field: 'title' | 'description' | 'acceptanceCriteria'; label: string }[] = [
-  { field: 'title', label: 'ชื่อ' },
-  { field: 'description', label: 'รายละเอียด' },
-  { field: 'acceptanceCriteria', label: 'เกณฑ์การยอมรับ' },
-]
-
 async function assertCodeFree(projectId: string, code: string, exceptId?: string) {
   const other = await requirementRepository.findOne({ projectId, code })
   if (other && other.id !== exceptId) throw ApiError.conflict(`รหัส ${code} มีอยู่แล้ว`, 'duplicate')
@@ -41,23 +42,27 @@ async function found(id: string): Promise<Requirement> {
 
 async function guard(p: Principal, projectId: string, need: 'requirement.edit' | 'requirement.delete') {
   assertCan(p, need)
-  await projectAccess.assert(p, projectId)
+  return projectAccess.assert(p, projectId)
 }
 
-/** the cases the change flagged for review, and a word to the QA who test them (every QA when none is assigned) */
+/** a word to the QA who test the flagged cases (every QA when none is assigned) */
+async function tellQa(projectId: string, flagged: TestCase[], title: string) {
+  if (!flagged.length) return
+  const qa = await accounts.idsByName([...new Set(flagged.map((c) => c.assignedTo).filter((n): n is string => !!n))])
+  await notify({
+    type: 'MODIFIED',
+    title,
+    message: `Test Case ${flagged.length} รายการต้องทบทวน: ${flagged.map((c) => c.id).join(', ')}`,
+    projectId,
+    to: qa.length ? { userIds: qa } : { disciplines: ['qa'] },
+    severity: 'warning',
+  })
+}
+
+/** the cases the change flagged for review, and a word to the QA who test them */
 async function flagCases(event: 'requirement.changed' | 'requirement.deleted', requirement: Requirement, reason: string, what: string) {
   const flagged = (await emit(event, { requirement, reason })).flat() as TestCase[]
-  if (flagged.length) {
-    const qa = await accounts.idsByName([...new Set(flagged.map((c) => c.assignedTo).filter((n): n is string => !!n))])
-    await notify({
-      type: 'MODIFIED',
-      title: `Requirement ${requirement.code} ${what}`,
-      message: `Test Case ${flagged.length} รายการต้องทบทวน: ${flagged.map((c) => c.id).join(', ')}`,
-      projectId: requirement.projectId,
-      to: qa.length ? { userIds: qa } : { disciplines: ['qa'] },
-      severity: 'warning',
-    })
-  }
+  await tellQa(requirement.projectId, flagged, `Requirement ${requirement.code} ${what}`)
   return flagged
 }
 
@@ -105,12 +110,58 @@ export const requirementService = {
     await guard(p, before.projectId, 'requirement.edit')
     await assertCodeFree(before.projectId, fields.code, id)
     const requirement = (await requirementRepository.update(id, { ...fields, torClause: fields.torClause }))!
-    const changed = MEANING_FIELDS.filter((m) => JSON.stringify(before[m.field]) !== JSON.stringify(requirement[m.field])).map((m) => m.label)
+    const changed = meaningChanges(before, requirement)
     const flaggedCases = changed.length
       ? await flagCases('requirement.changed', requirement, `${requirement.code} แก้ไข: ${changed.join(', ')}`, 'ถูกแก้ไข')
       : []
     await audit('UPDATE', requirement, `แก้ไข Requirement ${requirement.code}`)
     return { requirement, flaggedCases }
+  },
+
+  /**
+   * POST /projects/:projectId/requirements/import: rows without a code get the next free one; a code
+   * that exists is skipped, or updated when asked (a change to what it says flags its cases). One audit
+   * entry and one word to QA for the whole import.
+   */
+  async importMany(p: Principal, projectId: string, rows: RequirementImportRow[], updateExisting: boolean): Promise<RequirementImportResult> {
+    const project = await guard(p, projectId, 'requirement.edit')
+    const codes = rows.map((r) => r.code?.trim()).filter((c): c is string => !!c)
+    const twice = [...new Set(codes.filter((c, i) => codes.indexOf(c) !== i))]
+    if (twice.length) throw ApiError.unprocessable(`รหัสซ้ำในไฟล์: ${twice.join(', ')}`)
+
+    const existing = new Map((await requirementRepository.ofProject(projectId)).map((r) => [r.code, r]))
+    const used = [...existing.keys()]
+    const result: RequirementImportResult = { created: [], updated: [], skipped: [], flaggedCases: [] }
+    for (const { code: given, ...fields } of rows) {
+      const before = given ? existing.get(given.trim()) : undefined
+      if (before && !updateExisting) {
+        result.skipped.push(before.code)
+      } else if (before) {
+        const requirement = (await requirementRepository.update(before.id, { ...fields, torClause: fields.torClause }))!
+        const changed = meaningChanges(before, requirement)
+        if (changed.length) {
+          const reason = `${requirement.code} แก้ไขจากการนำเข้า: ${changed.join(', ')}`
+          result.flaggedCases.push(...((await emit('requirement.changed', { requirement, reason })).flat() as TestCase[]))
+        }
+        result.updated.push(requirement)
+      } else {
+        const code = given?.trim() || nextRequirementCode(project.key, used)
+        used.push(code)
+        result.created.push(await requirementRepository.create({ ...fields, code, projectId }))
+      }
+    }
+    // a case linked to several updated requirements is flagged once (its latest state)
+    result.flaggedCases = [...new Map(result.flaggedCases.map((c) => [c.id, c])).values()]
+    await tellQa(projectId, result.flaggedCases, `Requirement ${result.updated.length} รายการถูกแก้ไขจากการนำเข้า`)
+    await recordAudit({
+      action: 'CREATE',
+      targetType: 'PROJECT',
+      targetId: project.key,
+      projectId,
+      targetTitle: 'นำเข้า Requirement',
+      details: `นำเข้า Requirement: เพิ่ม ${result.created.length} แก้ไข ${result.updated.length} ข้าม ${result.skipped.length}`,
+    })
+    return result
   },
 
   async remove(p: Principal, id: string): Promise<RequirementChangeResult> {
