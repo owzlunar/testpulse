@@ -80,7 +80,7 @@ function resend(u: User) {
 </script>
 
 <template>
-  <FoxPageHeader title="ผู้ใช้งาน" :breadcrumbs="[{ title: 'ผู้ดูแลระบบ' }, { title: 'ผู้ใช้งาน' }]">
+  <FoxPageHeader :breadcrumbs="[{ title: 'ผู้ดูแลระบบ' }, { title: 'ผู้ใช้งาน' }]">
     <template #actions>
       <v-btn color="primary" prepend-icon="tabler:user-plus" @click="dialog = true">เพิ่มผู้ใช้งาน</v-btn>
     </template>

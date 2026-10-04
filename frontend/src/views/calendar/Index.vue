@@ -86,7 +86,7 @@ function caseOf(item: CalendarItem | undefined) {
 </script>
 
 <template>
-  <FoxPageHeader title="ปฏิทินงานทดสอบ" :breadcrumbs="[{ title: 'ปฏิทิน' }]">
+  <FoxPageHeader :breadcrumbs="[{ title: 'ปฏิทิน' }]">
     <template #actions>
       <v-btn variant="outlined" :icon="xs" aria-label="แถบรายละเอียด" @click="layout.toggleAside()">
         <v-icon icon="tabler:layout-sidebar-right" :start="!xs" />

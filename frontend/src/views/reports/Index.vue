@@ -71,7 +71,7 @@ function exportReport() {
 </script>
 
 <template>
-  <FoxPageHeader title="รายงานสรุปผลการทดสอบ" :breadcrumbs="[{ title: 'รายงาน' }]">
+  <FoxPageHeader :breadcrumbs="[{ title: 'รายงาน' }]">
     <template #actions>
       <v-btn variant="outlined" prepend-icon="tabler:markdown" @click="exportReport">ส่งออก .md</v-btn>
       <v-btn color="primary" prepend-icon="tabler:report-analytics" :to="{ path: '/documents', query: { create: 'test_summary' } }"

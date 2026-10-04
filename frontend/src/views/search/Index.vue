@@ -84,7 +84,7 @@ async function loadMore({ done }: { done: Done }) {
 </script>
 
 <template>
-  <FoxPageHeader title="ผลการค้นหา" :breadcrumbs="[{ title: 'ค้นหา' }]" />
+  <FoxPageHeader :breadcrumbs="[{ title: 'ค้นหา' }]" />
 
   <v-card class="fox-card-body">
     <v-text-field

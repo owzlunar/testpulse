@@ -211,7 +211,7 @@ watch(
 </script>
 
 <template>
-  <FoxPageHeader sticky title="Test Cases" :breadcrumbs="[{ title: 'Test Cases' }]">
+  <FoxPageHeader sticky :breadcrumbs="[{ title: 'Test Cases' }]">
     <template #actions>
       <v-menu location="bottom end">
         <template #activator="{ props }">

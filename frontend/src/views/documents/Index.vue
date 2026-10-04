@@ -75,7 +75,7 @@ function onDelete() {
 </script>
 
 <template>
-  <FoxPageHeader title="ศูนย์เอกสาร" :breadcrumbs="[{ title: 'เอกสาร' }]">
+  <FoxPageHeader :breadcrumbs="[{ title: 'เอกสาร' }]">
     <template #actions>
       <v-btn v-can="'document.create'" color="primary" prepend-icon="tabler:file-plus" @click="create()">สร้างเอกสาร</v-btn>
     </template>
