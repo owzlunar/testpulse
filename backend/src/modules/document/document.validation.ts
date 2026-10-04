@@ -25,6 +25,7 @@ const options = Joi.object({
   includeEvidence: Joi.boolean().required(),
   includeDefects: Joi.boolean().required(),
   includeTraceability: Joi.boolean().required(),
+  torOnly: Joi.boolean().default(false),
 })
 
 /** pictures are uploaded first (POST /files): a URL, never the picture itself */

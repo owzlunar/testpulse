@@ -53,3 +53,20 @@ test('the document template keeps an uploaded logo', async ({ page }) => {
   await expect(logo.locator('img')).toHaveAttribute('src', /\/api\/v1\/files\/[\w-]+\/content$/)
   expect(await logo.locator('img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
 })
+
+test('a Traceability Matrix of the TOR only lists the TOR clauses, not the additional requirements', async ({ page }) => {
+  await selectPaymentProject(page)
+  await page.locator('.fox-nav').getByText('ศูนย์เอกสาร', { exact: true }).click()
+  await page.locator('.doc-quick', { hasText: 'Traceability Matrix' }).click()
+  const wizard = page.locator('.v-dialog')
+  // a title without the project's name: later tests find the project by name in the universal search
+  await wizard.locator('#doc-title').fill('RTM ตาม TOR e2e-real')
+  await wizard.getByLabel('เฉพาะ Requirement ตาม TOR').check()
+  await wizard.getByRole('button', { name: 'ถัดไป' }).click()
+  await wizard.getByRole('button', { name: 'สร้างเอกสาร' }).click()
+  await page.waitForURL(/\/documents\/doc-[\w-]+$/)
+  const sheet = page.locator('.doc-sheet')
+  await expect(sheet.locator('th', { hasText: 'ข้อใน TOR' })).toBeVisible()
+  await expect(sheet.locator('td', { hasText: '4.2.1' })).toBeVisible()
+  await expect(sheet).not.toContainText('REQ-PAY-03')
+})

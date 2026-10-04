@@ -61,6 +61,18 @@ describe('generating', () => {
     expect(doc.snapshot.requirements.find((r) => r.code === 'REQ-PAY-04')).toMatchObject({ caseIds: ['TC-104'] })
   })
 
+  it('TOR only: the TOR requirements by clause, and only the cases that test them', async () => {
+    const doc = await generate({ type: 'uat', options: { ...request().options, runId: '', includeTraceability: true, torOnly: true } })
+    expect(doc.snapshot.requirements.map((r) => `${r.torClause} ${r.code}`)).toEqual([
+      '4.1.1 REQ-PAY-01',
+      '4.1.2 REQ-PAY-02',
+      '4.2.1 REQ-PAY-04',
+      '4.3 REQ-PAY-05',
+    ])
+    // TC-103 tests REQ-PAY-03 (additional); a sub-case goes with its parent
+    expect(doc.snapshot.cases.map((c) => c.id)).toEqual(['TC-101', 'TC-101-1', 'TC-104'])
+  })
+
   it('needs document.create and the project; a run of another project is not found', async () => {
     expect((await as('user-dev-1').post('/documents').send(request())).status).toBe(403)
     expect((await as('user-qa-2').post('/documents').send(request())).status).toBe(403)

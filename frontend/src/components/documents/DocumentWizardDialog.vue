@@ -8,13 +8,14 @@ import { useAuthStore } from '@/stores/auth.store'
 import { useDefectStore } from '@/stores/defect.store'
 import { useDocumentStore } from '@/stores/document.store'
 import { useProjectStore } from '@/stores/project.store'
+import { useRequirementStore } from '@/stores/requirement.store'
 import { useRunStore } from '@/stores/run.store'
 import type { DocumentOptions, DocumentRecord, DocumentType, Signatory, UatDetails } from '@/types'
 import { formatDateTH } from '@/utils/date'
 import { required } from '@/utils/validators'
 import { isOpenDefect } from '@/domain/defect'
 import { DOCUMENT_TYPES, UAT_DECISIONS, documentTypeOf, formatDocNumber } from '@/domain/document'
-import { runCounts } from '@/domain/run'
+import { torCaseIds } from '@/domain/requirement'
 import { isOverdue } from '@/domain/test-case'
 
 const open = defineModel<boolean>({ default: false })
@@ -24,6 +25,7 @@ const emit = defineEmits<{ generated: [doc: DocumentRecord] }>()
 const docStore = useDocumentStore()
 const runStore = useRunStore()
 const defectStore = useDefectStore()
+const requirementStore = useRequirementStore()
 const { currentProject, currentCases } = storeToRefs(useProjectStore())
 const { users, currentUser } = storeToRefs(useAuthStore())
 const { busy, run } = useAsyncAction()
@@ -41,6 +43,7 @@ const options = reactive<DocumentOptions>({
   includeEvidence: true,
   includeDefects: true,
   includeTraceability: false,
+  torOnly: false,
 })
 const uat = reactive<UatDetails>({ testPeriod: '', environment: '', decision: 'accepted', remarks: '', riskAcknowledged: false })
 const signatories = ref<Signatory[]>([])
@@ -62,6 +65,7 @@ function applyType(t: DocumentType) {
     includeEvidence: t !== 'test_spec' && t !== 'rtm',
     includeDefects: t === 'uat' || t === 'test_summary',
     includeTraceability: t === 'rtm' || t === 'uat',
+    torOnly: false,
   })
   docNumber.value = formatDocNumber(docStore.template.docNumberPattern, t, key, docStore.nextSeq(t))
   updateTitle()
@@ -107,12 +111,23 @@ watch(
 watch(() => options.runId, updateTitle)
 
 // --- release gatekeeper (UAT) ------------------------------------------------------------------
+// TOR only: the document holds only the cases that test a TOR requirement (as buildSnapshot does)
+watch(
+  () => options.torOnly,
+  (torOnly) => torOnly && run(() => requirementStore.ensureLoaded()),
+)
+const scope = computed(() => (options.torOnly ? torCaseIds(requirementStore.current, currentCases.value) : null))
+const inScope = (caseId?: string) => !scope.value || !caseId || scope.value.has(caseId)
+
 const risks = computed(() => {
   const r = selectedRun.value
-  const failed = r ? runCounts(r).failed : currentCases.value.filter((c) => c.status === 'failed').length
-  const blocked = r ? runCounts(r).blocked : currentCases.value.filter((c) => c.status === 'blocked').length
-  const overdue = currentCases.value.filter(isOverdue).length
-  const openDefects = defectStore.current.filter(isOpenDefect).length
+  const outcomes = r
+    ? r.results.filter((x) => inScope(x.caseId) && !(scope.value && x.caseDeleted)).map((x) => x.status)
+    : currentCases.value.filter((c) => inScope(c.id)).map((c) => c.status)
+  const failed = outcomes.filter((o) => o === 'failed').length
+  const blocked = outcomes.filter((o) => o === 'blocked').length
+  const overdue = currentCases.value.filter((c) => inScope(c.id) && isOverdue(c)).length
+  const openDefects = defectStore.current.filter((d) => isOpenDefect(d) && (d.caseDeleted || inScope(d.caseId))).length
   return [
     failed && `Failed ${failed} เคส`,
     blocked && `Blocked ${blocked} เคส`,
@@ -244,6 +259,14 @@ const steps = ['ประเภทเอกสาร', 'เนื้อหา', 
                     <v-checkbox v-model="options.includeTraceability" :disabled="docType === 'rtm'" label="Traceability Matrix" />
                     <v-checkbox v-model="options.includeSubCases" label="รวม Sub-case" />
                   </div>
+                </v-col>
+                <v-col v-if="docType === 'uat' || docType === 'rtm'" cols="12">
+                  <v-checkbox
+                    v-model="options.torOnly"
+                    label="เฉพาะ Requirement ตาม TOR"
+                    hint="รวมเฉพาะ Requirement ที่มาจาก TOR และ Test Case ที่เชื่อมกับ Requirement เหล่านั้น"
+                    persistent-hint
+                  />
                 </v-col>
 
                 <template v-if="docType === 'uat'">
