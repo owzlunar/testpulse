@@ -1,4 +1,5 @@
 import mongoose, { Schema } from 'mongoose'
+import { PROJECT_KEY_MAX } from '#contract/rules/project.js'
 import type { Project } from '#contract/types.js'
 import { stringId } from '#core/database/ids.js'
 import { auditTrailPlugin } from '#core/database/plugins/audit-trail.js'
@@ -24,7 +25,7 @@ const milestoneSchema = new Schema(
 const projectSchema = new Schema<ProjectDoc>(
   {
     _id: stringId('proj'),
-    key: { type: String, required: true, trim: true, uppercase: true, unique: true, maxlength: 12 },
+    key: { type: String, required: true, trim: true, uppercase: true, unique: true, maxlength: PROJECT_KEY_MAX },
     name: { type: String, required: true, trim: true, maxlength: 200 },
     description: { type: String, default: '', maxlength: 2000 },
     logo: { type: String },

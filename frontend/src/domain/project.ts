@@ -1,5 +1,8 @@
 import type { MilestoneType, Option, ProjectStatus } from '@/types'
 
+// Rules the backend shares (the project key) live in ./rules/project.ts
+export * from './rules/project'
+
 export const PROJECT_STATUSES: Option<ProjectStatus>[] = [
   { value: 'active', label: 'Active', hint: 'กำลังดำเนินการ', tone: 'success', icon: 'tabler:player-play' },
   { value: 'in_review', label: 'In Review', hint: 'รอตรวจสอบ', tone: 'warning', icon: 'tabler:hourglass' },

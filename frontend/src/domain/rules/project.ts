@@ -1,0 +1,9 @@
+// A project's key (PAY, SHOP2026 …): in document numbers, exported file names and search results
+
+export const PROJECT_KEY_MIN = 2
+export const PROJECT_KEY_MAX = 16
+
+/** uppercase letters and digits, PROJECT_KEY_MIN to PROJECT_KEY_MAX of them */
+export const PROJECT_KEY_PATTERN = new RegExp(`^[A-Z0-9]{${PROJECT_KEY_MIN},${PROJECT_KEY_MAX}}$`)
+
+export const isProjectKey = (key: string): boolean => PROJECT_KEY_PATTERN.test(key)

@@ -18,6 +18,8 @@ export type SearchKind = 'cases' | 'requirements' | 'defects' | 'runs' | 'docume
 
 export interface SearchHit {
   key: string
+  /** the project's key before the code (case ids restart per project: PAY · TC-101, SHOP · TC-101) */
+  projectKey?: string
   /** TC-101, REQ-PAY-04, BUG-001, รอบที่ 2, UAT-PAY-… */
   code: string
   title: string
@@ -46,11 +48,13 @@ export function useUniversalSearch() {
   const { projects } = storeToRefs(projectStore)
   const requirementStore = useRequirementStore()
   const projectName = (id: string) => projects.value.find((p) => p.id === id)?.name ?? ''
+  const projectKey = (id: string) => projects.value.find((p) => p.id === id)?.key
 
   const caseHit = (tc: TestCase): SearchHit => {
     const status = statusOf(tc.status)
     return {
       key: `case-${tc.uid}`,
+      projectKey: projectKey(tc.projectId),
       code: tc.id,
       title: tc.name,
       subtitle: [projectName(tc.projectId), requirementStore.textFor(tc)].filter(Boolean).join(' · '),
@@ -90,6 +94,7 @@ export function useUniversalSearch() {
           const { requirements, total } = await requirementApi.searchRequirements(q, limit, offset)
           const hits = requirements.map((r) => ({
             key: `req-${r.id}`,
+            projectKey: projectKey(r.projectId),
             code: r.code,
             title: r.title,
             subtitle: projectName(r.projectId),
@@ -110,6 +115,7 @@ export function useUniversalSearch() {
             const status = defectStatusOf(d.status)
             return {
               key: `defect-${d.id}`,
+              projectKey: projectKey(d.projectId),
               code: d.id,
               title: d.title,
               subtitle: [projectName(d.projectId), d.caseId].filter(Boolean).join(' · '),
@@ -132,6 +138,7 @@ export function useUniversalSearch() {
             const status = runStatusOf(r.status)
             return {
               key: `run-${r.id}`,
+              projectKey: projectKey(r.projectId),
               code: `รอบที่ ${r.round}`,
               title: r.name,
               subtitle: [projectName(r.projectId), r.environment, r.build].filter(Boolean).join(' · '),
@@ -154,6 +161,7 @@ export function useUniversalSearch() {
             const status = documentStatusOf(d.status)
             return {
               key: `doc-${d.id}`,
+              projectKey: projectKey(d.projectId),
               code: d.docNumber,
               title: d.title,
               subtitle: `${projectName(d.projectId)} · v${d.version}.0`,

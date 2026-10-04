@@ -1,14 +1,11 @@
 import Joi from 'joi'
+import { PROJECT_KEY_PATTERN } from '#contract/rules/project.js'
 import { idParams, idSchema } from '#core/http/validate.js'
 
 const date = Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/)
 
 const projectBody = Joi.object({
-  key: Joi.string()
-    .trim()
-    .uppercase()
-    .pattern(/^[A-Z0-9]{2,12}$/)
-    .required(),
+  key: Joi.string().trim().uppercase().pattern(PROJECT_KEY_PATTERN).required(),
   name: Joi.string().trim().min(1).max(200).required(),
   description: Joi.string().allow('').max(2000).default(''),
   logo: Joi.string().allow('').max(2048),

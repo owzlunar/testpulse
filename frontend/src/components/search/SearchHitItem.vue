@@ -9,6 +9,7 @@ defineEmits<{ open: [hit: SearchHit] }>()
 <template>
   <v-list-item class="py-2 search-hit" @click="$emit('open', hit)">
     <v-list-item-title class="text-subtitle-2">
+      <span v-if="hit.projectKey" class="text-muted fox-num">{{ hit.projectKey }} · </span>
       <span class="text-primary fox-num mr-1">{{ hit.code }}</span> {{ hit.title }}
     </v-list-item-title>
     <v-list-item-subtitle v-if="hit.subtitle" class="text-caption">{{ hit.subtitle }}</v-list-item-subtitle>
