@@ -10,6 +10,3 @@ export const DEMO_ACCOUNTS = [
   { name: 'กิตติศักดิ์ พัฒนา (Dev Lead)', email: 'kittisak.dev@testpulse.dev', role: 'Developer', tone: 'warning' },
   { name: 'ธนากร สุขใจ (Backend API)', email: 'thanakorn.dev@testpulse.dev', role: 'Developer', tone: 'warning' },
 ] as const
-
-/** shown in development (npm run dev) only */
-export const showDemoAccounts = import.meta.env.DEV
