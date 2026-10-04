@@ -54,7 +54,10 @@ if ! as_app node dist/cli/preflight.js; then
   exit 1
 fi
 if [ "${RUN_DB_INDEXES:-true}" = "true" ]; then
-  as_app node dist/cli/db-indexes.js
+  if ! as_app node dist/cli/db-indexes.js; then
+    echo "[entrypoint] building the database indexes failed: see the message above" >&2
+    exit 1
+  fi
 fi
 if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
   if ! as_app node dist/cli/migrate.js up; then
