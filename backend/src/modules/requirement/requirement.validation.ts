@@ -9,6 +9,14 @@ const requirementBody = Joi.object({
   type: Joi.string().valid('functional', 'non_functional', 'business_rule').required(),
   priority: Joi.string().valid('low', 'medium', 'high', 'critical').required(),
   status: Joi.string().valid('draft', 'approved', 'changed', 'deprecated').required(),
+  // older clients don't send it: what they add is on top of the TOR
+  origin: Joi.string().valid('tor', 'additional').default('additional'),
+  // a TOR requirement names its clause ("4.2.1"); an additional one has none
+  torClause: Joi.when('origin', {
+    is: 'tor',
+    then: Joi.string().trim().min(1).max(40).required(),
+    otherwise: Joi.any().strip(),
+  }),
   source: Joi.string().allow('').max(300),
   acceptanceCriteria: Joi.array().items(Joi.string().trim().max(1000)).max(100).default([]),
 })

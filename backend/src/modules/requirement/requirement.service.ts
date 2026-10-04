@@ -71,14 +71,14 @@ export const requirementService = {
     return requirementRepository.ofProjects([...(await projectAccess.accessibleIds(p))])
   },
 
-  /** GET /requirements/search: code, title or description contains the text */
+  /** GET /requirements/search: code, TOR clause, title or description contains the text */
   async search(p: Principal, q: string, limit: number, offset = 0): Promise<{ requirements: Requirement[]; total: number }> {
     const text = q.trim()
     if (!text || !p.roleId || !can(p, 'requirement.view')) return { requirements: [], total: 0 }
     const pattern = searchPattern(text)
     const projectIds = [...(await projectAccess.accessibleIds(p))]
     const { items, total } = await requirementRepository.findPage(
-      { projectId: { $in: projectIds }, $or: [{ code: pattern }, { title: pattern }, { description: pattern }] },
+      { projectId: { $in: projectIds }, $or: [{ code: pattern }, { torClause: pattern }, { title: pattern }, { description: pattern }] },
       { projectId: 1, code: 1 },
       limit,
       offset,
@@ -104,7 +104,7 @@ export const requirementService = {
     const before = await found(id)
     await guard(p, before.projectId, 'requirement.edit')
     await assertCodeFree(before.projectId, fields.code, id)
-    const requirement = (await requirementRepository.update(id, fields))!
+    const requirement = (await requirementRepository.update(id, { ...fields, torClause: fields.torClause }))!
     const changed = MEANING_FIELDS.filter((m) => JSON.stringify(before[m.field]) !== JSON.stringify(requirement[m.field])).map((m) => m.label)
     const flaggedCases = changed.length
       ? await flagCases('requirement.changed', requirement, `${requirement.code} แก้ไข: ${changed.join(', ')}`, 'ถูกแก้ไข')
@@ -121,6 +121,9 @@ export const requirementService = {
     await audit('DELETE', target, `ลบ Requirement ${target.code}`)
     return { flaggedCases }
   },
+
+  /** requirements stored before they had an origin were added on top of the TOR (migration) */
+  backfillOrigin: () => requirementRepository.markOriginless(),
 
   removeOfProject: async (projectId: string) => {
     await requirementRepository.deleteOfProject(projectId)

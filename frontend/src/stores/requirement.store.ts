@@ -7,7 +7,7 @@ import { useNotificationStore } from './notification.store'
 import { useProjectStore } from './project.store'
 import { useTestCaseStore } from './test-case.store'
 import { requirementApi as api } from '@/api'
-import { requirementText } from '@/domain/requirement'
+import { compareRequirements, requirementText } from '@/domain/requirement'
 
 // Loaded on demand by the pages that need it (Requirements, case form, documents)
 export const useRequirementStore = defineStore('requirement', () => {
@@ -31,11 +31,7 @@ export const useRequirementStore = defineStore('requirement', () => {
     return loading
   }
 
-  const current = computed(() =>
-    requirements.value
-      .filter((r) => r.projectId === projectStore.currentProject?.id)
-      .sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true })),
-  )
+  const current = computed(() => requirements.value.filter((r) => r.projectId === projectStore.currentProject?.id).sort(compareRequirements))
 
   /** next "REQ-<KEY>-NN" code for the current project */
   function nextCode(): string {

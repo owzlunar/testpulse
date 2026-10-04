@@ -521,6 +521,8 @@ export interface TestCaseTemplate {
 
 export type RequirementType = 'functional' | 'non_functional' | 'business_rule'
 export type RequirementStatus = 'draft' | 'approved' | 'changed' | 'deprecated'
+/** a clause of the contract's TOR, or a requirement added on top of it (meetings, change requests …) */
+export type RequirementOrigin = 'tor' | 'additional'
 /** derived from the linked cases */
 export type CoverageStatus = 'not_covered' | 'not_run' | 'in_progress' | 'failed' | 'passed'
 
@@ -540,6 +542,9 @@ export interface Requirement {
   type: RequirementType
   priority: TestCasePriority
   status: RequirementStatus
+  origin: RequirementOrigin
+  /** the TOR clause it comes from, e.g. "4.2.1" (TOR requirements only) */
+  torClause?: string
   /** where it came from: PRD section, Jira epic, meeting ... */
   source?: string
   acceptanceCriteria: string[]
@@ -688,6 +693,8 @@ export interface DocumentOptions {
   includeEvidence: boolean
   includeDefects: boolean
   includeTraceability: boolean
+  /** only TOR requirements, and only the cases linked to them (UAT, RTM) */
+  torOnly?: boolean
 }
 
 export interface UatDetails {
@@ -730,7 +737,7 @@ export interface DocumentSnapshot {
   summary: { total: number; passed: number; failed: number; blocked: number; notRun: number; passRate: number }
   cases: DocCase[]
   defects: Pick<Defect, 'id' | 'title' | 'severity' | 'status' | 'caseId' | 'assignee' | 'externalKey'>[]
-  requirements: { code: string; title: string; caseIds: string[]; coverage: CoverageStatus }[]
+  requirements: { code: string; title: string; torClause?: string; caseIds: string[]; coverage: CoverageStatus }[]
   /** Failed / Blocked / Overdue / open defects at generation time */
   risks: string[]
 }

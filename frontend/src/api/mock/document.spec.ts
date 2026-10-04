@@ -53,4 +53,19 @@ describe('generateDocument', () => {
     const refused = await refusal(generateDocument(request({ type: 'uat', uat: uat({ decision: 'accepted' }) }), actor.name))
     expect(refused).toMatchObject({ status: 422, message: expect.stringContaining('ไม่สามารถตรวจรับแบบสมบูรณ์ได้') })
   })
+
+  it('TOR only: the TOR requirements by clause, and only the cases that test them', async () => {
+    const actor = await signIn(USERS.admin)
+    const doc = await generateDocument(
+      request({ type: 'rtm', options: { ...request().options, includeTraceability: true, torOnly: true } }),
+      actor.name,
+    )
+    expect(doc.snapshot.requirements.map((r) => `${r.torClause} ${r.code}`)).toEqual([
+      '4.1.1 REQ-PAY-01',
+      '4.1.2 REQ-PAY-02',
+      '4.2.1 REQ-PAY-04',
+      '4.3 REQ-PAY-05',
+    ])
+    expect(doc.snapshot.cases.map((c) => c.id)).toEqual(['TC-101', 'TC-101-1', 'TC-104'])
+  })
 })

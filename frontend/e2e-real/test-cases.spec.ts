@@ -69,6 +69,32 @@ test('the universal search finds a requirement of any project and opens it', asy
   await expect(page.getByText('Webhook Retry แบบ Exponential Backoff และ DLQ').first()).toBeVisible()
 })
 
+test('a TOR requirement keeps its clause; the list filters by origin and finds the clause', async ({ page }) => {
+  await openPaymentCases(page)
+  await page.locator('.fox-nav').getByText('Requirements', { exact: true }).click()
+  await page.getByRole('button', { name: 'เพิ่ม Requirement' }).click()
+  const dialog = page.locator('.v-dialog')
+  await dialog.locator('#rq-title').fill('ส่งออกรายงานภาษี e2e-real')
+  // TOR is the default origin: the clause is required
+  await dialog.getByRole('button', { name: 'บันทึก' }).click()
+  await expect(dialog.locator('#rq-tor')).toBeVisible()
+  await dialog.locator('#rq-tor').fill('4.9.1')
+  await dialog.getByRole('button', { name: 'บันทึก' }).click()
+  await expect(dialog).toBeHidden()
+
+  await page.reload()
+  const card = page.locator('.v-window-item--active .v-card', { hasText: 'ส่งออกรายงานภาษี e2e-real' })
+  await expect(card.locator('.v-chip', { hasText: 'TOR 4.9.1' })).toBeVisible()
+  await page.locator('.v-field', { has: page.getByLabel('ข้อกำหนดจาก') }).click()
+  await page.locator('.v-overlay--active .v-list-item', { hasText: 'เพิ่มเติม' }).click()
+  await expect(card).toHaveCount(0)
+  await expect(page.getByText('ป้องกัน Double Spending และ Replay Attack')).toBeVisible()
+
+  await page.getByLabel('ค้นหาทั้งระบบ').fill('4.9.1')
+  await page.locator('.v-overlay--active .v-list-item', { hasText: 'ส่งออกรายงานภาษี e2e-real' }).click()
+  await page.waitForURL(/\/requirements\?search=/)
+})
+
 test('AI drafts stay hidden while the server has no model set up', async ({ page }) => {
   const status = page.waitForResponse((r) => r.url().endsWith('/ai/status'))
   await page.reload()

@@ -259,8 +259,10 @@ testpulse/
 
 ### 5.11 Requirements & Traceability
 - จัดการ Requirement (รหัส, Acceptance Criteria, ประเภท, สถานะ Draft/Approved/Changed/Deprecated, แหล่งที่มา)
+- **ข้อกำหนดจาก TOR หรือเพิ่มเติม**: Requirement ตาม TOR ต้องระบุข้อใน TOR (เช่น `4.2.1`) เรียงตามข้อ แล้วตามด้วย Requirement เพิ่มเติม (จากการประชุม, Change Request …); กรองตามที่มาและค้นหาด้วยข้อใน TOR ได้ (รวมถึงค้นหาทั้งระบบ). Requirement ที่มีอยู่ก่อนถือเป็นเพิ่มเติม
 - เชื่อม Test Case ↔ Requirement จากฟอร์ม Test Case
-- **Traceability Matrix** พร้อมสถานะ Coverage (ยังไม่มีเคส / ยังไม่ทดสอบ / กำลังทดสอบ / มีเคสไม่ผ่าน / ผ่านทั้งหมด) และส่งออก CSV
+- **Traceability Matrix** พร้อมสถานะ Coverage (ยังไม่มีเคส / ยังไม่ทดสอบ / กำลังทดสอบ / มีเคสไม่ผ่าน / ผ่านทั้งหมด) และส่งออก CSV (มีคอลัมน์ข้อใน TOR)
+- เอกสาร UAT Sign-off และ Traceability Matrix เลือก **"เฉพาะ Requirement ตาม TOR"** ได้: รวมเฉพาะ Requirement ตาม TOR และ Test Case ที่เชื่อมกับ Requirement เหล่านั้น (Sub-case ตามเคสแม่) ทั้งผลสรุป ความเสี่ยง และ Release gatekeeper
 - ปุ่ม "ร่างเคสด้วย AI" ต่อ Requirement
 
 ### 5.12 รอบการทดสอบ (Test Runs) และ Defects
