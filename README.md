@@ -168,7 +168,17 @@ container อ่านค่าจากสองไฟล์ผ่าน `env_f
 
 ### สำรองและกู้คืนข้อมูล
 
-`scripts/backup.sh` สำรองฐานข้อมูลและไฟล์อัปโหลดไปเก็บใน MinIO / S3 ใน bucket ที่ล็อกไว้ ไม่มีใครลบ backup ได้ก่อนครบอายุ (ค่าเริ่มต้น 14 วัน) แล้ว mirror ไปอีกเครื่อง (off-site) ส่วน `scripts/restore.sh` ใช้กู้คืน ทั้งสองตัวรันด้วยมือในโฟลเดอร์ deploy และใช้แค่ Docker บน server (`mongodump`, `mongorestore` และ `mc` รันใน container)
+`scripts/backup.sh` สำรองฐานข้อมูลและไฟล์อัปโหลดไปเก็บใน MinIO / S3 ใน bucket ที่ล็อกไว้ ไม่มีใครลบ backup ได้ก่อนครบอายุ (ค่าเริ่มต้น 14 วัน) แล้ว mirror ไปอีกเครื่อง (off-site) `scripts/restore.sh` ใช้กู้คืน และ `scripts/verify.sh` ใช้ตรวจว่า backup ครบและกู้ได้จริง ทุกตัวรันในโฟลเดอร์ deploy และใช้แค่ Docker บน server (`mongodump`, `mongorestore`, `mongosh` และ `mc` รันใน container)
+
+```text
+scripts/
+|--- backup.sh            init (สร้าง bucket) / สำรอง / list
+|--- restore.sh           กู้คืนลงฐานที่เลือก (+ ไฟล์อัปโหลดเมื่อเป็น local)
+|--- verify.sh            ตรวจ storage / ตรวจผลการกู้ (อ่านอย่างเดียว)
+|--- verify-db.js         ส่วนเทียบฐานข้อมูลของ verify.sh (mongosh)
+|--- backup-common.sh     ส่วนที่ใช้ร่วมกัน
+|--- backup.env.example   แม่แบบของ backup.env
+```
 
 | ข้อมูล | `STORAGE_DRIVER=local` | `STORAGE_DRIVER=minio` |
 | --- | --- | --- |
@@ -184,6 +194,7 @@ cp scripts/backup.env.example backup.env && chmod 600 backup.env
 # กรอก MONGODB_URI (ตัวเดียวกับ .env.prod แต่ใช้ host.docker.internal แทน localhost),
 # BACKUP_S3_* (พอร์ต API ของ MinIO ไม่ใช่หน้า console), OFFSITE_S3_*, STORAGE_DRIVER ให้ตรงกับ .env.prod
 scripts/backup.sh init      # สร้าง bucket ทั้งสองฝั่ง: object lock, versioning, อายุ 14 วัน (รันซ้ำได้)
+scripts/backup.sh && scripts/verify.sh    # ลองสำรองรอบแรกและตรวจ ต้องจบด้วย passed
 ```
 
 - bucket backup ฝั่ง off-site ต้องเปิด object lock ตั้งแต่ตอนสร้าง ถ้ามี bucket ชื่อนั้นอยู่แล้วแบบไม่ล็อก `init` จะหยุดและแจ้ง เพราะเปิดล็อกภายหลังไม่ได้
@@ -198,7 +209,18 @@ scripts/backup.sh list      # รายการ backup ทั้งสองฝ
 
 ถ้าขั้นไหนล้ม สคริปต์จะหยุดพร้อมข้อความ `ERROR` และ exit code 1 ระหว่าง dump จะเก็บไฟล์ไว้ที่ `docker-data/backup-work` ก่อน และลบทิ้งเมื่อจบ dump ที่เสียจึงไม่ถูกอัปโหลดไปค้างใน bucket ที่ลบไม่ได้
 
-**กู้คืน** ลองกู้ลงฐานอื่นก่อนเสมอ แล้วเปิดดูว่าข้อมูลครบ
+**ตั้งเวลาสำรองอัตโนมัติ (cron)** สคริปต์ไม่ได้ตั้งเวลาเอง ใช้ crontab ของ user ที่สั่ง `docker` ได้ (`crontab -e`)
+
+```cron
+# ทุกวัน 02:00: สำรองแล้วตรวจ เก็บ log ไว้ที่ docker-data/backup.log
+0 2 * * * cd /opt/testpulse && PATH=/usr/local/bin:/usr/bin:/bin && { scripts/backup.sh && scripts/verify.sh; } >> docker-data/backup.log 2>&1
+```
+
+- cron ไม่รู้จักโฟลเดอร์ deploy และ `PATH` สั้นมาก ต้องมี `cd` และ `PATH` ที่หา `docker` เจอเสมอ
+- ดูผลด้วย `tail -n 30 docker-data/backup.log` ทุกรอบต้องจบด้วย `[verify] passed` ถ้าเจอ `ERROR` หรือ `FAILED` ให้แก้ก่อนรอบถัดไป
+- macOS (เครื่องทดสอบ): เปิด Full Disk Access ให้ `/usr/sbin/cron` ถ้าโฟลเดอร์ deploy อยู่ใน Desktop / Documents, Docker Desktop ต้องเปิดอยู่ และเครื่องที่ sleep ตอนถึงเวลาจะข้ามรอบนั้น
+
+**กู้คืน** ลองกู้ลงฐานอื่นก่อนเสมอ แล้วตรวจด้วย `verify.sh restore`
 
 ```bash
 scripts/restore.sh --to-db testpulse-restore                    # backup ล่าสุดของฝั่งนี้
@@ -207,7 +229,7 @@ scripts/restore.sh --to-db testpulse-restore --from off \
 scripts/restore.sh --to-db testpulse-restore --uploads-to ./docker-data/uploads-restored   # local: ได้ไฟล์อัปโหลดของรอบเดียวกันด้วย
 ```
 
-กู้ทับฐานจริง ต้องหยุดแอปก่อน ใส่ `--overwrite-live` และพิมพ์ชื่อฐานยืนยัน collection ที่อยู่ใน backup จะถูกแทนที่ทั้งหมด
+กู้ทับฐานจริง (ตอนเกิดเหตุ) ต้องหยุดแอปก่อน ใส่ `--overwrite-live` และพิมพ์ชื่อฐานยืนยัน collection ที่อยู่ใน backup จะถูกแทนที่ทั้งหมด ถ้ามีเวลา ให้กู้ไฟล์เดียวกันลงฐานอื่นและผ่าน `verify.sh restore` ก่อน แล้วค่อยกู้ทับ
 
 ```bash
 docker compose -f docker-compose.server.yml stop testpulse
@@ -238,6 +260,21 @@ scripts/verify.sh restore --db testpulse-restore --uploads-dir ./docker-data/upl
 - backup ที่ทำก่อนหมุน encryption key ต้องใช้ key เก่าตอนกู้ (ดู [หมุน encryption key](#หมุน-encryption-key-key-rotation))
 - `STORAGE_DRIVER=minio`: ไฟล์ที่ถูกลบหรือเขียนทับ ดูเวอร์ชันเดิมด้วย `mc ls --versions` แล้วกู้ด้วย `mc cp --version-id`
 - ทดลองกู้เป็นระยะ backup ที่ไม่เคยลองกู้ ยังไม่รู้ว่าใช้ได้จริง
+
+**ซ้อมกู้คืน (แนะนำเดือนละครั้ง)** ไม่กระทบข้อมูลจริง: `restore.sh` เขียนเฉพาะฐานใน `--to-db` และ `verify.sh` อ่านอย่างเดียว
+
+```bash
+cd /opt/testpulse
+scripts/verify.sh                                              # 1. storage ครบและ dump ล่าสุดอ่านได้
+scripts/restore.sh --to-db testpulse-restore --from off        # 2. กู้ dump ล่าสุดจาก off-site ลงฐานว่าง
+#    local: เพิ่ม --uploads-to ./docker-data/uploads-restored
+scripts/verify.sh restore --db testpulse-restore               # 3. เทียบกับฐานจริง + หาไฟล์อัปโหลดทุกไฟล์
+#    local: เพิ่ม --uploads-dir ./docker-data/uploads-restored
+# 4. เก็บกวาด: ลบฐาน testpulse-restore (และ docker-data/uploads-restored) แล้วจดผล: วันที่, ไฟล์ dump, passed / FAILED
+```
+
+- กู้ลงฐานที่ว่างหรือยังไม่มี ถ้าฐานนั้นมี collection อื่นค้างอยู่ `verify.sh` จะขึ้น `WARN` ว่ามีแต่ในฐานที่กู้
+- `RESTORE_MONGODB_URI` ต้องเป็น user ที่สร้างหรือเขียนฐาน `testpulse-restore` ได้ (ใช้ทั้งตอนกู้และตอนอ่านฐานที่กู้) ส่วนฐานจริงอ่านด้วย `MONGODB_URI`
 
 ### Volume (เก็บไว้บน host)
 
