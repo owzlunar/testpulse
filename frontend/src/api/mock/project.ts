@@ -1,6 +1,6 @@
 import type { PermissionKey, Project, ProjectInput, ProjectStats, User } from '@/types'
 import { ApiError } from '@/api/errors'
-import { caseStatsOf } from '@/domain/project'
+import { PROJECT_KEY_MAX, PROJECT_KEY_MIN, caseStatsOf, isProjectKey } from '@/domain/project'
 import { permissionOf } from '@/domain/role'
 import { newId } from '@/utils/ids'
 import { respond } from './http'
@@ -101,10 +101,16 @@ export const fetchProjects = () =>
 /** server-side: what a client sends never sets computed fields */
 const withoutComputed = ({ caseStats: _stats, ...input }: ProjectInput & { caseStats?: ProjectStats }) => input
 
+/** server-side: the key's shape (the backend's validation answers 400 too) */
+function assertKey(key: string) {
+  if (!isProjectKey(key)) throw new ApiError(`Project Key ต้องเป็นตัวพิมพ์ใหญ่ A-Z หรือตัวเลข ${PROJECT_KEY_MIN}–${PROJECT_KEY_MAX} ตัว`, 400)
+}
+
 /** POST /projects (Admin only) */
 export const createProject = (input: ProjectInput) =>
   respond(() => {
     assertCan('admin')
+    assertKey(input.key)
     const now = new Date().toISOString()
     const project: Project = { ...withoutComputed(input), id: newId('proj'), createdAt: now, updatedAt: now }
     save(STORAGE_KEYS.projects, [project, ...projects()])
@@ -115,6 +121,7 @@ export const createProject = (input: ProjectInput) =>
 export const updateProject = (id: string, input: ProjectInput) =>
   respond(() => {
     assertCan('admin')
+    assertKey(input.key)
     const list = projects()
     const i = list.findIndex((p) => p.id === id)
     if (i < 0) throw new ApiError('ไม่พบโปรเจกต์', 404)

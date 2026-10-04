@@ -32,7 +32,8 @@ test('Enter shows every match on the results page, one tab per group', async ({ 
   await page.getByLabel('ค้นหาทั้งระบบ').press('Enter')
   await page.waitForURL(/\/search\?q=TC-10$/)
   await expect(page.getByRole('tab', { name: /Test Cases/ })).toHaveAttribute('aria-selected', 'true')
-  await expect(page.locator('.search-hit', { hasText: 'TC-101' }).first()).toBeVisible()
+  // case ids restart per project: each hit carries its project's key
+  await expect(page.locator('.search-hit', { hasText: 'PAY · TC-101' }).first()).toBeVisible()
   await page.getByRole('tab', { name: /Defects/ }).click()
   await expect(page).toHaveURL(/type=defects/)
 })

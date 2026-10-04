@@ -66,6 +66,14 @@ describe('project changes (Admin)', () => {
     ).toBe(409)
   })
 
+  it('a key is 2 to 16 upper-case letters or digits', async () => {
+    const admin = client(app).as('user-admin')
+    const status = async (key: string) => (await admin.post('/projects').send(project({ key, name: key }))).status
+    expect(await status('ab')).toBe(201)
+    expect(await status('SHOP2026PLATFORM')).toBe(201)
+    for (const key of ['A', 'SHOP2026PLATFORMX', 'MY-APP', 'MY_APP', 'ร้านค้า']) expect(await status(key)).toBe(400)
+  })
+
   it('updates and deletes; every change is audited with the Admin as actor', async () => {
     const admin = client(app).as('user-admin')
     expect((await admin.put('/projects/proj-3').send(project({ key: 'AUTH', name: 'SSO v2' }))).body.data.name).toBe('SSO v2')

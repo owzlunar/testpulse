@@ -10,7 +10,7 @@ import { addDays, todayISO } from '@/utils/date'
 import { fileApi } from '@/api'
 import { errorMessage } from '@/api/errors'
 import { required } from '@/utils/validators'
-import { MILESTONE_TYPES, PROJECT_STATUSES } from '@/domain/project'
+import { MILESTONE_TYPES, PROJECT_KEY_MAX, PROJECT_KEY_MIN, PROJECT_STATUSES, isProjectKey } from '@/domain/project'
 
 const open = defineModel<boolean>({ default: false })
 const props = withDefaults(defineProps<{ project?: Project | null; loading?: boolean }>(), { project: null, loading: false })
@@ -52,7 +52,7 @@ useUnsavedChanges(open, () => form)
 
 const rules = {
   required,
-  key: (v: string) => /^[A-Z0-9_-]{2,8}$/.test(v) || 'ตัวพิมพ์ใหญ่หรือตัวเลข 2–8 ตัว',
+  key: (v: string) => isProjectKey(v) || `ตัวพิมพ์ใหญ่ A-Z หรือตัวเลข ${PROJECT_KEY_MIN}–${PROJECT_KEY_MAX} ตัว`,
 }
 
 // --- logo upload ---------------------------------------------------------------
@@ -146,6 +146,8 @@ async function submit() {
                     id="pj-key"
                     v-model="form.key"
                     placeholder="เช่น PAY, SHOP, AUTH"
+                    :maxlength="PROJECT_KEY_MAX"
+                    counter
                     hint="ใช้เป็นรหัสย่อของโปรเจกต์"
                     persistent-hint
                     :rules="[rules.required, rules.key]"
