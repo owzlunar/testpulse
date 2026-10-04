@@ -12,6 +12,7 @@ const signatories = Joi.array()
 
 const uat = Joi.object({
   testPeriod: text(200).default(''),
+  environmentId: idSchema.allow(''),
   environment: text(200).default(''),
   decision: Joi.string().valid('accepted', 'conditional', 'rejected').required(),
   remarks: text(5000).default(''),

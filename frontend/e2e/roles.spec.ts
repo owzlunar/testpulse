@@ -36,7 +36,8 @@ test('a copy of Admin is an ordinary role (not locked, deletable)', async ({ pag
 test('the comparison shows the most used roles and can hide the permissions they share', async ({ page }) => {
   await page.getByRole('tab', { name: 'เปรียบเทียบสิทธิ์' }).click()
   const headers = page.locator('.role-compare thead th .v-btn')
-  await expect(headers).toHaveCount(3)
+  // QA Lead, QA Tester, Developer, Server/Infra (Admin has everything anyway)
+  await expect(headers).toHaveCount(4)
   const all = await page.locator('.role-compare tbody tr').count()
   await page.getByLabel('แสดงเฉพาะสิทธิ์ที่ต่างกัน').click()
   await expect.poll(() => page.locator('.role-compare tbody tr').count()).toBeLessThan(all)

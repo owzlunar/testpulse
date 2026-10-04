@@ -11,6 +11,8 @@ import { defectService } from './defect.service.js'
 // Public API for other modules: a project's defects (documents print them).
 export const defects = {
   ofProject: (projectId: string) => defectRepository.ofProjects([projectId]),
+  /** defects made before environments and causes become code problems on the matching environment (migrations) */
+  place: (projectId: string, match: (name: string) => { id: string; name: string } | undefined) => defectRepository.place(projectId, match),
 }
 
 export const defectModule: AppModule = {

@@ -25,12 +25,39 @@ class DefectRepository extends BaseRepository<DefectDoc, Defect> {
     return this.find({ projectId: { $in: projectIds } })
   }
 
+  /** fields set to undefined are removed (e.g. the environment of a defect moved off it) */
   async update(id: string, fields: Partial<DefectDoc>): Promise<Defect | null> {
-    return this.toApi(await DefectModel.findOneAndUpdate({ _id: id }, { $set: fields }, { new: true }))
+    const entries = Object.entries(fields)
+    const unset = entries.filter(([, v]) => v === undefined).map(([k]) => [k, 1])
+    const update = {
+      $set: Object.fromEntries(entries.filter(([, v]) => v !== undefined)),
+      ...(unset.length && { $unset: Object.fromEntries(unset) }),
+    }
+    return this.toApi(await DefectModel.findOneAndUpdate({ _id: id }, update, { new: true }))
   }
 
   async addComment(id: string, comment: Defect['comments'][number]): Promise<Defect | null> {
     return this.toApi(await DefectModel.findOneAndUpdate({ _id: id }, { $push: { comments: comment } }, { new: true }))
+  }
+
+  /**
+   * defects made before environments and causes: a code problem, on the environment whose name matches
+   * their free text (others keep only the text); how many changed
+   */
+  async place(projectId: string, match: (name: string) => { id: string; name: string } | undefined): Promise<number> {
+    const { modifiedCount } = await DefectModel.updateMany({ projectId, cause: { $exists: false } }, { $set: { cause: 'code' } })
+    const docs = await DefectModel.find(
+      { projectId, environmentId: { $exists: false }, environment: { $nin: [null, ''] } },
+      { environment: 1 },
+    ).lean()
+    let placed = 0
+    for (const d of docs) {
+      const env = match(d.environment ?? '')
+      if (!env) continue
+      await DefectModel.updateOne({ _id: d._id }, { $set: { environmentId: env.id, environment: env.name } })
+      placed++
+    }
+    return Math.max(modifiedCount, placed)
   }
 
   deleteOfProject(projectId: string) {

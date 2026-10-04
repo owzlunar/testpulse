@@ -29,6 +29,8 @@ describe('project access', () => {
     expect(await idsFor('user-qa-1')).toEqual(['proj-1', 'proj-3'])
     expect(await idsFor('user-qa-2')).toEqual(['proj-2', 'proj-3'])
     expect(await idsFor('user-dev-2')).toEqual(['proj-1', 'proj-2', 'proj-3'])
+    // the Infra team runs proj-1's STAGING: its members open proj-1 too
+    expect(await idsFor('user-ops-1')).toEqual(['proj-1', 'proj-3'])
   })
 
   it('a user without a role sees no project', async () => {
@@ -85,5 +87,46 @@ describe('project changes (Admin)', () => {
     expect(mine.map((e) => e.action)).toEqual(['DELETE', 'UPDATE'])
     expect(mine[1]!.userId).toBe('user-admin')
     expect(mine[1]!.changes?.map((c) => c.field)).toEqual(expect.arrayContaining(['name']))
+  })
+})
+
+describe('environments', () => {
+  const admin = () => client(app).as('user-admin')
+  const env = (id: string, name: string, primary: boolean, teamId?: string) => ({ id, name, primary, ...(teamId && { teamId }) })
+
+  it('a new project starts with TEST as its primary environment', async () => {
+    const res = await admin().post('/projects').send(project())
+    expect(res.body.data.environments).toEqual([{ id: 'env-test', name: 'TEST', primary: true }])
+  })
+
+  it('keeps exactly one primary and different names', async () => {
+    const twoPrimaries = [env('env-a', 'TEST', true), env('env-b', 'STAGING', true)]
+    expect(
+      (
+        await admin()
+          .post('/projects')
+          .send(project({ environments: twoPrimaries }))
+      ).status,
+    ).toBe(422)
+    const sameName = [env('env-a', 'TEST', true), env('env-b', 'test', false)]
+    expect(
+      (
+        await admin()
+          .post('/projects')
+          .send(project({ environments: sameName }))
+      ).status,
+    ).toBe(422)
+    const res = await admin()
+      .post('/projects')
+      .send(project({ environments: [env('env-a', ' TEST ', true), env('env-b', 'STAGING', false, 'team-infra')] }))
+    expect(res.body.data.environments).toEqual([env('env-a', 'TEST', true), env('env-b', 'STAGING', false, 'team-infra')])
+  })
+
+  it('a deleted team no longer runs an environment', async () => {
+    await admin().delete('/teams/team-infra')
+    const proj1 = ((await admin().get('/projects')).body.data as { id: string; environments: { teamId?: string }[] }[]).find(
+      (p) => p.id === 'proj-1',
+    )!
+    expect(proj1.environments.every((e) => !e.teamId)).toBe(true)
   })
 })

@@ -11,9 +11,10 @@ import { storedCases } from './test-case'
 export const fetchProjectReport = (projectId: string) =>
   respond(() => {
     assertCan('report.view', projectId)
-    if (!storedProjects().some((p) => p.id === projectId)) throw new ApiError('ไม่พบโปรเจกต์', 404)
+    const project = storedProjects().find((p) => p.id === projectId)
+    if (!project) throw new ApiError('ไม่พบโปรเจกต์', 404)
     const cases = storedCases().filter((c) => c.projectId === projectId && !c.archivedAt)
-    return projectReport(projectId, cases, runsOf(projectId), defectsOf(projectId))
+    return projectReport(project, cases, runsOf(projectId), defectsOf(projectId))
   })
 
 /** POST /projects/:projectId/exports (mock: the store's audit entry is already kept in the mock's log) */

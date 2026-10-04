@@ -22,4 +22,13 @@ export const SEED_TEAMS: Team[] = [
     createdAt: at,
     updatedAt: at,
   },
+  {
+    id: 'team-infra',
+    name: 'ทีม Infra',
+    description: 'ดูแล Server ของลูกค้า (STAGING): Port, Firewall, WAF และการตั้งค่า',
+    tone: 'caution',
+    memberIds: ['user-ops-1'],
+    createdAt: at,
+    updatedAt: at,
+  },
 ]

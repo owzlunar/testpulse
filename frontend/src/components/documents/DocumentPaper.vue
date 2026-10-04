@@ -107,7 +107,10 @@ const showTorClause = computed(() => s.value.requirements.some((r) => r.torClaus
             </tr>
             <tr v-if="isUat && doc.uat">
               <th>สภาพแวดล้อม</th>
-              <td>{{ doc.uat.environment }}</td>
+              <td>
+                {{ doc.uat.environment }}<template v-if="s.run?.build"> · Build {{ s.run.build }}</template>
+                <template v-if="s.environment && !s.run && !s.environment.primary"> (ผลล่าสุดของแต่ละเคสบน Environment นี้)</template>
+              </td>
             </tr>
             <tr v-else-if="s.run">
               <th>สภาพแวดล้อม</th>

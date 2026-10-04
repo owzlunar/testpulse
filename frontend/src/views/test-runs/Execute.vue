@@ -148,7 +148,7 @@ function reportDefect(stepIndex: number) {
     stepNumber: stepIndex + 1,
     severity: SEVERITY_BY_PRIORITY[d.priority],
     assignee: caseNow.value?.assignedDev ?? '',
-    environment: [r.environment, r.build].filter(Boolean).join(' · '),
+    environmentId: r.environmentId,
     stepsToReproduce: d.steps
       .slice(0, stepIndex + 1)
       .map((s, i) => `${i + 1}. ${s.action}${s.testData && s.testData !== '-' ? ` (${s.testData})` : ''}`)

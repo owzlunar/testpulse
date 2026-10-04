@@ -14,13 +14,13 @@ export const reportService = {
   /** GET /projects/:projectId/report: from the active cases, the runs and the defects */
   async ofProject(p: Principal, projectId: string): Promise<ProjectReport> {
     assertCan(p, 'report.view')
-    await projectAccess.assert(p, projectId)
+    const project = await projectAccess.assert(p, projectId)
     const [cases, runList, defectList] = await Promise.all([
       testCases.activeOfProject(projectId),
       runs.ofProject(projectId),
       defects.ofProject(projectId),
     ])
-    return projectReport(projectId, cases, runList, defectList)
+    return projectReport(project, cases, runList, defectList)
   },
 
   /** POST /projects/:projectId/exports: the browser makes the file from the cases it may read; the server records it */

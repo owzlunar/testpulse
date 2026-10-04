@@ -76,7 +76,7 @@ describe('permissions', () => {
 
   it('only Admins manage projects, roles and user roles', async () => {
     await signIn(USERS.qaLead)
-    const project = { key: 'X', name: 'X', description: '', status: 'active', tags: [] } as ProjectInput
+    const project: ProjectInput = { key: 'XX', name: 'X', description: '', status: 'active', tags: [], environments: [] }
     expect((await refusal(createProject(project))).status).toBe(403)
     expect((await refusal(updateUser(USERS.qaLead, { roleId: 'role-admin' }))).status).toBe(403)
     const role = { name: 'Hacker', description: '', discipline: 'qa', tone: 'error', icon: 'tabler:user', permissions: [] } as const

@@ -17,7 +17,8 @@ const defectBody = Joi.object({
   stepNumber: Joi.number().integer().min(1),
   assignee: text(120),
   externalKey: text(60),
-  environment: text(120),
+  environmentId: idSchema.allow(''),
+  cause: Joi.string().valid('code', 'environment').default('code'),
   evidence: Joi.array().items(Joi.string().max(2048)).max(20).default([]),
 })
 

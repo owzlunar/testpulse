@@ -16,6 +16,8 @@ import { required } from '@/utils/validators'
 import { isOpenDefect } from '@/domain/defect'
 import { DOCUMENT_TYPES, UAT_DECISIONS, documentTypeOf, formatDocNumber } from '@/domain/document'
 import { torCaseIds } from '@/domain/requirement'
+import { primaryEnvironment } from '@/domain/project'
+import { currentResultOf, runEnvironmentId } from '@/domain/run'
 import { isOverdue } from '@/domain/test-case'
 
 const open = defineModel<boolean>({ default: false })
@@ -45,19 +47,46 @@ const options = reactive<DocumentOptions>({
   includeTraceability: false,
   torOnly: false,
 })
-const uat = reactive<UatDetails>({ testPeriod: '', environment: '', decision: 'accepted', remarks: '', riskAcknowledged: false })
+const uat = reactive<UatDetails>({
+  testPeriod: '',
+  environmentId: undefined,
+  environment: '',
+  decision: 'accepted',
+  remarks: '',
+  riskAcknowledged: false,
+})
 const signatories = ref<Signatory[]>([])
 
 // --- defaults per type ---------------------------------------------------------------------
+// --- environment (UAT): where the customer accepts, usually STAGING; results and risks come from it ---
+const environments = computed(() => currentProject.value?.environments ?? [])
+const uatEnvironment = computed(() => environments.value.find((e) => e.id === uat.environmentId))
+/** the runs the document may print: on the UAT's environment, or any run for the other types */
+const sourceRuns = computed(() =>
+  runStore.current.filter(
+    (r) => docType.value !== 'uat' || !currentProject.value || !uat.environmentId || runEnvironmentId(r, currentProject.value) === uat.environmentId,
+  ),
+)
 const runOptions = computed(() =>
-  runStore.current.map((r) => ({ title: `${r.name} · รอบที่ ${r.round} (${r.status === 'completed' ? 'ปิดแล้ว' : 'กำลังทดสอบ'})`, value: r.id })),
+  sourceRuns.value.map((r) => ({
+    title: `${r.name} · รอบที่ ${r.round} · ${r.environment} (${r.status === 'completed' ? 'ปิดแล้ว' : 'กำลังทดสอบ'})`,
+    value: r.id,
+  })),
+)
+const noRunLabel = computed(() =>
+  docType.value === 'uat' && uatEnvironment.value && !uatEnvironment.value.primary
+    ? `ผลล่าสุดของแต่ละเคสบน ${uatEnvironment.value.name} (ไม่อ้างอิงรอบ)`
+    : 'สถานะล่าสุดของ Test Case ทั้งโปรเจกต์ (ไม่อ้างอิงรอบ)',
 )
 const selectedRun = computed(() => runStore.current.find((r) => r.id === options.runId))
 
 function applyType(t: DocumentType) {
   docType.value = t
   const key = currentProject.value?.key ?? 'PRJ'
-  const runDefault = props.runId ?? (t === 'test_spec' || t === 'rtm' ? undefined : runStore.current[0]?.id)
+  // a UAT is usually signed on the customer's environment (the first that is not the primary one)
+  const project = currentProject.value ?? { environments: [] }
+  uat.environmentId = (project.environments.find((e) => !e.primary) ?? primaryEnvironment(project)).id
+  const runDefault = props.runId ?? (t === 'test_spec' || t === 'rtm' ? undefined : sourceRuns.value[0]?.id)
   Object.assign(options, {
     runId: runDefault,
     includeSubCases: true,
@@ -82,10 +111,7 @@ function updateTitle() {
         : docType.value === 'test_spec'
           ? `เอกสารกรณีทดสอบ (Test Specification) ${name}`
           : `Requirement Traceability Matrix ${name}`
-  if (r) {
-    uat.testPeriod = `${formatDateTH(r.plannedStart)} – ${formatDateTH(r.plannedEnd)}`
-    uat.environment = [r.environment, r.build].filter(Boolean).join(' · ')
-  }
+  if (r) uat.testPeriod = `${formatDateTH(r.plannedStart)} – ${formatDateTH(r.plannedEnd)}`
 }
 
 // the defaults below are the saved state: they load asynchronously, so mark them clean once filled
@@ -109,6 +135,13 @@ watch(
   { immediate: true },
 )
 watch(() => options.runId, updateTitle)
+// another environment: a run of the old one no longer fits
+watch(
+  () => uat.environmentId,
+  () => {
+    if (docType.value === 'uat' && options.runId && !sourceRuns.value.some((r) => r.id === options.runId)) options.runId = sourceRuns.value[0]?.id
+  },
+)
 
 // --- release gatekeeper (UAT) ------------------------------------------------------------------
 // TOR only: the document holds only the cases that test a TOR requirement (as buildSnapshot does)
@@ -119,20 +152,36 @@ watch(
 const scope = computed(() => (options.torOnly ? torCaseIds(requirementStore.current, currentCases.value) : null))
 const inScope = (caseId?: string) => !scope.value || !caseId || scope.value.has(caseId)
 
+/** a UAT on a non-primary environment without a run prints each case's latest result there (as buildSnapshot does) */
+const envResults = computed(() =>
+  docType.value === 'uat' && !selectedRun.value && uatEnvironment.value && !uatEnvironment.value.primary
+    ? runStore.environmentResults.find((e) => e.id === uatEnvironment.value!.id)?.results
+    : undefined,
+)
+
 const risks = computed(() => {
   const r = selectedRun.value
+  const results = envResults.value
   const outcomes = r
     ? r.results.filter((x) => inScope(x.caseId) && !(scope.value && x.caseDeleted)).map((x) => x.status)
-    : currentCases.value.filter((c) => inScope(c.id)).map((c) => c.status)
+    : currentCases.value.filter((c) => inScope(c.id)).map((c) => (results ? currentResultOf(c, results)?.status : c.status))
   const failed = outcomes.filter((o) => o === 'failed').length
   const blocked = outcomes.filter((o) => o === 'blocked').length
   const overdue = currentCases.value.filter((c) => inScope(c.id) && isOverdue(c)).length
-  const openDefects = defectStore.current.filter((d) => isOpenDefect(d) && (d.caseDeleted || inScope(d.caseId))).length
+  // a UAT counts only the server problems of its own environment
+  const open = defectStore.current.filter(
+    (d) =>
+      isOpenDefect(d) &&
+      (d.caseDeleted || inScope(d.caseId)) &&
+      (docType.value !== 'uat' || d.cause !== 'environment' || d.environmentId === uat.environmentId),
+  )
+  const openServer = open.filter((d) => d.cause === 'environment').length
   return [
     failed && `Failed ${failed} เคส`,
     blocked && `Blocked ${blocked} เคส`,
     overdue && `เลยกำหนด ${overdue} เคส`,
-    openDefects && `Defect เปิดอยู่ ${openDefects} รายการ`,
+    open.length - openServer && `Defect เปิดอยู่ ${open.length - openServer} รายการ`,
+    openServer && `ปัญหาด้าน Server เปิดอยู่ ${openServer} รายการ`,
   ].filter(Boolean) as string[]
 })
 const atRisk = computed(() => docType.value === 'uat' && risks.value.length > 0)
@@ -245,7 +294,7 @@ const steps = ['ประเภทเอกสาร', 'เนื้อหา', 
                   <v-select
                     id="doc-run"
                     v-model="options.runId"
-                    :items="[{ title: 'สถานะล่าสุดของ Test Case ทั้งโปรเจกต์ (ไม่อ้างอิงรอบ)', value: undefined }, ...runOptions]"
+                    :items="[{ title: noRunLabel, value: undefined }, ...runOptions]"
                     prepend-inner-icon="tabler:player-play"
                   />
                 </v-col>
@@ -276,8 +325,18 @@ const steps = ['ประเภทเอกสาร', 'เนื้อหา', 
                     <v-text-field id="doc-period" v-model="uat.testPeriod" prepend-inner-icon="tabler:calendar" :rules="[required]" />
                   </v-col>
                   <v-col cols="12" sm="6">
-                    <label class="fox-label" for="doc-env">Environment *</label>
-                    <v-text-field id="doc-env" v-model="uat.environment" prepend-inner-icon="tabler:server" :rules="[required]" />
+                    <label class="fox-label" for="doc-env">ตรวจรับบน Environment *</label>
+                    <v-select
+                      id="doc-env"
+                      v-model="uat.environmentId"
+                      :items="environments"
+                      item-title="name"
+                      item-value="id"
+                      prepend-inner-icon="tabler:server"
+                      :rules="[required]"
+                      hint="ผลทดสอบ Pass rate และความเสี่ยงมาจาก Environment นี้"
+                      persistent-hint
+                    />
                   </v-col>
                   <v-col v-if="atRisk" cols="12">
                     <v-alert type="error" variant="tonal" icon="tabler:shield-exclamation" title="Release at Risk">

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import TestCaseBadges from './TestCaseBadges.vue'
+import TestCaseEnvironmentChips from './TestCaseEnvironmentChips.vue'
 import TestCasePriorityChip from './TestCasePriorityChip.vue'
 import TestCaseStatusChip from './TestCaseStatusChip.vue'
 import TestCaseStatusMenu from './TestCaseStatusMenu.vue'
@@ -34,6 +35,7 @@ const setStatus = (tc: TestCase, s: TestCaseStatus) => run(() => store.update(tc
         <TestCaseStatusChip :status="testCase.status" size="x-small" />
         <TestCasePriorityChip :priority="testCase.priority" />
         <TestCaseBadges :test-case="testCase" />
+        <TestCaseEnvironmentChips :test-case="testCase" />
       </div>
       <div class="text-body-2 text-truncate">{{ testCase.name }}</div>
     </div>

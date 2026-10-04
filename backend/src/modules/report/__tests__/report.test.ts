@@ -30,6 +30,27 @@ describe('project report', () => {
     expect(Object.values(report.defects.openBySeverity).reduce((a, b) => a + b, 0)).toBe(3)
   })
 
+  it('by environment: the primary is the cases’ status, another its latest results there; code vs server defects', async () => {
+    const run = (
+      await as('user-qa-1')
+        .post('/projects/proj-1/test-runs')
+        .send({ name: 'UAT', type: 'uat', round: 1, environmentId: 'env-staging', caseIds: ['TC-101', 'TC-104'] })
+    ).body.data
+    const verdict = (status: string) => ({ status, stepResults: [], actualResults: '', evidence: [], defectIds: [], notes: '' })
+    await as('user-qa-1').put(`/test-runs/${run.id}/results/TC-101`).send(verdict('passed'))
+    await as('user-qa-1').put(`/test-runs/${run.id}/results/TC-104`).send(verdict('blocked'))
+    const bug = { title: 'Port 443 ถูกปิด', severity: 'critical', status: 'open', environmentId: 'env-staging', cause: 'environment', evidence: [] }
+    await as('user-qa-1').post('/projects/proj-1/defects').send(bug)
+
+    const report = await reportOf('user-qa-1')
+    const [test, staging] = report.environments
+    expect(test).toMatchObject({ id: 'env-test', primary: true, passed: report.stats.passed })
+    expect(staging).toMatchObject({ id: 'env-staging', name: 'STAGING', primary: false, passed: 1, blocked: 1, failed: 0 })
+    expect(staging!.notRun).toBe(report.stats.total - 2)
+    expect(report.defects.byCause.environment).toMatchObject({ total: 1, open: 1, avgFixHours: null })
+    expect(report.defects.byCause.code).toMatchObject({ total: 4, open: 3 })
+  })
+
   it('leaves archived cases out', async () => {
     const before = await reportOf('user-qa-1')
     await as('user-qa-1').post('/projects/proj-1/test-cases/TC-104/archive').send({})

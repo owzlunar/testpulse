@@ -13,6 +13,9 @@ import { runService } from './run.service.js'
 export const runs = {
   find: (id: string) => runRepository.findById(id),
   ofProject: (projectId: string) => runRepository.ofProject(projectId),
+  /** runs made before they picked an environment: their free-text names, and placing them (migrations) */
+  unplacedEnvironmentNames: (projectId: string) => runRepository.unplacedEnvironmentNames(projectId),
+  place: (projectId: string, pick: (name: string) => { id: string; name: string }) => runRepository.place(projectId, pick),
 }
 
 export const runModule: AppModule = {

@@ -83,6 +83,13 @@ export const permissionOf = (key: PermissionKey) => PERMISSION_GROUPS.flatMap((g
 export const DISCIPLINES: Option<RoleDiscipline>[] = [
   { value: 'qa', label: 'QA', hint: 'อยู่ในรายชื่อ QA ผู้รับผิดชอบ และเห็นงานฝั่งทดสอบ', tone: 'success', icon: 'tabler:flask' },
   { value: 'dev', label: 'Developer', hint: 'อยู่ในรายชื่อ Developer ผู้รับผิดชอบ และเห็นงานฝั่งแก้ไข', tone: 'info', icon: 'tabler:code' },
+  {
+    value: 'ops',
+    label: 'Server/Infra',
+    hint: 'ดูแล Server ของลูกค้า รับปัญหาด้าน Server / Environment แทน Developer',
+    tone: 'caution',
+    icon: 'tabler:server',
+  },
   { value: 'other', label: 'อื่นๆ', hint: 'ไม่อยู่ในรายชื่อผู้รับผิดชอบ เช่น PM หรือผู้บริหาร', tone: 'secondary', icon: 'tabler:briefcase' },
 ]
 
@@ -97,6 +104,7 @@ export const ROLE_ICONS = [
   'tabler:code',
   'tabler:bug',
   'tabler:briefcase',
+  'tabler:server',
   'tabler:chart-bar',
   'tabler:eye',
   'tabler:user',

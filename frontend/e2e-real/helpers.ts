@@ -7,6 +7,7 @@ export const ACCOUNTS = {
   qaLead: { email: 'somchai.qa@testpulse.dev', name: 'สมชาย ประเสริฐ (QA Lead)' }, // team Payment: proj-1, proj-3
   tester: { email: 'pitchaya.qa@testpulse.dev', name: 'พิชญา ศรีสุข (Senior Tester)' }, // team E-Commerce: proj-2, proj-3
   developer: { email: 'kittisak.dev@testpulse.dev', name: 'กิตติศักดิ์ พัฒนา (Dev Lead)' }, // team Payment: proj-1, proj-3
+  ops: { email: 'anucha.ops@testpulse.dev', name: 'อนุชา มั่นคง (Server/Infra)' }, // team Infra (runs proj-1's STAGING): proj-1, proj-3
 } as const
 
 /** sign in through the login form, as a person would */

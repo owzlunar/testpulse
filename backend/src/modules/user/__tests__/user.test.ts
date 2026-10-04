@@ -17,7 +17,7 @@ const admin = () => client(app).as('user-admin')
 describe('users', () => {
   it('lists users without password hashes; emails are encrypted at rest', async () => {
     const res = await client(app).as('user-qa-2').get('/users')
-    expect(res.body.data).toHaveLength(5)
+    expect(res.body.data).toHaveLength(6)
     expect(res.body.data[0]).not.toHaveProperty('passwordHash')
     expect(res.body.data[0]).not.toHaveProperty('email_bidx')
     const raw = await mongoose.connection.db!.collection('users').findOne({ _id: 'user-admin' as never })

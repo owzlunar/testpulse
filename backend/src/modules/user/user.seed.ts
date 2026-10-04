@@ -47,6 +47,14 @@ const DEMO_USERS = [
     title: 'Senior QA Tester',
     avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80',
   },
+  {
+    _id: 'user-ops-1',
+    name: 'อนุชา มั่นคง (Server/Infra)',
+    email: 'anucha.ops@testpulse.dev',
+    roleId: 'role-ops',
+    title: 'Infrastructure Engineer',
+    avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80',
+  },
 ]
 
 export const userSeed: Seed = {

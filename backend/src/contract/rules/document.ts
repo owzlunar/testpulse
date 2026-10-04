@@ -15,7 +15,8 @@ import type {
 } from '../types.js'
 import { isOpenDefect } from './defect.js'
 import { casesForRequirement, compareRequirements, coverageStatus, requirementText, torCaseIds } from './requirement.js'
-import { RESULT_LABELS, RESULT_TONES } from './run.js'
+import { environmentOf } from './project.js'
+import { RESULT_LABELS, RESULT_TONES, currentResultOf, latestEnvironmentResults } from './run.js'
 import { STATUS_LABELS, STATUS_TONES, isOverdue } from './test-case.js'
 
 /** the organisation's template until one is saved */
@@ -35,11 +36,13 @@ export const DEFAULT_TEMPLATE: DocumentTemplate = {
 
 /** what a document is made from: the project's data at generation time */
 export interface SnapshotSources {
-  project: Pick<Project, 'name' | 'key' | 'description' | 'targetDeadline'>
+  project: Pick<Project, 'name' | 'key' | 'description' | 'targetDeadline' | 'environments'>
   /** every case of the project, archived ones too (a run still shows the ones it executed) */
   cases: TestCase[]
   /** the chosen run (options.runId), else the cases' current status is printed */
   run?: TestRun
+  /** the project's runs: a UAT on a non-primary environment prints each case's latest result there */
+  runs?: TestRun[]
   defects: Defect[]
   requirements: Requirement[]
 }
@@ -50,8 +53,8 @@ const byId = (a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id, 
 
 /** the data a document prints, frozen when it is generated */
 export function buildSnapshot(
-  req: { type: DocumentType; options: DocumentOptions },
-  { project, cases: projectCases, run, defects, requirements: projectRequirements }: SnapshotSources,
+  req: { type: DocumentType; options: DocumentOptions; uat?: UatDetails },
+  { project, cases: projectCases, run, runs = [], defects: projectDefects, requirements: projectRequirements }: SnapshotSources,
   generatedAt = new Date().toISOString(),
 ): DocumentSnapshot {
   // archived cases are out of scope (lists, coverage)
@@ -60,6 +63,10 @@ export function buildSnapshot(
   const requirements = (torOnly ? projectRequirements.filter((r) => r.origin === 'tor') : projectRequirements).slice().sort(compareRequirements)
   // TOR only: the cases that test a TOR requirement (a run's deleted cases can't say, so they are left out)
   const torCases = torOnly ? torCaseIds(requirements, projectCases) : null
+  // UAT on a chosen environment: its results (a non-primary one keeps its own), and only its server problems
+  const env = req.type === 'uat' ? environmentOf(project, req.uat?.environmentId) : undefined
+  const envResults = env && !env.primary && !run ? latestEnvironmentResults(runs, env.id, project) : null
+  const defects = env ? projectDefects.filter((d) => d.cause !== 'environment' || d.environmentId === env.id) : projectDefects
 
   let cases: DocCase[]
   if (run) {
@@ -84,6 +91,31 @@ export function buildSnapshot(
         stepResults: r.stepResults,
         evidence: [...r.evidence, ...r.stepResults.flatMap((s) => s.evidence)],
         defectIds: r.defectIds,
+      }
+    })
+  } else if (envResults) {
+    cases = allCases.map((tc) => {
+      const latest = currentResultOf(tc, envResults)
+      const r = latest && runs.find((x) => x.id === latest.runId)?.results.find((x) => x.caseId === tc.id)
+      return {
+        id: tc.id,
+        name: tc.name,
+        parentId: tc.parentId,
+        requirement: requirementText(tc, projectRequirements),
+        testScenario: tc.testScenario,
+        prerequisite: tc.prerequisite,
+        priority: tc.priority,
+        steps: tc.steps,
+        expectedResults: tc.expectedResults,
+        outcome: outcomeOf(latest?.status ?? 'untested'),
+        result: RESULT_LABELS[latest?.status ?? 'untested'],
+        resultTone: RESULT_TONES[latest?.status ?? 'untested'],
+        actualResults: r?.actualResults ?? '',
+        executedBy: latest?.executedBy,
+        executedAt: latest?.executedAt,
+        stepResults: r?.stepResults,
+        evidence: r ? [...r.evidence, ...r.stepResults.flatMap((x) => x.evidence)] : [],
+        defectIds: defects.filter((d) => d.caseId === tc.id && !d.caseDeleted).map((d) => d.id),
       }
     })
   } else {
@@ -120,7 +152,8 @@ export function buildSnapshot(
   const caseIds = new Set(cases.map((c) => c.id))
   /** defects of the printed cases, of deleted ones, or of none */
   const inScope = (d: Defect) => !d.caseId || d.caseDeleted || caseIds.has(d.caseId)
-  const openDefects = defects.filter((d) => isOpenDefect(d) && inScope(d))
+  const openDefects = defects.filter((d) => isOpenDefect(d) && inScope(d) && d.cause !== 'environment')
+  const openServer = defects.filter((d) => isOpenDefect(d) && inScope(d) && d.cause === 'environment')
   const overdue = allCases.filter((c) => caseIds.has(c.id) && isOverdue(c))
 
   const risks = [
@@ -128,6 +161,7 @@ export function buildSnapshot(
     blocked && `มีเคสที่ทดสอบไม่ได้ (Blocked) ${blocked} เคส`,
     overdue.length && `มีเคสเลยกำหนดส่งมอบ ${overdue.length} เคส`,
     openDefects.length && `มี Defect ที่ยังเปิดอยู่ ${openDefects.length} รายการ`,
+    openServer.length && `มีปัญหาด้าน Server / Environment ที่ยังเปิดอยู่ ${openServer.length} รายการ`,
   ].filter(Boolean) as string[]
 
   return {
@@ -144,6 +178,7 @@ export function buildSnapshot(
       startedAt: run.startedAt,
       completedAt: run.completedAt,
     },
+    environment: env && { name: env.name, primary: env.primary },
     summary: {
       total: cases.length,
       passed,
@@ -154,8 +189,10 @@ export function buildSnapshot(
     },
     cases,
     defects: (req.options.includeDefects ? defects.filter(inScope) : []).map(
-      ({ id, title, severity, status, caseId, caseDeleted, assignee, externalKey }) => ({
+      ({ id, title, severity, status, caseId, caseDeleted, assignee, externalKey, cause, environment }) => ({
         id,
+        cause,
+        environment,
         title,
         severity,
         status,
