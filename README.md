@@ -82,7 +82,7 @@ docker logs -f testpulse
 
 - **แก้ค่าใน `.env.prod`** (รวมถึง key): `docker compose -f docker-compose.server.yml up -d --force-recreate` ไม่ต้อง build image ใหม่ (`docker compose restart` ไม่อ่าน env ใหม่)
 - **อัปเดตเวอร์ชัน**: โหลด image ใหม่ แก้ `image:` แล้ว `docker compose -f docker-compose.server.yml up -d` (migration รันเองตอน start)
-- **หมุน encryption key**: สร้าง key ใหม่ (`openssl rand -hex 32`) เก็บลงที่เก็บ secret ก่อน แล้วใน `.env.prod` เพิ่ม `ENCRYPTION_KEY_V2=…` และตั้ง `ENCRYPTION_CURRENT_KEY_ID=v2` (คง `ENCRYPTION_KEY_V1` ไว้) → `up -d --force-recreate` → รัน `rotate-keys.js` (หัวข้อคำสั่งใน container) ซ้ำจนทุก collection รายงาน 0 → ลบ `ENCRYPTION_KEY_V1` → `up -d --force-recreate` อีกครั้ง
+- **หมุน encryption key**: ดูหัวข้อ [หมุน encryption key](#หมุน-encryption-key-key-rotation)
 
 ### ค่าตั้งค่า (environment)
 
@@ -108,6 +108,62 @@ container อ่านค่าจากสองไฟล์ผ่าน `env_f
 | `RUN_DB_INDEXES` / `RUN_MIGRATIONS` | `true` | ตั้ง `false` ถ้าขั้น deploy อื่นทำให้แล้ว |
 
 ค่ากลางอื่น ๆ (TTL ของ token, rate limit, BASE_PATH ฯลฯ) อยู่ใน `backend/.env` และแม่แบบของ `.env.prod` อยู่ใน `backend/env-example`
+
+### หมุน encryption key (key rotation)
+
+ข้อมูลส่วนตัว (เช่นอีเมลผู้ใช้) ถูกเข้ารหัสด้วย `ENCRYPTION_KEY_<ID>` ทุกค่าที่เข้ารหัสระบุ key ที่ใช้ไว้ในตัว (`enc:v1:…`) ระบบจึงอ่านได้ทุกค่าตราบที่ยังมี key นั้นใน environment ส่วน `ENCRYPTION_CURRENT_KEY_ID` บอกว่าข้อมูลที่เขียนใหม่ใช้ key ไหน
+
+ทำบนเครื่อง server ได้เลย ไม่ต้อง build image ใหม่ ตัวอย่างด้านล่างหมุนจาก v1 ไป v2 ในโฟลเดอร์ deploy (เช่น `/opt/testpulse`)
+
+1. **สร้าง key ใหม่ และเก็บลงที่เก็บ secret ก่อน** (password manager / vault) เพราะไม่มีที่ไหนแสดง key นี้ให้อีก
+
+   ```bash
+   openssl rand -hex 32
+   ```
+
+2. **แก้ `backend/.env.prod`**: เพิ่ม v2 และเปลี่ยน key ปัจจุบัน โดย **คง v1 ไว้**
+
+   ```bash
+   ENCRYPTION_KEY_V1=<key เดิม ห้ามลบในขั้นนี้>
+   ENCRYPTION_KEY_V2=<key ใหม่จากข้อ 1>
+   ENCRYPTION_CURRENT_KEY_ID=v2
+   ```
+
+   เพิ่มแค่ `ENCRYPTION_KEY_V2` โดยไม่เปลี่ยน `ENCRYPTION_CURRENT_KEY_ID` ระบบจะยังใช้ v1 ต่อ
+
+3. **สร้าง container ใหม่ให้รับค่าใหม่** (`docker compose restart` ไม่อ่าน env ใหม่)
+
+   ```bash
+   docker compose -f docker-compose.server.yml up -d --force-recreate
+   ```
+
+   จากนี้ข้อมูลที่เขียนใหม่ใช้ v2 ส่วนข้อมูลเดิมยังเป็น v1 และยังอ่านได้ ระบบหยุดแค่ช่วงสร้าง container ใหม่ไม่กี่วินาที
+
+4. **เข้ารหัสข้อมูลเดิมใหม่ด้วย v2** (ทำระหว่างระบบเปิดใช้งานได้ ทำทีละ 500 รายการ)
+
+   ```bash
+   docker exec -u testpulse -w /app/backend testpulse node dist/cli/rotate-keys.js
+   ```
+
+   log บอกจำนวนต่อ collection เช่น `[keys] users: 12 document(s) re-encrypted with "v2"`
+
+5. **รันข้อ 4 ซ้ำ** จนทุก collection รายงาน `0 document(s)` แปลว่าไม่เหลือข้อมูลที่ใช้ v1 แล้ว
+
+6. **เอา v1 ออก** จาก `backend/.env.prod` แล้วสร้าง container ใหม่อีกครั้ง
+
+   ```bash
+   docker compose -f docker-compose.server.yml up -d --force-recreate
+   ```
+
+   ตรวจว่า container ขึ้นปกติ (`docker logs testpulse`) และเข้าสู่ระบบด้วยบัญชีเดิมได้
+
+ข้อควรระวัง
+
+- **อย่าเอา key เก่าออกก่อนข้อ 5** ข้อมูลที่ยังใช้ key นั้นจะอ่านไม่ได้ทันที และผู้ใช้เข้าสู่ระบบไม่ได้
+- **เก็บ key เก่าไว้ในที่เก็บ secret ต่อ** backup ฐานข้อมูลที่ทำก่อนหมุน key ยังเข้ารหัสด้วย key นั้น ถ้าต้อง restore ต้องใช้ ระบุให้ชัด เช่น "v1 ใช้กับ backup ก่อน 2026-11-01"
+- **ทุก instance ที่ใช้ฐานเดียวกันต้องมีชุด key เดียวกัน** อัปเดต `.env.prod` และสร้าง container ใหม่ให้ครบทุกเครื่องก่อนรันข้อ 4
+- **`BLIND_INDEX_SALT` ไม่ต้องหมุนและห้ามเปลี่ยน** ใช้ค้นผู้ใช้จากอีเมล (รวมถึงตอนเข้าสู่ระบบ) ไม่ได้ผูกกับ encryption key ถ้าเปลี่ยนจะค้นผู้ใช้เดิมไม่เจอ
+- รอบต่อไปทำแบบเดียวกัน (v2 → v3) ชื่อ key เป็นตัวอักษรหรือตัวเลขอะไรก็ได้ (`ENCRYPTION_KEY_<ID>` คู่กับ `ENCRYPTION_CURRENT_KEY_ID=<id>` ไม่สนตัวพิมพ์เล็กใหญ่) แต่ละ key ต้องเป็น hex 64 ตัว
 
 ### Volume (เก็บไว้บน host)
 
@@ -137,5 +193,5 @@ location /testpulse/ {
 
 ```bash
 docker exec testpulse supervisorctl -c /etc/supervisord.conf status
-docker exec -u testpulse -w /app/backend testpulse node dist/cli/rotate-keys.js   # หมุน encryption key
+docker exec -u testpulse -w /app/backend testpulse node dist/cli/rotate-keys.js   # หมุน encryption key (ดูขั้นตอนเต็มด้านบน)
 ```
