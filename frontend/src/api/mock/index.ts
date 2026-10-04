@@ -25,7 +25,7 @@ import {
 } from './notification'
 import { createProject, deleteProject, fetchProjects, updateProject } from './project'
 import { fetchProjectReport, recordExport } from './report'
-import { deleteRequirement, fetchRequirements, saveRequirement, searchRequirements } from './requirement'
+import { deleteRequirement, fetchRequirements, importRequirements, saveRequirement, searchRequirements } from './requirement'
 import { deleteRole, fetchRoles, saveRole } from './role'
 import { createRun, deleteRun, fetchRuns, saveResult, searchRuns, updateRun } from './run'
 import { fetchSettings, saveSettings } from './settings'
@@ -83,7 +83,13 @@ export const testCaseApi = {
   deleteTestCase,
   reorderTestCases,
 } satisfies Contract.TestCaseApi
-export const requirementApi = { fetchRequirements, saveRequirement, deleteRequirement, searchRequirements } satisfies Contract.RequirementApi
+export const requirementApi = {
+  fetchRequirements,
+  saveRequirement,
+  importRequirements,
+  deleteRequirement,
+  searchRequirements,
+} satisfies Contract.RequirementApi
 export const runApi = { fetchRuns, searchRuns, createRun, updateRun, saveResult, deleteRun } satisfies Contract.RunApi
 export const defectApi = { fetchDefects, searchDefects, saveDefect, addDefectComment } satisfies Contract.DefectApi
 export const documentApi = {

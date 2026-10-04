@@ -570,6 +570,19 @@ export interface Requirement {
 
 export type RequirementInput = Omit<Requirement, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }
 
+/** One requirement read from an imported table (Excel / CSV): without a code it gets the next free one */
+export type RequirementImportRow = Omit<RequirementInput, 'id' | 'projectId' | 'code'> & { code?: string }
+
+/** What an import did: rows whose code already exists are skipped, or updated when asked */
+export interface RequirementImportResult {
+  created: Requirement[]
+  updated: Requirement[]
+  /** codes that already existed and were left as they are */
+  skipped: string[]
+  /** cases flagged for review because an updated requirement now says something else */
+  flaggedCases: TestCase[]
+}
+
 // =============================================================================
 // Test runs (rounds of execution) & defects
 // =============================================================================

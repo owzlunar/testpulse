@@ -1,8 +1,9 @@
-import type { Requirement, RequirementChangeResult, RequirementInput } from '@/types'
+import type { Requirement, RequirementChangeResult, RequirementImportResult, RequirementImportRow, RequirementInput, TestCase } from '@/types'
+import { meaningChanges, nextRequirementCode } from '@/domain/requirement'
 import { ApiError } from '@/api/errors'
 import { newId } from '@/utils/ids'
 import { respond } from './http'
-import { assertCan, inAccessibleProjects, sessionCan } from './project'
+import { assertCan, inAccessibleProjects, sessionCan, storedProjects } from './project'
 import { SEED_REQUIREMENTS } from './seeds/requirements.seed'
 import { STORAGE_KEYS, load, migrateOnce, save } from './storage'
 import { flagCasesForReview } from './test-case'
@@ -37,13 +38,6 @@ export const searchRequirements = (q: string, limit = 20, offset = 0) =>
     return { requirements: found.slice(offset, offset + limit), total: found.length }
   })
 
-/** what a requirement says; a change here means the linked cases must be reviewed (type / priority / status don't) */
-const MEANING_FIELDS: { field: 'title' | 'description' | 'acceptanceCriteria'; label: string }[] = [
-  { field: 'title', label: 'ชื่อ' },
-  { field: 'description', label: 'รายละเอียด' },
-  { field: 'acceptanceCriteria', label: 'เกณฑ์การยอมรับ' },
-]
-
 /**
  * POST /projects/:projectId/requirements · PUT /requirements/:id
  * When the meaning of an existing requirement changes, the server flags its linked cases for review.
@@ -66,7 +60,7 @@ export const saveRequirement = (fields: RequirementInput) =>
       const before = list[i]
       list[i] = { ...before, ...input, id: input.id, updatedAt: now }
       save(STORAGE_KEYS.requirements, list)
-      const changed = MEANING_FIELDS.filter((m) => JSON.stringify(before[m.field]) !== JSON.stringify(list[i][m.field])).map((m) => m.label)
+      const changed = meaningChanges(before, list[i])
       const flaggedCases = changed.length ? flagCasesForReview(list[i], `${list[i].code} แก้ไข: ${changed.join(', ')}`) : []
       return { requirement: list[i], flaggedCases }
     }
@@ -74,6 +68,49 @@ export const saveRequirement = (fields: RequirementInput) =>
     save(STORAGE_KEYS.requirements, [...list, created])
     return { requirement: created, flaggedCases: [] }
   })
+
+/**
+ * POST /projects/:projectId/requirements/import  { requirements, updateExisting }
+ * Rows without a code get the next free one; a code that exists is skipped, or updated when
+ * `updateExisting` (then a change to what it says flags its cases, as an edit does).
+ */
+export const importRequirements = (projectId: string, rows: RequirementImportRow[], updateExisting: boolean) =>
+  respond<RequirementImportResult>(() => {
+    assertCan('requirement.edit', projectId)
+    const project = storedProjects().find((p) => p.id === projectId)
+    if (!project) throw new ApiError('ไม่พบโปรเจกต์', 404)
+    const codes = rows.map((r) => r.code?.trim()).filter((c): c is string => !!c)
+    const twice = [...new Set(codes.filter((c, i) => codes.indexOf(c) !== i))]
+    if (twice.length) throw new ApiError(`รหัสซ้ำในไฟล์: ${twice.join(', ')}`, 422)
+    if (rows.some((r) => r.origin === 'tor' && !r.torClause?.trim())) throw new ApiError('Requirement ตาม TOR ต้องระบุข้อใน TOR', 400)
+
+    const list = requirements()
+    const now = new Date().toISOString()
+    const result: RequirementImportResult = { created: [], updated: [], skipped: [], flaggedCases: [] }
+    const used = list.filter((r) => r.projectId === projectId).map((r) => r.code)
+    for (const row of rows) {
+      const fields = { ...row, torClause: row.origin === 'tor' ? row.torClause?.trim() : undefined }
+      const existing = row.code ? list.find((r) => r.projectId === projectId && r.code === row.code!.trim()) : undefined
+      if (existing && !updateExisting) result.skipped.push(existing.code)
+      else if (existing) {
+        const updated: Requirement = { ...existing, ...fields, code: existing.code, updatedAt: now }
+        list[list.indexOf(existing)] = updated
+        const changed = meaningChanges(existing, updated)
+        if (changed.length) result.flaggedCases.push(...flagCasesForReview(updated, `${updated.code} แก้ไขจากการนำเข้า: ${changed.join(', ')}`))
+        result.updated.push(updated)
+      } else {
+        const code = row.code?.trim() || nextRequirementCode(project.key, used)
+        used.push(code)
+        const created: Requirement = { ...fields, code, projectId, id: newId('req'), createdAt: now, updatedAt: now }
+        list.push(created)
+        result.created.push(created)
+      }
+    }
+    save(STORAGE_KEYS.requirements, list)
+    // a case linked to several updated requirements is flagged once (its latest state)
+    result.flaggedCases = [...new Map(result.flaggedCases.map((c: TestCase) => [c.id, c])).values()]
+    return result
+  }, 600)
 
 /** DELETE /requirements/:id (its linked cases are flagged for review: they lost what they test) */
 export const deleteRequirement = (id: string) =>
