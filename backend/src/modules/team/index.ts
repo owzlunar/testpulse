@@ -7,6 +7,8 @@ import { teamService } from './team.service.js'
 // Teams of people; a project lists the teams that may open it. Public API: who is in which team.
 export const teams = {
   idsOfMember: teamService.idsOfMember,
+  /** the members of a team (empty when there is no such team) */
+  memberIds: teamService.memberIds,
 }
 
 export const teamModule: AppModule = {

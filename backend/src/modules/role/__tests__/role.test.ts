@@ -26,7 +26,7 @@ describe('roles', () => {
     const res = await client(app).as('user-dev-1').get('/roles')
     expect(res.status).toBe(200)
     expect(res.body.data[0]).toMatchObject({ id: 'role-admin', builtIn: 'admin' })
-    expect(res.body.data).toHaveLength(4)
+    expect(res.body.data).toHaveLength(5)
   })
 
   it('creates a role, dropping unknown permissions and any builtIn the client sends', async () => {

@@ -83,6 +83,17 @@ export const DEFAULT_ROLES: Role[] = [
     createdAt: at,
     updatedAt: at,
   },
+  {
+    id: 'role-ops',
+    name: 'Server/Infra',
+    description: 'ทีมดูแล Server ของลูกค้า ดูรอบทดสอบและ Defect อัปเดตความคืบหน้าปัญหาด้าน Server แต่ปิด Defect หรือแก้ Test Case ไม่ได้',
+    discipline: 'ops',
+    tone: 'caution',
+    icon: 'tabler:server',
+    permissions: [...VIEW_ALL, 'defect.report'],
+    createdAt: at,
+    updatedAt: at,
+  },
 ]
 
 // --- API ------------------------------------------------------------------------
@@ -93,6 +104,12 @@ function roles(): Role[] {
     const list = load(STORAGE_KEYS.roles, DEFAULT_ROLES)
     list.forEach((r) => r.id !== ADMIN_ROLE_ID && delete r.builtIn)
     save(STORAGE_KEYS.roles, list)
+  })
+  // the Server/Infra role came later: add it unless an Admin made a role with its name
+  migrateOnce('role-ops-v1', () => {
+    const list = load(STORAGE_KEYS.roles, DEFAULT_ROLES)
+    const ops = DEFAULT_ROLES.find((r) => r.id === 'role-ops')!
+    if (!list.some((r) => r.id === ops.id || r.name.toLowerCase() === ops.name.toLowerCase())) save(STORAGE_KEYS.roles, [...list, ops])
   })
   return load(STORAGE_KEYS.roles, DEFAULT_ROLES)
 }

@@ -14,6 +14,10 @@ export const SEED_PROJECTS: Project[] = [
     targetDeadline: '2026-10-15',
     status: 'active',
     tags: ['FinTech', 'High-Risk', 'Backend-API', 'PCI-DSS'],
+    environments: [
+      { id: 'env-test', name: 'TEST', primary: true },
+      { id: 'env-staging', name: 'STAGING', primary: false, teamId: 'team-infra' },
+    ],
     teamIds: ['team-payment'],
     milestones: [
       {
@@ -43,6 +47,10 @@ export const SEED_PROJECTS: Project[] = [
     targetDeadline: '2026-10-05',
     status: 'active',
     tags: ['Mobile-App', 'iOS/Android', 'E-Commerce', 'FlashSale'],
+    environments: [
+      { id: 'env-test', name: 'TEST', primary: true },
+      { id: 'env-staging', name: 'STAGING', primary: false },
+    ],
     teamIds: ['team-ecommerce'],
   },
   {
@@ -55,5 +63,6 @@ export const SEED_PROJECTS: Project[] = [
     targetDeadline: '2026-11-01',
     status: 'in_review',
     tags: ['Security', 'OAuth2', '2FA', 'Audit'],
+    environments: [{ id: 'env-test', name: 'TEST', primary: true }],
   },
 ]

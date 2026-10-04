@@ -6,7 +6,7 @@ const TONES = ['primary', 'secondary', 'info', 'success', 'warning', 'caution', 
 const roleBody = Joi.object({
   name: Joi.string().trim().min(1).max(80).required(),
   description: Joi.string().allow('').max(500).default(''),
-  discipline: Joi.string().valid('qa', 'dev', 'other').required(),
+  discipline: Joi.string().valid('qa', 'dev', 'ops', 'other').required(),
   tone: Joi.string()
     .valid(...TONES)
     .required(),

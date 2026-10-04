@@ -12,6 +12,11 @@ export const projectAccess = {
   assert: projectService.assertAccess,
   accessibleIds: projectService.accessibleIds,
 }
+/** every project and setting its environments as they are (migrations) */
+export const projectData = {
+  all: projectService.all,
+  setEnvironments: projectService.setEnvironments,
+}
 
 export const projectModule: AppModule = {
   name: 'project',

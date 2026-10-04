@@ -1,5 +1,5 @@
 import mongoose, { Schema } from 'mongoose'
-import { PROJECT_KEY_MAX } from '#contract/rules/project.js'
+import { ENVIRONMENT_NAME_MAX, PROJECT_KEY_MAX } from '#contract/rules/project.js'
 import type { Project } from '#contract/types.js'
 import { stringId } from '#core/database/ids.js'
 import { auditTrailPlugin } from '#core/database/plugins/audit-trail.js'
@@ -22,6 +22,16 @@ const milestoneSchema = new Schema(
   { _id: false },
 )
 
+const environmentSchema = new Schema(
+  {
+    id: { type: String, required: true },
+    name: { type: String, required: true, trim: true, maxlength: ENVIRONMENT_NAME_MAX },
+    primary: { type: Boolean, default: false },
+    teamId: { type: String },
+  },
+  { _id: false },
+)
+
 const projectSchema = new Schema<ProjectDoc>(
   {
     _id: stringId('proj'),
@@ -34,6 +44,8 @@ const projectSchema = new Schema<ProjectDoc>(
     tags: { type: [String], default: [] },
     milestones: { type: [milestoneSchema], default: [] },
     teamIds: { type: [String], default: [], index: true },
+    // no default: projects made before environments read as none until the migration gives them TEST (the service sets them)
+    environments: { type: [environmentSchema] },
   },
   { timestamps: true, collection: 'projects' },
 )

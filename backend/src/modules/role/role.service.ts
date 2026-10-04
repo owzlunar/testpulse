@@ -59,12 +59,12 @@ export const roleService = {
   },
 
   /**
-   * migrations: adds the default roles (QA Lead, QA Tester, Developer) that are missing, by id; one an
+   * migrations: adds the default roles (QA Lead, QA Tester, Developer, Server/Infra; or only the ids given) that are missing, by id; one an
    * Admin already has (by id or by name) is left as it is. Returns the names of the added ones.
    */
-  async ensureDefaultRoles(): Promise<string[]> {
+  async ensureDefaultRoles(only?: string[]): Promise<string[]> {
     const added: string[] = []
-    for (const { _id, ...role } of DEFAULT_ROLES) {
+    for (const { _id, ...role } of DEFAULT_ROLES.filter((r) => !only || only.includes(r._id))) {
       if ((await roleRepository.exists({ _id })) || (await roleRepository.findByName(role.name))) continue
       await roleRepository.create({ _id, ...role })
       added.push(role.name)

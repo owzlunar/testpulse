@@ -42,7 +42,7 @@ describe('runs', () => {
       name: 'Smoke',
       type: 'smoke',
       round: 1,
-      environment: 'UAT',
+      environmentId: 'env-test',
       build: 'b1',
       plannedStart: '2026-10-05',
       plannedEnd: '2026-10-06',
@@ -112,7 +112,7 @@ describe('results', () => {
     const created = (
       await as('user-qa-1')
         .post('/projects/proj-1/test-runs')
-        .send({ name: 'R', type: 'smoke', round: 1, caseIds: ['TC-103'] })
+        .send({ name: 'R', type: 'smoke', round: 1, environmentId: 'env-test', caseIds: ['TC-103'] })
     ).body.data as TestRun
     const res = await as('user-qa-1').put(`/test-runs/${created.id}/results/TC-103`).send(verdict('blocked'))
     expect(res.body.data.run).toMatchObject({ status: 'in_progress', startedAt: expect.any(String) })
@@ -143,5 +143,44 @@ describe('following the cases', () => {
     await as('user-qa-1').post('/projects/proj-1/test-cases/TC-104/archive').send({})
     await as('user-qa-1').delete('/projects/proj-1/test-cases/TC-104').send({})
     expect((await runOf('run-1')).results.find((r) => r.caseId === 'TC-104')).toMatchObject({ caseDeleted: true, status: 'blocked' })
+  })
+})
+
+describe('environments', () => {
+  const plan = (environmentId: string, caseIds = ['TC-103', 'TC-104']) =>
+    as('user-qa-1').post('/projects/proj-1/test-runs').send({ name: 'UAT ลูกค้า', type: 'uat', round: 1, environmentId, caseIds })
+
+  it('a run picks one of the project environments, and the server names it', async () => {
+    expect((await plan('env-staging')).body.data).toMatchObject({ environmentId: 'env-staging', environment: 'STAGING' })
+    expect((await plan('env-nope')).status).toBe(422)
+    expect(
+      (
+        await as('user-qa-1')
+          .post('/projects/proj-1/test-runs')
+          .send({ name: 'x', type: 'uat', round: 1, caseIds: ['TC-103'] })
+      ).status,
+    ).toBe(400)
+  })
+
+  it('a result on another environment is kept there and never changes the case status', async () => {
+    const run = (await plan('env-staging')).body.data as TestRun
+    const res = await as('user-qa-1').put(`/test-runs/${run.id}/results/TC-103`).send(verdict('passed'))
+    expect(res.body.data.caseUpdate).toBeNull()
+    expect((await caseOf('TC-103')).status).toBe('failed')
+  })
+
+  it('a newer run on another environment does not supersede the primary one', async () => {
+    const staging = (await plan('env-staging')).body.data as TestRun
+    await as('user-qa-1').put(`/test-runs/${staging.id}/results/TC-104`).send(verdict('failed'))
+    // run-2 (TEST, older than the STAGING run) has TC-104 and no newer TEST run does
+    const res = await as('user-qa-1').put('/test-runs/run-2/results/TC-104').send(verdict('passed'))
+    expect(res.body.data.caseUpdate?.testCase.status).toBe('passed')
+  })
+
+  it('moves to another environment only while nothing is recorded', async () => {
+    const run = (await plan('env-test')).body.data as TestRun
+    expect((await as('user-qa-1').patch(`/test-runs/${run.id}`).send({ environmentId: 'env-staging' })).body.data.environment).toBe('STAGING')
+    await as('user-qa-1').put(`/test-runs/${run.id}/results/TC-103`).send(verdict('blocked'))
+    expect((await as('user-qa-1').patch(`/test-runs/${run.id}`).send({ environmentId: 'env-test' })).status).toBe(409)
   })
 })

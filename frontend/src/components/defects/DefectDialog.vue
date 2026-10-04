@@ -8,7 +8,8 @@ import { useAuthStore } from '@/stores/auth.store'
 import { useProjectStore } from '@/stores/project.store'
 import type { Defect, DefectInput } from '@/types'
 import { required } from '@/utils/validators'
-import { DEFECT_STATUSES, SEVERITIES } from '@/domain/defect'
+import { DEFECT_CAUSES, DEFECT_STATUSES, SEVERITIES } from '@/domain/defect'
+import { environmentOf, primaryEnvironment } from '@/domain/project'
 
 const open = defineModel<boolean>({ default: false })
 const props = withDefaults(
@@ -41,7 +42,8 @@ const empty = (): DefectInput => ({
   stepNumber: undefined,
   assignee: '',
   externalKey: '',
-  environment: '',
+  environmentId: currentProject.value ? primaryEnvironment(currentProject.value).id : undefined,
+  cause: 'code',
   evidence: [],
 })
 const form = reactive<DefectInput>(empty())
@@ -58,7 +60,25 @@ watch(
 )
 useUnsavedChanges(open, () => form)
 
-const devs = computed(() => auth.usersIn('dev').map((u) => u.name))
+const environments = computed(() => currentProject.value?.environments ?? [])
+const environment = computed(() => (currentProject.value ? environmentOf(currentProject.value, form.environmentId) : undefined))
+const serverProblem = computed(() => form.cause === 'environment')
+/** a code problem goes to a developer; a server one to the team running that environment (else anyone in ops) */
+const assignees = computed(() => {
+  if (!serverProblem.value) return auth.usersIn('dev').map((u) => u.name)
+  const team = auth.teams.find((t) => t.id === environment.value?.teamId)
+  return auth
+    .usersIn('ops')
+    .filter((u) => !team || team.memberIds.includes(u.id))
+    .map((u) => u.name)
+})
+// switching the cause hands it to the other side: an assignee of the old side no longer fits
+watch(
+  () => form.cause,
+  () => {
+    if (form.assignee && !assignees.value.includes(form.assignee)) form.assignee = ''
+  },
+)
 const caseOptions = computed(() => [
   // keep showing the link of a defect whose case was deleted until another case is picked
   ...(form.caseId && form.caseDeleted ? [{ title: `${form.caseId} (ลบแล้ว)`, value: form.caseId }] : []),
@@ -115,7 +135,31 @@ async function submit() {
             </v-col>
             <v-col cols="12" sm="4">
               <label class="fox-label" for="df-assignee">มอบหมายให้</label>
-              <v-select id="df-assignee" v-model="form.assignee" :items="devs" placeholder="ทีม Dev" prepend-inner-icon="tabler:code" clearable />
+              <v-select
+                id="df-assignee"
+                v-model="form.assignee"
+                :items="assignees"
+                :placeholder="serverProblem ? 'ทีมที่ดูแล Server' : 'ทีม Dev'"
+                :prepend-inner-icon="serverProblem ? 'tabler:server' : 'tabler:code'"
+                clearable
+              />
+            </v-col>
+            <v-col cols="12" sm="6">
+              <label class="fox-label" for="df-env">พบบน Environment</label>
+              <v-select
+                id="df-env"
+                v-model="form.environmentId"
+                :items="environments"
+                item-title="name"
+                item-value="id"
+                prepend-inner-icon="tabler:server"
+              />
+            </v-col>
+            <v-col cols="12" sm="6">
+              <span class="fox-label">สาเหตุ</span>
+              <v-btn-toggle v-model="form.cause" mandatory color="primary" variant="outlined" divided density="comfortable" aria-label="สาเหตุ">
+                <v-btn v-for="c in DEFECT_CAUSES" :key="c.value" :value="c.value" :prepend-icon="c.icon" :title="c.hint">{{ c.label }}</v-btn>
+              </v-btn-toggle>
             </v-col>
             <v-col cols="12" sm="6">
               <label class="fox-label" for="df-case">Test Case ที่เกี่ยวข้อง</label>
@@ -128,13 +172,9 @@ async function submit() {
                 clearable
               />
             </v-col>
-            <v-col cols="6" sm="3">
-              <label class="fox-label" for="df-ext">Jira / Issue key</label>
-              <v-text-field id="df-ext" v-model="form.externalKey" placeholder="PAY-123" />
-            </v-col>
-            <v-col cols="6" sm="3">
-              <label class="fox-label" for="df-env">Environment</label>
-              <v-text-field id="df-env" v-model="form.environment" placeholder="Staging · v3.2.0" />
+            <v-col cols="12" sm="6">
+              <label class="fox-label" for="df-ext">{{ serverProblem ? 'เลขที่คำขอ / Ticket ของลูกค้า' : 'Jira / Issue key' }}</label>
+              <v-text-field id="df-ext" v-model="form.externalKey" :placeholder="serverProblem ? 'เช่น คำขอเปิด Port, WAF CHG-1024' : 'PAY-123'" />
             </v-col>
             <v-col cols="12">
               <label class="fox-label" for="df-steps">ขั้นตอนการทำซ้ำ</label>

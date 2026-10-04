@@ -1,4 +1,4 @@
-import type { DefectSeverity, DefectStatus, Option } from '@/types'
+import type { DefectCause, DefectSeverity, DefectStatus, Option } from '@/types'
 
 // Rules the backend shares (what counts as open) live in ./rules/defect.ts
 export * from './rules/defect'
@@ -19,6 +19,20 @@ export const DEFECT_STATUSES: Option<DefectStatus>[] = [
   { value: 'closed', label: 'Closed', hint: 'ยืนยันแล้ว', tone: 'success', icon: 'tabler:circle-check' },
   { value: 'rejected', label: 'Rejected', hint: 'ไม่ใช่ Bug / ซ้ำ', tone: 'secondary', icon: 'tabler:circle-minus' },
 ]
+
+/** who fixes it: the developers (code) or the team running the server (environment: port, WAF, config …) */
+export const DEFECT_CAUSES: Option<DefectCause>[] = [
+  { value: 'code', label: 'โค้ด', hint: 'Developer แก้ไข', tone: 'info', icon: 'tabler:code' },
+  {
+    value: 'environment',
+    label: 'Server / Environment',
+    hint: 'ทีมที่ดูแล Server แก้ เช่น Port ถูกปิด, WAF, การตั้งค่า',
+    tone: 'caution',
+    icon: 'tabler:server',
+  },
+]
+
+export const defectCauseOf = (v: DefectCause | undefined) => DEFECT_CAUSES.find((c) => c.value === v) ?? DEFECT_CAUSES[0]
 
 export const severityOf = (v: DefectSeverity) => SEVERITIES.find((s) => s.value === v) ?? SEVERITIES[2]
 

@@ -16,6 +16,13 @@ const DEMO_TEAMS = [
     tone: 'success',
     memberIds: ['user-qa-2', 'user-dev-2'],
   },
+  {
+    _id: 'team-infra',
+    name: 'ทีม Infra',
+    description: 'ดูแล Server ของลูกค้า (STAGING): Port, Firewall, WAF และการตั้งค่า',
+    tone: 'caution',
+    memberIds: ['user-ops-1'],
+  },
 ]
 
 export const teamSeed: Seed = {

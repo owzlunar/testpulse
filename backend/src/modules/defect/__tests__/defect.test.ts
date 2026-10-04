@@ -117,3 +117,53 @@ describe('following the cases', () => {
     expect((await defectOf('BUG-002')).caseId).toBe('TC-102-1')
   })
 })
+
+describe('server problems', () => {
+  const OPS = 'user-ops-1' // Server/Infra, in the Infra team that runs proj-1's STAGING
+  const titlesFor = async (userId: string) => ((await as(userId).get('/notifications')).body.data as NotificationItem[]).map((n) => n.title)
+  const serverProblem = () => report({ assignee: '', environmentId: 'env-staging', cause: 'environment', externalKey: 'WAF-1024' })
+
+  it('a defect is a code problem unless said otherwise; the environment is one of the project’s, named by the server', async () => {
+    const res = await as('user-qa-1')
+      .post('/projects/proj-1/defects')
+      .send(report({ environmentId: 'env-test', environment: 'อะไรก็ได้' }))
+    expect(res.body.data).toMatchObject({ cause: 'code', environmentId: 'env-test', environment: 'TEST' })
+    expect(
+      (
+        await as('user-qa-1')
+          .post('/projects/proj-1/defects')
+          .send(report({ environmentId: 'env-nope' }))
+      ).status,
+    ).toBe(422)
+  })
+
+  it('goes to the team that runs the environment, not to Dev', async () => {
+    const created = (await as('user-qa-1').post('/projects/proj-1/defects').send(serverProblem())).body.data as Defect
+    expect(await titlesFor(OPS)).toContain(`Defect ใหม่ ${created.id}`)
+    expect(await titlesFor('user-dev-1')).not.toContain(`Defect ใหม่ ${created.id}`)
+  })
+
+  it('the server team updates progress but cannot close; marked fixed, the QA who reported it re-tests there', async () => {
+    const created = (await as('user-qa-1').post('/projects/proj-1/defects').send(serverProblem())).body.data as Defect
+    const fixed = await as(OPS)
+      .put(`/defects/${created.id}`)
+      .send({ ...fieldsOf(created), status: 'fixed' })
+    expect(fixed.body.data).toMatchObject({ status: 'fixed', fixedAt: expect.any(String) })
+    expect(await titlesFor('user-qa-1')).toContain(`${created.id} แก้ไขแล้ว รอทดสอบซ้ำบน STAGING`)
+    expect(
+      (
+        await as(OPS)
+          .put(`/defects/${created.id}`)
+          .send({ ...fieldsOf(created), status: 'closed' })
+      ).status,
+    ).toBe(403)
+  })
+
+  it('QA switching the cause to code hands it to Dev', async () => {
+    const created = (await as('user-qa-1').post('/projects/proj-1/defects').send(serverProblem())).body.data as Defect
+    await as('user-qa-1')
+      .put(`/defects/${created.id}`)
+      .send({ ...fieldsOf(created), cause: 'code' })
+    expect(await titlesFor('user-dev-1')).toContain(`${created.id} ส่งต่อให้ทีม Dev`)
+  })
+})

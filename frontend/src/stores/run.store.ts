@@ -1,12 +1,12 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import type { RunResult, TestRun, TestRunInput } from '@/types'
+import type { EnvironmentResult, RunResult, TestRun, TestRunInput } from '@/types'
 import { useAuditStore } from './audit.store'
 import { useAuthStore } from './auth.store'
 import { useProjectStore } from './project.store'
 import { useTestCaseStore } from './test-case.store'
 import { runApi as api } from '@/api'
-import { caseSyncBlock as syncBlockOf } from '@/domain/run'
+import { latestEnvironmentResults, caseSyncBlock as syncBlockOf } from '@/domain/run'
 
 export const useRunStore = defineStore('run', () => {
   const runs = ref<TestRun[]>([])
@@ -71,7 +71,23 @@ export const useRunStore = defineStore('run', () => {
 
   /** why a verdict in this run won't become the case status (rules live in domain/run) */
   const caseSyncBlock = (run: TestRun, result: RunResult) =>
-    syncBlockOf(run, result, result.caseDeleted ? undefined : testCaseStore.getById(result.caseId, run.projectId), runs.value)
+    syncBlockOf(
+      run,
+      result,
+      result.caseDeleted ? undefined : testCaseStore.getById(result.caseId, run.projectId),
+      runs.value,
+      projectStore.projects.find((p) => p.id === run.projectId) ?? { environments: [] },
+    )
+
+  /** the selected project's other (non-primary) environments, each with its cases' latest results there */
+  const environmentResults = computed<{ id: string; name: string; results: Map<string, EnvironmentResult> }[]>(() => {
+    const project = projectStore.currentProject
+    if (!project) return []
+    const projectRuns = runs.value.filter((r) => r.projectId === project.id)
+    return (project.environments ?? [])
+      .filter((e) => !e.primary)
+      .map((e) => ({ id: e.id, name: e.name, results: latestEnvironmentResults(projectRuns, e.id, project) }))
+  })
 
   /** save one case's execution; the server also updates the case when the verdict counts (see caseSyncBlock) */
   async function saveResult(runId: string, result: RunResult) {
@@ -130,5 +146,6 @@ export const useRunStore = defineStore('run', () => {
     renameCases,
     detachCases,
     caseSyncBlock,
+    environmentResults,
   }
 })

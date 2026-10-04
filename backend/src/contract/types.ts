@@ -111,8 +111,11 @@ export type Rule = (value: unknown) => true | string
 
 export type TestCaseStatus = 'pending' | 'ready_for_test' | 'untested' | 'in_progress' | 'passed' | 'failed' | 'blocked'
 export type TestCasePriority = 'low' | 'medium' | 'high' | 'critical'
-/** which side of the Dev <-> QA loop a role works on: fills the QA / Developer pickers and "my work" */
-export type RoleDiscipline = 'qa' | 'dev' | 'other'
+/**
+ * which side of the Dev <-> QA loop a role works on: fills the QA / Developer pickers and "my work";
+ * ops = the team that runs the servers (customers' staging …): server problems go to them, not to Dev
+ */
+export type RoleDiscipline = 'qa' | 'dev' | 'ops' | 'other'
 export type ProjectStatus = 'active' | 'in_review' | 'completed' | 'archived'
 export type MilestoneType = 'code_freeze' | 'uat_signoff' | 'go_live'
 
@@ -223,6 +226,17 @@ export interface ProjectMilestone {
   description?: string
 }
 
+/** A server the project is tested on, e.g. TEST (the company's test server) or STAGING (the customer's) */
+export interface ProjectEnvironment {
+  /** made by the client like a milestone's id ("env-…"); never changes, so runs and defects keep pointing at it */
+  id: string
+  name: string
+  /** its results are the cases' status (the Dev <-> QA loop); exactly one per project */
+  primary: boolean
+  /** the team that runs this server (e.g. the ops team): server problems found here go to its members */
+  teamId?: string
+}
+
 export interface Project {
   id: string
   /** short code, e.g. "AUTH", "SHOP" */
@@ -239,6 +253,8 @@ export interface Project {
   milestones?: ProjectMilestone[]
   /** teams that may open the project; empty = everyone with a role (Admins always can) */
   teamIds?: string[]
+  /** where it is tested; the server keeps exactly one primary (a new project starts with TEST) */
+  environments: ProjectEnvironment[]
   /** case counts of the active cases, worked out by the server for lists (cases load per project) */
   caseStats?: ProjectStats
 }
@@ -614,6 +630,9 @@ export interface TestRun {
   type: RunType
   /** 1, 2, 3 … re-test rounds */
   round: number
+  /** the project environment it runs on; only runs on the primary one change the cases' status */
+  environmentId: string
+  /** that environment's name when the run was made (lists, search, documents) */
   environment: string
   build: string
   status: RunStatus
@@ -626,13 +645,27 @@ export interface TestRun {
   results: RunResult[]
 }
 
-export type TestRunInput = Pick<TestRun, 'projectId' | 'name' | 'type' | 'round' | 'environment' | 'build' | 'plannedStart' | 'plannedEnd'> & {
+export type TestRunInput = Pick<TestRun, 'projectId' | 'name' | 'type' | 'round' | 'environmentId' | 'build' | 'plannedStart' | 'plannedEnd'> & {
   caseIds: string[]
   assignee?: string
 }
 
 export type DefectSeverity = 'critical' | 'major' | 'minor' | 'trivial'
 export type DefectStatus = 'open' | 'in_progress' | 'fixed' | 'retest' | 'closed' | 'rejected'
+/** code = the developers fix it; environment = the server (port, WAF, config …): the team running it fixes it */
+export type DefectCause = 'code' | 'environment'
+
+/** A case's latest result on one environment, from the runs on it (newest run wins, as on the primary) */
+export interface EnvironmentResult {
+  environmentId: string
+  status: Exclude<ResultStatus, 'untested'>
+  runId: string
+  runName: string
+  round: number
+  caseVersion: string
+  executedBy?: string
+  executedAt?: string
+}
 
 export interface DefectComment {
   by: string
@@ -658,16 +691,22 @@ export interface Defect {
   stepNumber?: number
   assignee?: string
   reportedBy: string
-  /** Jira / GitHub issue key */
+  /** Jira / GitHub issue key, or the customer's ticket (port / WAF request …) */
   externalKey?: string
+  /** the project environment it was found on */
+  environmentId?: string
+  /** that environment's name (defects made before environments: free text) */
   environment?: string
+  cause: DefectCause
+  /** when it was first marked fixed (time to fix) */
+  fixedAt?: string
   evidence: string[]
   comments: DefectComment[]
   createdAt: string
   updatedAt: string
 }
 
-export type DefectInput = Omit<Defect, 'id' | 'createdAt' | 'updatedAt' | 'comments' | 'reportedBy'> & { id?: string }
+export type DefectInput = Omit<Defect, 'id' | 'createdAt' | 'updatedAt' | 'comments' | 'reportedBy' | 'fixedAt'> & { id?: string }
 
 // =============================================================================
 // Documents (generated from system data, frozen as a snapshot)
@@ -701,6 +740,9 @@ export interface DocumentOptions {
 
 export interface UatDetails {
   testPeriod: string
+  /** the environment the customer accepts on (usually STAGING): results, pass rate and risks come from it */
+  environmentId?: string
+  /** its name (set by the server when an environment is chosen) */
   environment: string
   decision: UatDecision
   remarks: string
@@ -736,9 +778,11 @@ export interface DocumentSnapshot {
   generatedAt: string
   project: Pick<Project, 'name' | 'key' | 'description' | 'targetDeadline'>
   run?: Pick<TestRun, 'name' | 'round' | 'type' | 'environment' | 'build' | 'plannedStart' | 'plannedEnd' | 'startedAt' | 'completedAt'>
+  /** the environment the results come from (UAT on a chosen environment); none = the cases' status */
+  environment?: Pick<ProjectEnvironment, 'name' | 'primary'>
   summary: { total: number; passed: number; failed: number; blocked: number; notRun: number; passRate: number }
   cases: DocCase[]
-  defects: Pick<Defect, 'id' | 'title' | 'severity' | 'status' | 'caseId' | 'assignee' | 'externalKey'>[]
+  defects: Pick<Defect, 'id' | 'title' | 'severity' | 'status' | 'caseId' | 'assignee' | 'externalKey' | 'cause' | 'environment'>[]
   requirements: { code: string; title: string; torClause?: string; caseIds: string[]; coverage: CoverageStatus }[]
   /** Failed / Blocked / Overdue / open defects at generation time */
   risks: string[]
@@ -810,7 +854,21 @@ export interface ProjectReport {
     /** the newest run */
     latest?: Pick<TestRun, 'id' | 'name' | 'round' | 'status'> & { total: number; executed: number; passRate: number }
   }
-  defects: { total: number; open: number; openBySeverity: Record<DefectSeverity, number> }
+  defects: {
+    total: number
+    open: number
+    openBySeverity: Record<DefectSeverity, number>
+    /** code vs server problems: how many, how many still open, average hours from report to fixed */
+    byCause: Record<DefectCause, { total: number; open: number; avgFixHours: number | null }>
+  }
+  /** each environment's latest results over the active cases (the primary one is the cases' status) */
+  environments: (Pick<ProjectEnvironment, 'id' | 'name' | 'primary'> & {
+    passed: number
+    failed: number
+    blocked: number
+    notRun: number
+    passRate: number
+  })[]
 }
 
 /** files made in the browser from a project's data (the server records that they were made) */

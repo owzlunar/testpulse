@@ -23,7 +23,7 @@ export interface DefaultRole {
   permissions: PermissionKey[]
 }
 
-/** QA Lead, QA Tester, Developer: the same ids as the web app's mock data */
+/** QA Lead, QA Tester, Developer, Server/Infra: the same ids as the web app's mock data */
 export const DEFAULT_ROLES: DefaultRole[] = [
   {
     _id: 'role-qa-lead',
@@ -68,5 +68,14 @@ export const DEFAULT_ROLES: DefaultRole[] = [
     tone: 'warning',
     icon: 'tabler:code',
     permissions: [...VIEW_ALL, 'case.handoff', 'defect.report'],
+  },
+  {
+    _id: 'role-ops',
+    name: 'Server/Infra',
+    description: 'ทีมดูแล Server ของลูกค้า ดูรอบทดสอบและ Defect อัปเดตความคืบหน้าปัญหาด้าน Server แต่ปิด Defect หรือแก้ Test Case ไม่ได้',
+    discipline: 'ops',
+    tone: 'caution',
+    icon: 'tabler:server',
+    permissions: [...VIEW_ALL, 'defect.report'],
   },
 ]

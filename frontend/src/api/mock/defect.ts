@@ -1,7 +1,8 @@
 import type { Defect, DefectComment, DefectInput } from '@/types'
 import { ApiError } from '@/api/errors'
 import { respond } from './http'
-import { assertCan, inAccessibleProjects, sessionCan } from './project'
+import { environmentOf } from '@/domain/project'
+import { assertCan, inAccessibleProjects, sessionCan, storedProjects } from './project'
 import { SEED_DEFECTS } from './seeds/defects.seed'
 import { STORAGE_KEYS, load, save } from './storage'
 
@@ -43,11 +44,23 @@ export const defectsOf = (projectId: string): Defect[] => defects().filter((d) =
 /** GET /defects (of the projects the signed-in user may open) */
 export const fetchDefects = () => respond(() => (sessionCan('defect.view') ? inAccessibleProjects(defects()) : []))
 
+/** server-side: the environment it was found on is one of the project's (its name is the server's); no cause = code */
+function withEnvironment(input: DefectInput, projectId: string): DefectInput {
+  const { fixedAt: _f, ...fields } = input as DefectInput & { fixedAt?: string }
+  if (!fields.environmentId) return { ...fields, environmentId: undefined, cause: fields.cause ?? 'code' }
+  const env = environmentOf(storedProjects().find((p) => p.id === projectId) ?? { environments: [] }, fields.environmentId)
+  if (!env) throw new ApiError('ไม่พบ Environment นี้ในโปรเจกต์', 422)
+  return { ...fields, environment: env.name, cause: fields.cause ?? 'code' }
+}
+
 /** POST /projects/:projectId/defects · PUT /defects/:id */
-export const saveDefect = (input: DefectInput, reportedBy: string) =>
+export const saveDefect = (raw: DefectInput, reportedBy: string) =>
   respond(() => {
     const list = defects()
     const now = new Date().toISOString()
+    const input = withEnvironment(raw, list.find((d) => d.id === raw.id)?.projectId ?? raw.projectId)
+    // time to fix: when it was first marked fixed
+    const fixedAt = (before?: Defect) => before?.fixedAt ?? (input.status === 'fixed' ? now : undefined)
     // closing / rejecting is a verdict (defect.resolve); reporting and progress updates are defect.report
     const before = input.id ? list.find((d) => d.id === input.id) : undefined
     const resolving = (input.status === 'closed' || input.status === 'rejected') && input.status !== before?.status
@@ -57,12 +70,21 @@ export const saveDefect = (input: DefectInput, reportedBy: string) =>
       if (i < 0) throw new ApiError('ไม่พบ Defect', 404)
       // picking another case re-attaches a defect whose case was deleted
       const caseDeleted = input.caseId === list[i].caseId ? list[i].caseDeleted : false
-      list[i] = { ...list[i], ...input, id: input.id, caseDeleted, updatedAt: now }
+      list[i] = { ...list[i], ...input, id: input.id, caseDeleted, fixedAt: fixedAt(list[i]), updatedAt: now }
       save(STORAGE_KEYS.defects, list)
       return list[i]
     }
     const next = list.reduce((m, d) => Math.max(m, Number(d.id.match(/(\d+)$/)?.[1] ?? 0)), 0) + 1
-    const created: Defect = { ...input, id: `BUG-${String(next).padStart(3, '0')}`, reportedBy, comments: [], createdAt: now, updatedAt: now }
+    const created: Defect = {
+      ...input,
+      cause: input.cause,
+      id: `BUG-${String(next).padStart(3, '0')}`,
+      reportedBy,
+      comments: [],
+      fixedAt: fixedAt(),
+      createdAt: now,
+      updatedAt: now,
+    }
     save(STORAGE_KEYS.defects, [created, ...list])
     return created
   })
