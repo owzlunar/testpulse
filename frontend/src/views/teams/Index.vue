@@ -61,7 +61,7 @@ function onDelete() {
 </script>
 
 <template>
-  <FoxPageHeader sticky title="ทีม" :breadcrumbs="[{ title: 'ผู้ดูแลระบบ' }, { title: 'ทีม' }]">
+  <FoxPageHeader sticky :breadcrumbs="[{ title: 'ผู้ดูแลระบบ' }, { title: 'ทีม' }]">
     <template #actions>
       <v-btn color="primary" prepend-icon="tabler:plus" @click="openTeam(null)">สร้างทีม</v-btn>
     </template>

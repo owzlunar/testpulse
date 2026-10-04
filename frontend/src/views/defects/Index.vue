@@ -137,7 +137,7 @@ watch(
 </script>
 
 <template>
-  <FoxPageHeader sticky title="Defects" :breadcrumbs="[{ title: 'Defects' }]">
+  <FoxPageHeader sticky :breadcrumbs="[{ title: 'Defects' }]">
     <template #actions>
       <v-btn v-can="'defect.report'" color="error" prepend-icon="tabler:bug" @click="openCreate">รายงาน Defect</v-btn>
     </template>

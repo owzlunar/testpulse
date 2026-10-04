@@ -54,6 +54,7 @@ src
 - API modules and domain helpers are named after the module (`api/mock/test-case.ts`, `domain/test-case.ts`). Stores: `xxx.store.ts` (Pinia setup stores, e.g. `calendar.store.ts`). Multi-word names are kebab-case.
 - Components use stores directly (`useProjectStore()` + `storeToRefs`); no thin wrapper composables.
 - Generic theme components: `components/ui/Fox*.vue`. Domain components: `components/<module>/<Domain>*.vue` (e.g. `test-cases/TestCaseDialog.vue`).
+- A page's title is its route's `meta.title` (`router/index.ts`): `<FoxPageHeader>` shows it (and the browser tab) unless the page passes `title`, e.g. a record's name (a test run, a document).
 - Long list pages use `<FoxPageHeader sticky>`: it sticks under the app bar (`--fox-appbar-height`) and turns compact (title `text-h5`, small buttons via `v-defaults-provider`); users can turn it off in Settings. Don't make page content its own scroll container.
 - Views: no `View`/`Page` suffix, grouped by module folder: `views/auth/Login.vue`. A module's first page is `Index.vue` (`views/test-cases/Index.vue`).
 - `npm run build` runs `vue-tsc` first; it must pass.

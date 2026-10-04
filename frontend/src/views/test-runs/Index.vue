@@ -78,7 +78,7 @@ function onDelete() {
 </script>
 
 <template>
-  <FoxPageHeader title="รอบการทดสอบ" :breadcrumbs="[{ title: 'Test Runs' }]">
+  <FoxPageHeader :breadcrumbs="[{ title: 'Test Runs' }]">
     <template #actions>
       <v-btn v-if="canCreateRun" color="primary" prepend-icon="tabler:plus" @click="dialog = true">สร้างรอบการทดสอบ</v-btn>
     </template>

@@ -150,7 +150,7 @@ watch(
 </script>
 
 <template>
-  <FoxPageHeader :eyebrow="`ยินดีต้อนรับ คุณ${firstName(currentUser.name)}`" title="ภาพรวมโปรเจกต์">
+  <FoxPageHeader :eyebrow="`ยินดีต้อนรับ คุณ${firstName(currentUser.name)}`">
     <template #actions>
       <v-btn v-if="auth.can('case.view') && projects.length" variant="outlined" prepend-icon="tabler:markdown" @click="exportProject()"
         >ส่งออก .md</v-btn
