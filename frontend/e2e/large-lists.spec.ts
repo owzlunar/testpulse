@@ -49,3 +49,34 @@ test('switching project loads its cases; search finds a case in another project 
   await page.locator('.v-bottom-sheet').getByRole('button', { name: 'ยกเลิก' }).click()
   expect(await caseIds(page)).toContain('TC-201') // the other project's list is now loaded
 })
+
+test('the search results page loads more matches as it scrolls; a case made since the list loaded still opens', async ({ page }) => {
+  await login(page)
+  await expect.poll(() => db(page, 'testpulse_testcases')).not.toBeNull()
+  // 30 cases named "เคสจำลอง …" in PromptPay
+  await page.evaluate(() => {
+    const key = 'testpulse_testcases'
+    const cases = JSON.parse(localStorage.getItem(key)!)
+    const base = cases.find((c: { projectId: string; id: string }) => c.projectId === 'proj-1' && c.id === 'TC-104')
+    for (let n = 105; n < 135; n++) cases.push({ ...base, id: `TC-${n}`, numericId: n, uid: `tc-e2e-${n}`, rev: 1, name: `เคสจำลอง ${n}` })
+    localStorage.setItem(key, JSON.stringify(cases))
+  })
+  // no reload: the app's list doesn't have them yet (as if someone else made them since)
+
+  await page.locator('.v-app-bar input').first().fill('เคสจำลอง')
+  await page.getByRole('button', { name: 'ดูทั้งหมด Test Cases' }).click()
+  await page.waitForURL(/\/search\?q=.+&type=cases$/)
+  const hits = page.locator('.search-hit')
+  await expect(hits).toHaveCount(20)
+  // scroll to the end until the next page is there
+  await expect
+    .poll(async () => {
+      await page.mouse.wheel(0, 4000)
+      return hits.count()
+    })
+    .toBe(30)
+  await expect(page.getByText('แสดงครบ 30 รายการแล้ว')).toBeVisible()
+
+  await hits.filter({ hasText: 'TC-134' }).click()
+  await expect(page.locator('.v-bottom-sheet h2')).toContainText('TC-134')
+})

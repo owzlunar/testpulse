@@ -69,6 +69,57 @@ test('the universal search finds a requirement of any project and opens it', asy
   await expect(page.getByText('Webhook Retry แบบ Exponential Backoff และ DLQ').first()).toBeVisible()
 })
 
+test('a TOR requirement keeps its clause; the list filters by origin and finds the clause', async ({ page }) => {
+  await openPaymentCases(page)
+  await page.locator('.fox-nav').getByText('Requirements', { exact: true }).click()
+  await page.getByRole('button', { name: 'เพิ่ม Requirement' }).click()
+  const dialog = page.locator('.v-dialog')
+  await dialog.locator('#rq-title').fill('ส่งออกรายงานภาษี e2e-real')
+  // TOR is the default origin: the clause is required
+  await dialog.getByRole('button', { name: 'บันทึก' }).click()
+  await expect(dialog.locator('#rq-tor')).toBeVisible()
+  await dialog.locator('#rq-tor').fill('4.9.1')
+  await dialog.getByRole('button', { name: 'บันทึก' }).click()
+  await expect(dialog).toBeHidden()
+
+  await page.reload()
+  const card = page.locator('.v-window-item--active .v-card', { hasText: 'ส่งออกรายงานภาษี e2e-real' })
+  await expect(card.locator('.v-chip', { hasText: 'TOR 4.9.1' })).toBeVisible()
+  await page.locator('.v-field', { has: page.getByLabel('ข้อกำหนดจาก') }).click()
+  await page.locator('.v-overlay--active .v-list-item', { hasText: 'เพิ่มเติม' }).click()
+  await expect(card).toHaveCount(0)
+  await expect(page.getByText('ป้องกัน Double Spending และ Replay Attack')).toBeVisible()
+
+  await page.getByLabel('ค้นหาทั้งระบบ').fill('4.9.1')
+  await page.locator('.v-overlay--active .v-list-item', { hasText: 'ส่งออกรายงานภาษี e2e-real' }).click()
+  await page.waitForURL(/\/requirements\?search=/)
+})
+
+test('requirements pasted from Excel: TOR rows by their clause, new codes from the server', async ({ page }) => {
+  await openPaymentCases(page)
+  await page.locator('.fox-nav').getByText('Requirements', { exact: true }).click()
+  await page.getByRole('button', { name: 'นำเข้า' }).click()
+  const dialog = page.locator('.v-dialog')
+  const table = [
+    ['ข้อใน TOR', 'ชื่อ', 'Acceptance Criteria', 'Priority'],
+    ['8.1', 'ส่งออกรายงานภาษีนำเข้า', 'ส่งออกเป็น PDF', 'High'],
+    ['', 'แจ้งเตือนทาง LINE นำเข้า', '', 'Low'],
+  ]
+  await dialog.locator('#imp-paste').fill(table.map((r) => r.join('\t')).join('\n'))
+  await dialog.getByRole('button', { name: 'ถัดไป' }).click()
+  await dialog.getByRole('button', { name: 'ตรวจสอบ' }).click()
+  await expect(dialog.locator('.v-chip', { hasText: 'เพิ่มใหม่ 2' })).toBeVisible()
+  await dialog.getByRole('button', { name: 'นำเข้า 2 รายการ' }).click()
+  await expect(dialog).toBeHidden()
+
+  await page.reload()
+  const tor = page.locator('.v-window-item--active .v-card', { hasText: 'ส่งออกรายงานภาษีนำเข้า' })
+  await expect(tor.locator('.v-chip', { hasText: 'TOR 8.1' })).toBeVisible()
+  await expect(tor.locator('.v-chip', { hasText: /^REQ-PAY-\d+$/ })).toBeVisible()
+  const extra = page.locator('.v-window-item--active .v-card', { hasText: 'แจ้งเตือนทาง LINE นำเข้า' })
+  await expect(extra.locator('.v-chip', { hasText: 'เพิ่มเติม' })).toBeVisible()
+})
+
 test('AI drafts stay hidden while the server has no model set up', async ({ page }) => {
   const status = page.waitForResponse((r) => r.url().endsWith('/ai/status'))
   await page.reload()

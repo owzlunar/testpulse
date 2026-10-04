@@ -26,7 +26,6 @@ test('a QA Lead plans a run of chosen cases; it is there after a reload', async 
   await page.locator('.fox-nav').getByText('รอบการทดสอบ').click()
   await page.getByRole('button', { name: 'สร้างรอบการทดสอบ' }).first().click()
   await page.locator('#run-name').fill('Hotfix Smoke')
-  await page.locator('#run-env').fill('UAT')
   await page.locator('.v-dialog').getByRole('button', { name: 'ล้าง' }).click()
   await page.locator('.run-case', { hasText: 'TC-103' }).click()
   await page

@@ -1,24 +1,28 @@
 import type {
+  RunSearchHit,
   PermissionKey,
   ResultStatus,
   RunResult,
   RunResultSaveResult,
   TestCaseImpact,
+  Project,
   TestCaseStatus,
   TestRun,
   TestRunInput,
 } from '#contract/types.js'
+import { environmentOf } from '#contract/rules/project.js'
 import { caseSyncBlock, resultFor } from '#contract/rules/run.js'
 import { recordAudit } from '#core/audit/audit-sink.js'
 import { assertCan } from '#core/auth/guards.js'
 import { can, type Principal } from '#core/auth/principal.js'
 import { ApiError } from '#core/http/errors.js'
+import { searchPattern } from '#core/http/search.js'
 import { projectAccess } from '#modules/project/index.js'
 import { testCases } from '#modules/test-case/index.js'
 import { runRepository } from './run.repository.js'
 
 /** what planning may change on a run (results go through saveResult) */
-export type RunFields = Partial<Pick<TestRun, 'name' | 'type' | 'round' | 'environment' | 'build' | 'status' | 'plannedStart' | 'plannedEnd'>>
+export type RunFields = Partial<Pick<TestRun, 'name' | 'type' | 'round' | 'environmentId' | 'build' | 'status' | 'plannedStart' | 'plannedEnd'>>
 /** what a tester records for a case; the snapshot (name, version, steps) and the stamp stay the server's */
 export type ResultInput = Pick<RunResult, 'caseId' | 'status' | 'stepResults' | 'actualResults' | 'evidence' | 'defectIds' | 'notes'>
 
@@ -31,9 +35,16 @@ async function found(id: string): Promise<TestRun> {
   return run
 }
 
-async function guard(p: Principal, projectId: string, need: PermissionKey) {
+async function guard(p: Principal, projectId: string, need: PermissionKey): Promise<Project> {
   assertCan(p, need)
-  await projectAccess.assert(p, projectId)
+  return projectAccess.assert(p, projectId)
+}
+
+/** runs pick one of the project's environments (no free text); its name is the server's */
+function environmentFor(project: Project, environmentId: string) {
+  const env = environmentOf(project, environmentId)
+  if (!env) throw ApiError.unprocessable('ไม่พบ Environment นี้ในโปรเจกต์')
+  return env
 }
 
 const runAudit = (run: TestRun, action: 'CREATE' | 'STATUS_CHANGE' | 'DELETE', details: string) =>
@@ -46,14 +57,32 @@ export const runService = {
     return runRepository.ofProjects([...(await projectAccess.accessibleIds(p))])
   },
 
+  /** GET /test-runs/search: name, environment or build, in the projects the user may open; newest first (without results) */
+  async search(p: Principal, q: string, limit: number, offset: number): Promise<{ runs: RunSearchHit[]; total: number }> {
+    const text = q.trim()
+    if (!text || !p.roleId || !can(p, 'run.view')) return { runs: [], total: 0 }
+    const pattern = searchPattern(text)
+    const { items, total } = await runRepository.findPage(
+      { projectId: { $in: [...(await projectAccess.accessibleIds(p))] }, $or: [{ name: pattern }, { environment: pattern }, { build: pattern }] },
+      { createdAt: -1 },
+      limit,
+      offset,
+      'projectId name round type status environment build createdAt',
+    )
+    return { runs: items as RunSearchHit[], total }
+  },
+
   /** POST /projects/:projectId/test-runs: snapshots the chosen active cases as they are now */
   async create(p: Principal, projectId: string, input: Omit<TestRunInput, 'projectId'>): Promise<TestRun> {
-    await guard(p, projectId, 'run.create')
+    const project = await guard(p, projectId, 'run.create')
+    const env = environmentFor(project, input.environmentId)
     const cases = (await testCases.activeOfProject(projectId)).filter((c) => input.caseIds.includes(c.id))
     if (!cases.length) throw ApiError.unprocessable('เลือก Test Case อย่างน้อย 1 รายการ')
     const { caseIds: _ids, assignee, ...fields } = input
     const run = await runRepository.create({
       ...fields,
+      environmentId: env.id,
+      environment: env.name,
       projectId,
       status: 'planned',
       createdBy: p.name,
@@ -67,12 +96,16 @@ export const runService = {
   async update(p: Principal, id: string, fields: RunFields): Promise<TestRun> {
     const run = await found(id)
     const closing = fields.status === 'completed' && run.status !== 'completed'
-    await guard(p, run.projectId, closing ? 'run.close' : 'run.create')
+    const project = await guard(p, run.projectId, closing ? 'run.close' : 'run.create')
+    // results already recorded stay on the environment they were made on
+    const moving = fields.environmentId && fields.environmentId !== run.environmentId
+    if (moving && run.results.some((r) => r.status !== 'untested')) throw ApiError.conflict('รอบนี้มีผลการทดสอบแล้ว เปลี่ยน Environment ไม่ได้')
+    const named = moving ? { environment: environmentFor(project, fields.environmentId!).name } : {}
     const now = new Date().toISOString()
     const stamps: Partial<Pick<TestRun, 'startedAt' | 'completedAt'>> = {}
     if (closing) stamps.completedAt = now
     if (fields.status === 'in_progress' && !run.startedAt) stamps.startedAt = now
-    const saved = (await runRepository.update(id, { ...fields, ...stamps }))!
+    const saved = (await runRepository.update(id, { ...fields, ...named, ...stamps }))!
     if (closing) await runAudit(saved, 'STATUS_CHANGE', `ปิดรอบทดสอบ ${saved.name} รอบที่ ${saved.round}`)
     return saved
   },
@@ -84,7 +117,7 @@ export const runService = {
    */
   async saveResult(p: Principal, id: string, input: ResultInput): Promise<RunResultSaveResult> {
     const run = await found(id)
-    await guard(p, run.projectId, 'run.execute')
+    const project = await guard(p, run.projectId, 'run.execute')
     if (run.status === 'completed') throw ApiError.conflict('รอบนี้ปิดแล้ว แก้ไขผลไม่ได้')
     const current = run.results.find((r) => r.caseId === input.caseId && !r.caseDeleted)
     if (!current) throw ApiError.notFound(`${input.caseId} ไม่อยู่ในรอบนี้`)
@@ -94,7 +127,8 @@ export const runService = {
 
     const caseStatus = CASE_STATUS[stamped.status]
     const tc = await testCases.find(run.projectId, stamped.caseId)
-    const allowed = caseStatus && tc && tc.status !== caseStatus && !caseSyncBlock(saved, stamped, tc, await runRepository.ofProject(run.projectId))
+    const allowed =
+      caseStatus && tc && tc.status !== caseStatus && !caseSyncBlock(saved, stamped, tc, await runRepository.ofProject(run.projectId), project)
     const caseUpdate = allowed
       ? await testCases.patch(
           run.projectId,

@@ -11,7 +11,8 @@ import { useRunStore } from '@/stores/run.store'
 import type { TestRunInput } from '@/types'
 import { addDays, todayISO } from '@/utils/date'
 import { required } from '@/utils/validators'
-import { RUN_TYPES } from '@/domain/run'
+import { primaryEnvironment } from '@/domain/project'
+import { RUN_TYPES, currentResultOf, runEnvironmentId } from '@/domain/run'
 
 const open = defineModel<boolean>({ default: false })
 withDefaults(defineProps<{ loading?: boolean }>(), { loading: false })
@@ -22,12 +23,14 @@ const auth = useAuthStore()
 const { currentProject, currentCases } = storeToRefs(useProjectStore())
 
 const formRef = ref<VForm>()
+const environments = computed(() => currentProject.value?.environments ?? [])
+const primary = computed(() => primaryEnvironment(currentProject.value ?? { environments: [] }))
 const empty = (): TestRunInput => ({
   projectId: currentProject.value?.id ?? '',
   name: '',
   type: 'functional',
   round: 1,
-  environment: 'Staging',
+  environmentId: primary.value.id,
   build: '',
   plannedStart: todayISO(),
   plannedEnd: addDays(todayISO(), 5),
@@ -36,7 +39,11 @@ const empty = (): TestRunInput => ({
 })
 const form = reactive<TestRunInput>(empty())
 
-const lastRun = computed(() => runStore.current[0] ?? null)
+const onPrimary = computed(() => form.environmentId === primary.value.id)
+/** the newest run on the chosen environment */
+const lastRun = computed(
+  () => runStore.current.find((r) => currentProject.value && runEnvironmentId(r, currentProject.value) === form.environmentId) ?? null,
+)
 const nameOptions = computed(() => [...new Set(runStore.current.map((r) => r.name))])
 const qaUsers = computed(() => auth.usersIn('qa').map((u) => u.name))
 
@@ -57,6 +64,11 @@ watch(
   () => form.name,
   (name) => (form.round = runStore.nextRound(name)),
 )
+// another environment usually takes what already passed on the primary one (e.g. TEST, then STAGING)
+watch(
+  () => form.environmentId,
+  () => (form.caseIds = onPrimary.value ? cases.value.map((c) => c.id) : passedOnPrimary.value),
+)
 
 // --- case selection ------------------------------------------------------------------
 const cases = computed(() => [...currentCases.value].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })))
@@ -64,9 +76,18 @@ const failedLastRound = computed(
   () => new Set(lastRun.value?.results.filter((r) => !r.caseDeleted && (r.status === 'failed' || r.status === 'blocked')).map((r) => r.caseId)),
 )
 
+/** passed on the chosen environment: the case status on the primary one, the latest result there on another */
+const passedHere = computed(() => {
+  if (onPrimary.value) return new Set(cases.value.filter((c) => c.status === 'passed').map((c) => c.id))
+  const results = runStore.environmentResults.find((e) => e.id === form.environmentId)?.results ?? new Map()
+  return new Set(cases.value.filter((c) => currentResultOf(c, results)?.status === 'passed').map((c) => c.id))
+})
+const passedOnPrimary = computed(() => cases.value.filter((c) => c.status === 'passed').map((c) => c.id))
+
 const presets = computed(() => [
+  ...(onPrimary.value ? [] : [{ label: `ผ่านบน ${primary.value.name} แล้ว`, ids: passedOnPrimary.value }]),
   { label: 'ทั้งหมด', ids: cases.value.map((c) => c.id) },
-  { label: 'ยังไม่ผ่าน', ids: cases.value.filter((c) => c.status !== 'passed').map((c) => c.id) },
+  { label: 'ยังไม่ผ่าน', ids: cases.value.filter((c) => !passedHere.value.has(c.id)).map((c) => c.id) },
   { label: `Fail / Blocked รอบล่าสุด`, ids: cases.value.filter((c) => failedLastRound.value.has(c.id)).map((c) => c.id) },
   { label: 'Critical และ High', ids: cases.value.filter((c) => c.priority === 'critical' || c.priority === 'high').map((c) => c.id) },
 ])
@@ -116,7 +137,20 @@ async function submit() {
                 </v-col>
                 <v-col cols="6">
                   <label class="fox-label" for="run-env">Environment *</label>
-                  <v-combobox id="run-env" v-model="form.environment" :items="['Staging', 'UAT', 'SIT', 'Pre-production']" :rules="[required]" />
+                  <v-select
+                    id="run-env"
+                    v-model="form.environmentId"
+                    :items="environments"
+                    item-title="name"
+                    item-value="id"
+                    :rules="[required]"
+                    :hint="onPrimary ? 'ผลเป็นสถานะของ Test Case' : `เก็บผลแยก ไม่เปลี่ยนสถานะหลัก (มาจาก ${primary.name})`"
+                    persistent-hint
+                  >
+                    <template #item="{ props: item, item: { raw } }">
+                      <v-list-item v-bind="item" :subtitle="raw.primary ? 'Environment หลัก' : undefined" />
+                    </template>
+                  </v-select>
                 </v-col>
                 <v-col cols="6">
                   <label class="fox-label" for="run-build">Build / Version</label>

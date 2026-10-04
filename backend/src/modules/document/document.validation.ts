@@ -12,6 +12,7 @@ const signatories = Joi.array()
 
 const uat = Joi.object({
   testPeriod: text(200).default(''),
+  environmentId: idSchema.allow(''),
   environment: text(200).default(''),
   decision: Joi.string().valid('accepted', 'conditional', 'rejected').required(),
   remarks: text(5000).default(''),
@@ -25,6 +26,7 @@ const options = Joi.object({
   includeEvidence: Joi.boolean().required(),
   includeDefects: Joi.boolean().required(),
   includeTraceability: Joi.boolean().required(),
+  torOnly: Joi.boolean().default(false),
 })
 
 /** pictures are uploaded first (POST /files): a URL, never the picture itself */

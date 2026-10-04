@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express'
 import type { DocumentRequest, DocumentTemplate } from '#contract/types.js'
 import { principal } from '#core/auth/guards.js'
+import type { SearchRequest } from '#core/http/search.js'
 import { created, done, send } from '#core/http/response.js'
 import { documentService, type DocumentPatch } from './document.service.js'
 
@@ -10,6 +11,11 @@ const cleanRequest = (body: DocumentRequest): DocumentRequest => ({ ...body, opt
 export const documentController = {
   /** GET /documents */
   list: async (_req: Request, res: Response) => send(res, await documentService.list(principal())),
+  /** GET /documents/search?q=:q&limit=:n&offset=:n */
+  search: async (req: Request, res: Response) => {
+    const { q, limit, offset } = req.query as unknown as SearchRequest
+    send(res, await documentService.search(principal(), q, limit, offset))
+  },
   /** POST /documents */
   generate: async (req: Request, res: Response) => created(res, await documentService.generate(principal(), cleanRequest(req.body))),
   /** POST /documents/:id/regenerate */

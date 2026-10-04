@@ -1,10 +1,11 @@
-import type { Actor, ResultStatus, RunResult, RunResultSaveResult, TestCase, TestCaseStatus, TestRun, TestRunInput } from '@/types'
+import type { Actor, ResultStatus, RunResult, RunResultSaveResult, RunSearchHit, TestCase, TestCaseStatus, TestRun, TestRunInput } from '@/types'
 import { ApiError } from '@/api/errors'
+import { environmentOf } from '@/domain/project'
 import { caseSyncBlock, resultFor } from '@/domain/run'
 import { addDays, todayISO } from '@/utils/date'
 import { newId } from '@/utils/ids'
 import { respond } from './http'
-import { assertCan, inAccessibleProjects, sessionCan } from './project'
+import { assertCan, inAccessibleProjects, sessionCan, storedProjects } from './project'
 import { STORAGE_KEYS, load, save } from './storage'
 import { patchStoredCase, storedCase, storedCases } from './test-case'
 
@@ -33,7 +34,8 @@ function seedRuns(): TestRun[] {
       name: 'Sprint 42 · Functional',
       type: 'functional',
       round: 1,
-      environment: 'Staging',
+      environmentId: 'env-test',
+      environment: 'TEST',
       build: 'v3.2.0-rc1',
       status: 'completed',
       plannedStart: '2026-09-21',
@@ -59,7 +61,8 @@ function seedRuns(): TestRun[] {
       name: 'Sprint 42 · Regression',
       type: 'regression',
       round: 2,
-      environment: 'Staging',
+      environmentId: 'env-test',
+      environment: 'TEST',
       build: 'v3.2.0-rc2',
       status: 'in_progress',
       plannedStart: addDays(todayISO(), -2),
@@ -118,20 +121,58 @@ export function detachRunCases(projectId: string, caseIds: string[]) {
 /** server-side: the stored runs of a project */
 export const runsOf = (projectId: string): TestRun[] => runs().filter((r) => r.projectId === projectId)
 
+/** server-side: the project, for its environments */
+function projectOf(projectId: string) {
+  const project = storedProjects().find((p) => p.id === projectId)
+  if (!project) throw new ApiError('ไม่พบโปรเจกต์', 404)
+  return project
+}
+
+/** server-side: one of the project's environments (runs pick from the list, no free text) */
+function environmentFor(projectId: string, environmentId: string) {
+  const env = environmentOf(projectOf(projectId), environmentId)
+  if (!env) throw new ApiError('ไม่พบ Environment นี้ในโปรเจกต์', 422)
+  return env
+}
+
 /** GET /test-runs (of the projects the signed-in user may open) */
 export const fetchRuns = () => respond(() => (sessionCan('run.view') ? inAccessibleProjects(runs()) : []))
+
+/** GET /test-runs/search?q=:q&limit=:limit&offset=:offset */
+export const searchRuns = (q: string, limit = 20, offset = 0) =>
+  respond(() => {
+    const text = q.trim().toLowerCase()
+    if (!text || !sessionCan('run.view')) return { runs: [] as RunSearchHit[], total: 0 }
+    const found = inAccessibleProjects(runs())
+      .filter((r) => `${r.name} ${r.environment} ${r.build}`.toLowerCase().includes(text))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    const hits = found.slice(offset, offset + limit).map(({ id, projectId, name, round, type, status, environment, build, createdAt }) => ({
+      id,
+      projectId,
+      name,
+      round,
+      type,
+      status,
+      environment,
+      build,
+      createdAt,
+    }))
+    return { runs: hits, total: found.length }
+  })
 
 /** POST /projects/:projectId/test-runs (the server snapshots the selected cases) */
 export const createRun = (input: TestRunInput, cases: TestCase[], createdBy: string) =>
   respond(() => {
     assertCan('run.create', input.projectId)
+    const env = environmentFor(input.projectId, input.environmentId)
     const run: TestRun = {
       id: newId('run'),
       projectId: input.projectId,
       name: input.name,
       type: input.type,
       round: input.round,
-      environment: input.environment,
+      environmentId: env.id,
+      environment: env.name,
       build: input.build,
       plannedStart: input.plannedStart,
       plannedEnd: input.plannedEnd,
@@ -151,7 +192,13 @@ export const updateRun = (id: string, patch: Partial<Omit<TestRun, 'results'>>) 
     const run = find(list, id)
     // closing a run is its own permission; other changes are planning
     assertCan(patch.status === 'completed' && run.status !== 'completed' ? 'run.close' : 'run.create', run.projectId)
-    Object.assign(run, patch)
+    // the environment's name is the server's; results already recorded stay on the environment they were made on
+    const { environment: _name, ...fields } = patch
+    if (fields.environmentId && fields.environmentId !== run.environmentId) {
+      if (run.results.some((r) => r.status !== 'untested')) throw new ApiError('รอบนี้มีผลการทดสอบแล้ว เปลี่ยน Environment ไม่ได้', 409)
+      Object.assign(fields, { environment: environmentFor(run.projectId, fields.environmentId).name })
+    }
+    Object.assign(run, fields)
     save(STORAGE_KEYS.testRuns, list)
     return find(list, id)
   })
@@ -183,7 +230,7 @@ export const saveResult = (runId: string, result: RunResult, actor: Actor) =>
     const caseStatus = CASE_STATUS[stamped.status]
     const tc = stamped.caseDeleted ? undefined : storedCase(run.projectId, stamped.caseId)
     const caseUpdate =
-      caseStatus && tc && tc.status !== caseStatus && !caseSyncBlock(run, stamped, tc, list)
+      caseStatus && tc && tc.status !== caseStatus && !caseSyncBlock(run, stamped, tc, list, projectOf(run.projectId))
         ? patchStoredCase(
             run.projectId,
             tc.id,

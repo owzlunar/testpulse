@@ -15,7 +15,7 @@ import { useReportStore } from '@/stores/report.store'
 import type { Tone } from '@/types'
 import { formatPercent } from '@/utils/format'
 import { useAsyncAction } from '@/composables/useAsyncAction'
-import { SEVERITIES } from '@/domain/defect'
+import { DEFECT_CAUSES, SEVERITIES } from '@/domain/defect'
 import { runStatusOf } from '@/domain/run'
 import { PRIORITIES, STATUSES } from '@/domain/test-case'
 
@@ -52,6 +52,9 @@ const priorities = computed(() => PRIORITIES.map((p) => ({ ...p, count: report.v
 
 const severities = computed(() => SEVERITIES.map((s) => ({ ...s, count: report.value!.defects.openBySeverity[s.value] })))
 
+const causes = computed(() => DEFECT_CAUSES.map((c) => ({ ...c, ...report.value!.defects.byCause[c.value] })))
+const hours = (h: number | null) => (h === null ? '-' : h < 48 ? `${h} ชม.` : `${Math.round((h / 24) * 10) / 10} วัน`)
+
 const kpis = computed(() => {
   const r = report.value!
   return [
@@ -71,7 +74,7 @@ function exportReport() {
 </script>
 
 <template>
-  <FoxPageHeader title="รายงานสรุปผลการทดสอบ" :breadcrumbs="[{ title: 'รายงาน' }]">
+  <FoxPageHeader :breadcrumbs="[{ title: 'รายงาน' }]">
     <template #actions>
       <v-btn variant="outlined" prepend-icon="tabler:markdown" @click="exportReport">ส่งออก .md</v-btn>
       <v-btn color="primary" prepend-icon="tabler:report-analytics" :to="{ path: '/documents', query: { create: 'test_summary' } }"
@@ -125,6 +128,58 @@ function exportReport() {
               </tr>
             </tbody>
           </v-table>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <v-row v-if="report.environments.length > 1" class="fox-grid">
+      <!-- results by environment -->
+      <v-col cols="12" md="7">
+        <v-card class="fox-card-body h-100 report-environments">
+          <FoxCardHeader title="ผลตาม Environment" subtitle="Environment หลักคือสถานะของ Test Case · อื่นๆ คือผลล่าสุดบน Environment นั้น" />
+          <v-table class="mt-4">
+            <thead>
+              <tr>
+                <th>Environment</th>
+                <th class="text-end">Pass</th>
+                <th class="text-end">Fail</th>
+                <th class="text-end">Blocked</th>
+                <th class="text-end">ยังไม่ทดสอบ</th>
+                <th class="text-end">Pass rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="e in report.environments" :key="e.id">
+                <td>
+                  <span class="d-inline-flex align-center ga-2"
+                    ><v-icon icon="tabler:server" size="18" color="primary" />{{ e.name }}
+                    <v-chip v-if="e.primary" size="x-small" color="primary" variant="tonal">หลัก</v-chip></span
+                  >
+                </td>
+                <td class="text-end fox-num">{{ e.passed }}</td>
+                <td class="text-end fox-num">{{ e.failed }}</td>
+                <td class="text-end fox-num">{{ e.blocked }}</td>
+                <td class="text-end fox-num text-muted">{{ e.notRun }}</td>
+                <td class="text-end fox-num">{{ formatPercent(e.passRate) }}</td>
+              </tr>
+            </tbody>
+          </v-table>
+        </v-card>
+      </v-col>
+
+      <!-- code vs server problems -->
+      <v-col cols="12" md="5">
+        <v-card class="fox-card-body h-100 report-causes">
+          <FoxCardHeader title="สาเหตุของ Defect" subtitle="โค้ด หรือ Server / Environment · เวลาเฉลี่ยจนแก้ไขเสร็จ" />
+          <div class="fox-stack mt-6">
+            <div v-for="c in causes" :key="c.value">
+              <div class="d-flex align-center justify-space-between mb-1">
+                <span class="d-inline-flex align-center ga-2 text-subtitle-2"><v-icon :icon="c.icon" :color="c.tone" size="18" />{{ c.label }}</span>
+                <span class="text-body-2 fox-num">เปิดอยู่ {{ c.open }} / {{ c.total }}</span>
+              </div>
+              <div class="text-caption text-muted fox-num">แก้ไขเฉลี่ย {{ hours(c.avgFixHours) }}</div>
+            </div>
+          </div>
         </v-card>
       </v-col>
     </v-row>

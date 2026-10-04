@@ -54,6 +54,7 @@ src
 - API modules and domain helpers are named after the module (`api/mock/test-case.ts`, `domain/test-case.ts`). Stores: `xxx.store.ts` (Pinia setup stores, e.g. `calendar.store.ts`). Multi-word names are kebab-case.
 - Components use stores directly (`useProjectStore()` + `storeToRefs`); no thin wrapper composables.
 - Generic theme components: `components/ui/Fox*.vue`. Domain components: `components/<module>/<Domain>*.vue` (e.g. `test-cases/TestCaseDialog.vue`).
+- A page's title is its route's `meta.title` (`router/index.ts`): `<FoxPageHeader>` shows it (and the browser tab) unless the page passes `title`, e.g. a record's name (a test run, a document).
 - Long list pages use `<FoxPageHeader sticky>`: it sticks under the app bar (`--fox-appbar-height`) and turns compact (title `text-h5`, small buttons via `v-defaults-provider`); users can turn it off in Settings. Don't make page content its own scroll container.
 - Views: no `View`/`Page` suffix, grouped by module folder: `views/auth/Login.vue`. A module's first page is `Index.vue` (`views/test-cases/Index.vue`).
 - `npm run build` runs `vue-tsc` first; it must pass.
@@ -86,6 +87,7 @@ src/domain/<module>.ts        helpers the UI uses: Option lists, status / priori
 - Mock modules import each other (e.g. role ↔ project ↔ user): use other modules' exports inside functions only, never in top-level constants.
 - Business rules live in the mock server (and the backend), not the store: case versioning / pass invalidation / churn (`applyCasePatch`), id assignment (`createTestCases`), run verdict -> case status (`saveResult` + `caseSyncBlock`). Mutations take an `Actor` (the backend reads it from the session). Stores call the endpoint, then update local state and record audit / alerts from the result (`testCaseStore.applyUpdate`).
 - Test cases load one project at a time (`testCaseStore.ensureProject(id)`; selecting a project does it; `projectStore.currentCasesLoaded`). Anything about other projects uses `project.caseStats` from `fetchProjects` or a server endpoint (e.g. `searchTestCases`), never all cases in memory. Long lists page their items.
+- Universal search (`components/layout/GlobalSearch.vue`, results page `views/search/Index.vue`): its groups live in `composables/useUniversalSearch.ts`; each searches the server a page at a time (`limit` + `offset`, `{ <items>, total }`) and shows only what the user's permissions allow. A new searchable module adds a search endpoint and a group there.
 - Stores: shell data is loaded once by `app.store.bootstrap()`; module data (requirements, runs, defects, documents) is loaded lazily with `ensureLoaded()` and pages show `FoxPageSkeleton` until `loaded`.
 - Mutations are `async` and throw `ApiError`. Call them through `useAsyncAction()` (`busy` for button/dialog loading, errors go to the global toast in `App.vue`).
 - Dialogs never close themselves after save: they emit `save` and take a `loading` prop; the page closes them on success. `watch(open, …)` in dialogs uses `{ immediate: true }` (deep links open them on mount), so helpers used inside must be declared before the watcher or be `function` declarations.

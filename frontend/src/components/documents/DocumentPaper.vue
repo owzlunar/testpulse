@@ -33,6 +33,8 @@ const sections = computed(() => {
   return list
 })
 const no = (key: string) => sections.value.indexOf(key) + 1
+/** documents made before requirements had TOR clauses have none: no empty column */
+const showTorClause = computed(() => s.value.requirements.some((r) => r.torClause))
 </script>
 
 <template>
@@ -105,7 +107,10 @@ const no = (key: string) => sections.value.indexOf(key) + 1
             </tr>
             <tr v-if="isUat && doc.uat">
               <th>สภาพแวดล้อม</th>
-              <td>{{ doc.uat.environment }}</td>
+              <td>
+                {{ doc.uat.environment }}<template v-if="s.run?.build"> · Build {{ s.run.build }}</template>
+                <template v-if="s.environment && !s.run && !s.environment.primary"> (ผลล่าสุดของแต่ละเคสบน Environment นี้)</template>
+              </td>
             </tr>
             <tr v-else-if="s.run">
               <th>สภาพแวดล้อม</th>
@@ -250,9 +255,11 @@ const no = (key: string) => sections.value.indexOf(key) + 1
       <!-- traceability -->
       <section v-if="sections.includes('rtm')">
         <h2>{{ no('rtm') }}. Requirement Traceability Matrix</h2>
+        <p v-if="doc.options.torOnly" class="doc-small doc-muted">เฉพาะ Requirement ตาม TOR และ Test Case ที่เชื่อมกับ Requirement เหล่านั้น</p>
         <table class="doc-table">
           <thead>
             <tr>
+              <th v-if="showTorClause">ข้อใน TOR</th>
               <th>Requirement</th>
               <th>ชื่อ</th>
               <th>Test Cases</th>
@@ -261,6 +268,7 @@ const no = (key: string) => sections.value.indexOf(key) + 1
           </thead>
           <tbody>
             <tr v-for="r in s.requirements" :key="r.code">
+              <td v-if="showTorClause" class="doc-nowrap">{{ r.torClause || 'เพิ่มเติม' }}</td>
               <td class="doc-nowrap">{{ r.code }}</td>
               <td>{{ r.title }}</td>
               <td>{{ r.caseIds.join(', ') || '—' }}</td>

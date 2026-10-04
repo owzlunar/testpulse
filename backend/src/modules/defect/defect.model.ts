@@ -33,7 +33,11 @@ const defectSchema = new Schema<DefectDoc>(
     assignee: { type: String },
     reportedBy: { type: String, required: true },
     externalKey: { type: String },
+    // the project environment it was found on, and its name (older defects: free text only)
+    environmentId: { type: String },
     environment: { type: String },
+    cause: { type: String, enum: ['code', 'environment'], default: 'code' },
+    fixedAt: { type: String },
     evidence: { type: [String], default: [] },
     comments: { type: [commentSchema], default: [] },
   },

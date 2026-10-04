@@ -29,6 +29,8 @@ describe('project access', () => {
     expect(await idsFor('user-qa-1')).toEqual(['proj-1', 'proj-3'])
     expect(await idsFor('user-qa-2')).toEqual(['proj-2', 'proj-3'])
     expect(await idsFor('user-dev-2')).toEqual(['proj-1', 'proj-2', 'proj-3'])
+    // the Infra team runs proj-1's STAGING: its members open proj-1 too
+    expect(await idsFor('user-ops-1')).toEqual(['proj-1', 'proj-3'])
   })
 
   it('a user without a role sees no project', async () => {
@@ -66,6 +68,14 @@ describe('project changes (Admin)', () => {
     ).toBe(409)
   })
 
+  it('a key is 2 to 16 upper-case letters or digits', async () => {
+    const admin = client(app).as('user-admin')
+    const status = async (key: string) => (await admin.post('/projects').send(project({ key, name: key }))).status
+    expect(await status('ab')).toBe(201)
+    expect(await status('SHOP2026PLATFORM')).toBe(201)
+    for (const key of ['A', 'SHOP2026PLATFORMX', 'MY-APP', 'MY_APP', 'ร้านค้า']) expect(await status(key)).toBe(400)
+  })
+
   it('updates and deletes; every change is audited with the Admin as actor', async () => {
     const admin = client(app).as('user-admin')
     expect((await admin.put('/projects/proj-3').send(project({ key: 'AUTH', name: 'SSO v2' }))).body.data.name).toBe('SSO v2')
@@ -77,5 +87,46 @@ describe('project changes (Admin)', () => {
     expect(mine.map((e) => e.action)).toEqual(['DELETE', 'UPDATE'])
     expect(mine[1]!.userId).toBe('user-admin')
     expect(mine[1]!.changes?.map((c) => c.field)).toEqual(expect.arrayContaining(['name']))
+  })
+})
+
+describe('environments', () => {
+  const admin = () => client(app).as('user-admin')
+  const env = (id: string, name: string, primary: boolean, teamId?: string) => ({ id, name, primary, ...(teamId && { teamId }) })
+
+  it('a new project starts with TEST as its primary environment', async () => {
+    const res = await admin().post('/projects').send(project())
+    expect(res.body.data.environments).toEqual([{ id: 'env-test', name: 'TEST', primary: true }])
+  })
+
+  it('keeps exactly one primary and different names', async () => {
+    const twoPrimaries = [env('env-a', 'TEST', true), env('env-b', 'STAGING', true)]
+    expect(
+      (
+        await admin()
+          .post('/projects')
+          .send(project({ environments: twoPrimaries }))
+      ).status,
+    ).toBe(422)
+    const sameName = [env('env-a', 'TEST', true), env('env-b', 'test', false)]
+    expect(
+      (
+        await admin()
+          .post('/projects')
+          .send(project({ environments: sameName }))
+      ).status,
+    ).toBe(422)
+    const res = await admin()
+      .post('/projects')
+      .send(project({ environments: [env('env-a', ' TEST ', true), env('env-b', 'STAGING', false, 'team-infra')] }))
+    expect(res.body.data.environments).toEqual([env('env-a', 'TEST', true), env('env-b', 'STAGING', false, 'team-infra')])
+  })
+
+  it('a deleted team no longer runs an environment', async () => {
+    await admin().delete('/teams/team-infra')
+    const proj1 = ((await admin().get('/projects')).body.data as { id: string; environments: { teamId?: string }[] }[]).find(
+      (p) => p.id === 'proj-1',
+    )!
+    expect(proj1.environments.every((e) => !e.teamId)).toBe(true)
   })
 })

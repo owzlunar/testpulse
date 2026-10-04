@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import UserAvatar from '@/components/users/UserAvatar.vue'
 import TestCaseBadges from './TestCaseBadges.vue'
+import TestCaseEnvironmentChips from './TestCaseEnvironmentChips.vue'
 import TestCasePriorityChip from './TestCasePriorityChip.vue'
 import TestCaseStatusChip from './TestCaseStatusChip.vue'
 import TestCaseStatusMenu from './TestCaseStatusMenu.vue'
@@ -47,6 +48,7 @@ const setStatus = (tc: TestCase, s: TestCaseStatus) => run(() => store.update(tc
           <TestCaseStatusChip :status="testCase.status" />
           <TestCasePriorityChip :priority="testCase.priority" />
           <TestCaseBadges :test-case="testCase" />
+          <TestCaseEnvironmentChips :test-case="testCase" />
           <template v-if="$slots.move">
             <v-spacer />
             <slot name="move" />

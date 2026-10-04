@@ -12,8 +12,9 @@ class ProjectRepository extends BaseRepository<ProjectDoc, Project> {
     return this.findOne({ key: key.trim().toUpperCase() })
   }
 
+  /** the projects a team may open or whose environment it runs */
   withTeam(teamId: string, session?: ClientSession): Promise<Project[]> {
-    return ProjectModel.find({ teamIds: teamId })
+    return ProjectModel.find({ $or: [{ teamIds: teamId }, { 'environments.teamId': teamId }] })
       .session(session ?? null)
       .then((docs) => this.toApiList(docs))
   }

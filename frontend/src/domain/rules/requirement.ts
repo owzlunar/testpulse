@@ -26,6 +26,39 @@ export function requirementText(tc: TestCase, requirements: Requirement[]): stri
   return lines.join('\n')
 }
 
+/** the next "REQ-<KEY>-NN" after the highest number the codes end with */
+export function nextRequirementCode(projectKey: string, codes: string[]): string {
+  const max = codes.reduce((m, c) => Math.max(m, Number(c.match(/(\d+)$/)?.[1] ?? 0)), 0)
+  return `REQ-${projectKey}-${String(max + 1).padStart(2, '0')}`
+}
+
+/** what a requirement says; a change to it means the linked cases must be reviewed (type / priority / status / origin don't) */
+export const MEANING_FIELDS: { field: 'title' | 'description' | 'acceptanceCriteria'; label: string }[] = [
+  { field: 'title', label: 'ชื่อ' },
+  { field: 'description', label: 'รายละเอียด' },
+  { field: 'acceptanceCriteria', label: 'เกณฑ์การยอมรับ' },
+]
+
+/** the labels of what changed in what a requirement says (empty: nothing to review) */
+export const meaningChanges = (before: Requirement, after: Pick<Requirement, 'title' | 'description' | 'acceptanceCriteria'>): string[] =>
+  MEANING_FIELDS.filter((m) => JSON.stringify(before[m.field]) !== JSON.stringify(after[m.field])).map((m) => m.label)
+
+const natural = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true })
+
+/** list order: TOR requirements by clause (4.2.9 before 4.2.10), then the additional ones, each by code */
+export function compareRequirements(a: Requirement, b: Requirement): number {
+  if (a.origin !== b.origin) return a.origin === 'tor' ? -1 : 1
+  return (a.origin === 'tor' && natural(a.torClause ?? '', b.torClause ?? '')) || natural(a.code, b.code)
+}
+
+/** the ids of the cases that test a TOR requirement: linked themselves, or a sub-case of one that is */
+export function torCaseIds(requirements: Requirement[], cases: TestCase[]): Set<string> {
+  const tor = requirements.filter((r) => r.origin === 'tor')
+  const linked = new Set(cases.filter((c) => tor.some((r) => isLinked(r, c))).map((c) => c.id))
+  for (const c of cases) if (c.parentId && linked.has(c.parentId)) linked.add(c.id)
+  return linked
+}
+
 export function coverageStatus(cases: TestCase[]): CoverageStatus {
   if (!cases.length) return 'not_covered'
   if (cases.some((c) => c.status === 'failed' || c.status === 'blocked')) return 'failed'

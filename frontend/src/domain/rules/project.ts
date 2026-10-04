@@ -1,0 +1,40 @@
+import type { Project, ProjectEnvironment } from '@/types'
+
+// A project's key (PAY, SHOP2026 …): in document numbers, exported file names and search results
+
+export const PROJECT_KEY_MIN = 2
+export const PROJECT_KEY_MAX = 16
+
+/** uppercase letters and digits, PROJECT_KEY_MIN to PROJECT_KEY_MAX of them */
+export const PROJECT_KEY_PATTERN = new RegExp(`^[A-Z0-9]{${PROJECT_KEY_MIN},${PROJECT_KEY_MAX}}$`)
+
+export const isProjectKey = (key: string): boolean => PROJECT_KEY_PATTERN.test(key)
+
+// Environments: where a project is tested. The primary one (the company's test server) gives the
+// cases their status; the others (the customer's staging …) keep their own results.
+
+export const ENVIRONMENT_NAME_MAX = 40
+
+/** what a new project starts with */
+export const defaultEnvironments = (): ProjectEnvironment[] => [{ id: 'env-test', name: 'TEST', primary: true }]
+
+/** the environment whose results are the cases' status */
+export function primaryEnvironment(project: Pick<Project, 'environments'>): ProjectEnvironment {
+  const [first = { id: 'env-test', name: 'TEST', primary: true }] = project.environments ?? []
+  return project.environments?.find((e) => e.primary) ?? first
+}
+
+export const environmentOf = (project: Pick<Project, 'environments'>, id?: string): ProjectEnvironment | undefined =>
+  project.environments?.find((e) => e.id === id)
+
+/** why a project's environments can't be saved, or null: names given and different, ids different, exactly one primary */
+export function environmentsProblem(environments: Pick<ProjectEnvironment, 'id' | 'name' | 'primary'>[]): string | null {
+  if (!environments.length) return 'ต้องมี Environment อย่างน้อย 1 รายการ'
+  const names = environments.map((e) => e.name.trim().toUpperCase())
+  if (names.some((n) => !n)) return 'กรุณาตั้งชื่อ Environment'
+  const twice = names.find((n, i) => names.indexOf(n) !== i)
+  if (twice) return `ชื่อ Environment ${twice} ซ้ำกัน`
+  if (new Set(environments.map((e) => e.id)).size !== environments.length) return 'รหัส Environment ซ้ำกัน'
+  if (environments.filter((e) => e.primary).length !== 1) return 'ต้องมี Environment หลัก 1 รายการ'
+  return null
+}

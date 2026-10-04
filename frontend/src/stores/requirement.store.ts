@@ -1,13 +1,13 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import type { Requirement, RequirementInput, TestCase } from '@/types'
+import type { Requirement, RequirementImportResult, RequirementImportRow, RequirementInput, TestCase } from '@/types'
 import { useAuditStore } from './audit.store'
 import { useAuthStore } from './auth.store'
 import { useNotificationStore } from './notification.store'
 import { useProjectStore } from './project.store'
 import { useTestCaseStore } from './test-case.store'
 import { requirementApi as api } from '@/api'
-import { requirementText } from '@/domain/requirement'
+import { compareRequirements, nextRequirementCode, requirementText } from '@/domain/requirement'
 
 // Loaded on demand by the pages that need it (Requirements, case form, documents)
 export const useRequirementStore = defineStore('requirement', () => {
@@ -31,17 +31,14 @@ export const useRequirementStore = defineStore('requirement', () => {
     return loading
   }
 
-  const current = computed(() =>
-    requirements.value
-      .filter((r) => r.projectId === projectStore.currentProject?.id)
-      .sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true })),
-  )
+  const current = computed(() => requirements.value.filter((r) => r.projectId === projectStore.currentProject?.id).sort(compareRequirements))
 
   /** next "REQ-<KEY>-NN" code for the current project */
   function nextCode(): string {
-    const key = projectStore.currentProject?.key ?? 'PRJ'
-    const max = current.value.reduce((m, r) => Math.max(m, Number(r.code.match(/(\d+)$/)?.[1] ?? 0)), 0)
-    return `REQ-${key}-${String(max + 1).padStart(2, '0')}`
+    return nextRequirementCode(
+      projectStore.currentProject?.key ?? 'PRJ',
+      current.value.map((r) => r.code),
+    )
   }
 
   const qaOf = (cases: TestCase[]) => {
@@ -81,6 +78,22 @@ export const useRequirementStore = defineStore('requirement', () => {
     return saved
   }
 
+  /** rows from Excel / CSV: the server numbers the ones without a code and skips (or updates) existing codes */
+  async function importMany(projectId: string, rows: RequirementImportRow[], updateExisting: boolean): Promise<RequirementImportResult> {
+    const result = await api.importRequirements(projectId, rows, updateExisting)
+    const saved = [...result.created, ...result.updated]
+    requirements.value = [...requirements.value.filter((r) => !saved.some((s) => s.id === r.id)), ...saved]
+    applyFlags(`${result.updated.length} รายการ`, projectId, result.flaggedCases, 'ถูกแก้ไขจากการนำเข้า')
+    audit.record({
+      action: 'CREATE',
+      targetType: 'PROJECT',
+      targetId: projectStore.projects.find((p) => p.id === projectId)?.key ?? projectId,
+      targetTitle: 'นำเข้า Requirement',
+      details: `นำเข้า Requirement: เพิ่ม ${result.created.length} แก้ไข ${result.updated.length} ข้าม ${result.skipped.length}`,
+    })
+    return result
+  }
+
   async function remove(id: string) {
     const target = requirements.value.find((r) => r.id === id)
     const { flaggedCases } = await api.deleteRequirement(id)
@@ -99,5 +112,5 @@ export const useRequirementStore = defineStore('requirement', () => {
   /** a case's requirement as text (falls back to the case's own text until requirements are loaded) */
   const textFor = (tc: TestCase) => requirementText(tc, requirements.value)
 
-  return { requirements, loaded, current, ensureLoaded, nextCode, save, remove, textFor }
+  return { requirements, loaded, current, ensureLoaded, nextCode, save, importMany, remove, textFor }
 })

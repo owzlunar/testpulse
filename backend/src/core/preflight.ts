@@ -40,8 +40,21 @@ const readAll = async (stream: NodeJS.ReadableStream) => {
 export async function runPreflight(): Promise<CheckResult[]> {
   return Promise.all([
     check('database', async () => {
-      if (!mongoose.connection.db) throw new Error('not connected')
-      await withTimeout(mongoose.connection.db.admin().ping(), 5000, 'ping')
+      const db = mongoose.connection.db
+      if (!db) throw new Error('not connected')
+      await withTimeout(db.admin().ping(), 5000, 'ping')
+      // a write round trip: a login that may only read (or another database) passes a ping, then the
+      // indexes and migrations fail
+      const probe = db.collection('preflight')
+      const _id = randomBytes(6).toString('hex')
+      try {
+        await withTimeout(probe.insertOne({ _id, at: new Date() } as never), 5000, 'write')
+        await probe.deleteOne({ _id } as never)
+      } catch (err) {
+        throw new Error(`${mongoose.connection.name}: cannot write (the MongoDB user needs readWrite on this database): ${(err as Error).message}`, {
+          cause: err,
+        })
+      }
       return mongoose.connection.name
     }),
     check(`storage (${config.storage.driver})`, async () => {

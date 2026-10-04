@@ -6,11 +6,21 @@ import ProjectAvatar from './ProjectAvatar.vue'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth.store'
 import type { Project, ProjectInput, ProjectMilestone } from '@/types'
+import { newId } from '@/utils/ids'
 import { addDays, todayISO } from '@/utils/date'
 import { fileApi } from '@/api'
 import { errorMessage } from '@/api/errors'
 import { required } from '@/utils/validators'
-import { MILESTONE_TYPES, PROJECT_STATUSES } from '@/domain/project'
+import {
+  ENVIRONMENT_NAME_MAX,
+  MILESTONE_TYPES,
+  PROJECT_KEY_MAX,
+  PROJECT_KEY_MIN,
+  PROJECT_STATUSES,
+  defaultEnvironments,
+  environmentsProblem,
+  isProjectKey,
+} from '@/domain/project'
 
 const open = defineModel<boolean>({ default: false })
 const props = withDefaults(defineProps<{ project?: Project | null; loading?: boolean }>(), { project: null, loading: false })
@@ -34,6 +44,7 @@ const empty = (): ProjectInput => ({
   tags: [],
   milestones: [],
   teamIds: [],
+  environments: defaultEnvironments(),
 })
 const form = reactive<ProjectInput>(empty())
 const isEdit = computed(() => !!form.id)
@@ -44,7 +55,18 @@ watch(
     if (!isOpen) return
     logoError.value = ''
     const p = props.project
-    Object.assign(form, empty(), p ? { ...p, tags: [...p.tags], milestones: (p.milestones ?? []).map((m) => ({ ...m })) } : { id: undefined })
+    Object.assign(
+      form,
+      empty(),
+      p
+        ? {
+            ...p,
+            tags: [...p.tags],
+            milestones: (p.milestones ?? []).map((m) => ({ ...m })),
+            environments: (p.environments?.length ? p.environments : defaultEnvironments()).map((e) => ({ ...e })),
+          }
+        : { id: undefined },
+    )
   },
   { immediate: true },
 )
@@ -52,7 +74,7 @@ useUnsavedChanges(open, () => form)
 
 const rules = {
   required,
-  key: (v: string) => /^[A-Z0-9_-]{2,8}$/.test(v) || 'ตัวพิมพ์ใหญ่หรือตัวเลข 2–8 ตัว',
+  key: (v: string) => isProjectKey(v) || `ตัวพิมพ์ใหญ่ A-Z หรือตัวเลข ${PROJECT_KEY_MIN}–${PROJECT_KEY_MAX} ตัว`,
 }
 
 // --- logo upload ---------------------------------------------------------------
@@ -88,9 +110,27 @@ function removeMilestone(id: string) {
   form.milestones = form.milestones?.filter((m) => m.id !== id)
 }
 
+// --- environments: TEST (primary, the company's test server), STAGING (the customer's) … ------------
+function addEnvironment() {
+  const used = new Set(form.environments.map((e) => e.name.toUpperCase()))
+  const name = ['STAGING', 'UAT', 'SIT', 'PRE-PROD'].find((n) => !used.has(n)) ?? ''
+  form.environments = [...form.environments, { id: newId('env'), name, primary: false }]
+}
+
+function removeEnvironment(id: string) {
+  form.environments = form.environments.filter((e) => e.id !== id)
+  if (!form.environments.some((e) => e.primary) && form.environments[0]) form.environments[0].primary = true
+}
+
+function makePrimary(id: string) {
+  form.environments.forEach((e) => (e.primary = e.id === id))
+}
+
+const environmentError = computed(() => environmentsProblem(form.environments))
+
 async function submit() {
   const result = await formRef.value?.validate()
-  if (!result?.valid) return
+  if (!result?.valid || environmentError.value) return
   emit('save', { ...form, key: form.key.toUpperCase() })
 }
 </script>
@@ -146,6 +186,8 @@ async function submit() {
                     id="pj-key"
                     v-model="form.key"
                     placeholder="เช่น PAY, SHOP, AUTH"
+                    :maxlength="PROJECT_KEY_MAX"
+                    counter
                     hint="ใช้เป็นรหัสย่อของโปรเจกต์"
                     persistent-hint
                     :rules="[rules.required, rules.key]"
@@ -191,6 +233,59 @@ async function submit() {
                   <v-list-item v-bind="item" :subtitle="`${raw.memberIds.length} คน · ${raw.description}`" />
                 </template>
               </v-autocomplete>
+            </v-col>
+
+            <!-- environments -->
+            <v-col cols="12">
+              <div class="d-flex align-center justify-space-between mb-2">
+                <span class="fox-label mb-0">Environment ที่ทดสอบ</span>
+                <v-btn variant="tonal" color="primary" size="small" prepend-icon="tabler:plus" @click="addEnvironment">เพิ่ม Environment</v-btn>
+              </div>
+              <div class="fox-stack milestones">
+                <v-row v-for="e in form.environments" :key="e.id" dense class="align-center">
+                  <v-col cols="12" sm="4">
+                    <v-text-field
+                      v-model="e.name"
+                      aria-label="ชื่อ Environment"
+                      :maxlength="ENVIRONMENT_NAME_MAX"
+                      :rules="[rules.required]"
+                      @update:model-value="e.name = String($event ?? '').toUpperCase()"
+                    />
+                  </v-col>
+                  <v-col cols="12" sm="4">
+                    <v-select
+                      v-model="e.teamId"
+                      :items="teams"
+                      item-title="name"
+                      item-value="id"
+                      clearable
+                      placeholder="ทีมที่ดูแล Server"
+                      aria-label="ทีมที่ดูแล Server"
+                      prepend-inner-icon="tabler:server"
+                    />
+                  </v-col>
+                  <v-col cols="10" sm="3">
+                    <v-chip v-if="e.primary" color="primary" variant="tonal" prepend-icon="tabler:star">หลัก</v-chip>
+                    <v-btn v-else variant="text" size="small" color="primary" @click="makePrimary(e.id)">ตั้งเป็นหลัก</v-btn>
+                  </v-col>
+                  <v-col cols="2" sm="1" class="text-end">
+                    <v-btn
+                      icon="tabler:trash"
+                      variant="text"
+                      size="small"
+                      color="error"
+                      :disabled="form.environments.length === 1"
+                      :aria-label="`ลบ Environment ${e.name}`"
+                      @click="removeEnvironment(e.id)"
+                    />
+                  </v-col>
+                </v-row>
+              </div>
+              <p class="text-caption text-muted mb-0">
+                ผลบน Environment หลักคือสถานะของ Test Case (วงจร Dev ↔ QA) · Environment อื่นเก็บผลแยก เช่น STAGING ของลูกค้า · ปัญหาด้าน Server
+                จะส่งถึงทีมที่ดูแล Environment นั้น (ทีมนี้เข้าโปรเจกต์ได้ด้วย)
+              </p>
+              <div v-if="environmentError" class="text-caption text-error mt-1">{{ environmentError }}</div>
             </v-col>
 
             <!-- timeline -->

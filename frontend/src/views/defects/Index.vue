@@ -12,10 +12,10 @@ import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useSnackbar } from '@/composables/useSnackbar'
 import { useAuthStore } from '@/stores/auth.store'
 import { useDefectStore } from '@/stores/defect.store'
-import type { Defect, DefectInput, DefectSeverity, DefectStatus, Tone } from '@/types'
+import type { Defect, DefectCause, DefectInput, DefectSeverity, DefectStatus, Tone } from '@/types'
 import { formatDateTime, formatRelative } from '@/utils/date'
 import { firstName } from '@/utils/format'
-import { DEFECT_STATUSES, SEVERITIES, defectStatusOf, isOpenDefect, severityOf } from '@/domain/defect'
+import { DEFECT_CAUSES, DEFECT_STATUSES, SEVERITIES, defectCauseOf, defectStatusOf, isOpenDefect, severityOf } from '@/domain/defect'
 
 const auth = useAuthStore()
 
@@ -47,6 +47,7 @@ const stats = computed(() => {
 const search = ref('')
 const status = ref<DefectStatus | 'OPEN' | null>('OPEN')
 const severity = ref<DefectSeverity | null>(null)
+const cause = ref<DefectCause | null>(null)
 const statusFilters = [{ value: 'OPEN', label: 'ยังไม่ปิดทั้งหมด' }, ...DEFECT_STATUSES.map((s) => ({ value: s.value, label: s.label }))]
 
 const filtered = computed(() => {
@@ -55,13 +56,14 @@ const filtered = computed(() => {
     (d) =>
       (!q || `${d.id} ${d.title} ${d.caseId ?? ''} ${d.externalKey ?? ''} ${d.assignee ?? ''}`.toLowerCase().includes(q)) &&
       (!status.value || (status.value === 'OPEN' ? isOpenDefect(d) : d.status === status.value)) &&
-      (!severity.value || d.severity === severity.value),
+      (!severity.value || d.severity === severity.value) &&
+      (!cause.value || (d.cause ?? 'code') === cause.value),
   )
 })
 
 const page = ref(1)
 const itemsPerPage = ref(10)
-watch([search, status, severity], () => (page.value = 1))
+watch([search, status, severity, cause], () => (page.value = 1))
 
 const headers = [
   { title: 'Defect', key: 'title' },
@@ -137,7 +139,7 @@ watch(
 </script>
 
 <template>
-  <FoxPageHeader sticky title="Defects" :breadcrumbs="[{ title: 'Defects' }]">
+  <FoxPageHeader sticky :breadcrumbs="[{ title: 'Defects' }]">
     <template #actions>
       <v-btn v-can="'defect.report'" color="error" prepend-icon="tabler:bug" @click="openCreate">รายงาน Defect</v-btn>
     </template>
@@ -154,7 +156,7 @@ watch(
     <v-card>
       <div class="fox-card-body">
         <v-row dense class="row-gap-3 align-center">
-          <v-col cols="12" md="5">
+          <v-col cols="12" md="4">
             <v-text-field
               v-model="search"
               density="compact"
@@ -176,7 +178,7 @@ watch(
               clearable
             />
           </v-col>
-          <v-col cols="6" md="3">
+          <v-col cols="6" md="2">
             <v-select
               v-model="severity"
               :items="SEVERITIES"
@@ -185,6 +187,18 @@ watch(
               density="compact"
               placeholder="ทุก Severity"
               aria-label="Severity"
+              clearable
+            />
+          </v-col>
+          <v-col cols="12" md="3">
+            <v-select
+              v-model="cause"
+              :items="DEFECT_CAUSES"
+              item-title="label"
+              item-value="value"
+              density="compact"
+              placeholder="ทุกสาเหตุ"
+              aria-label="สาเหตุ"
               clearable
             />
           </v-col>
@@ -212,6 +226,10 @@ watch(
                 ><template v-if="item.stepNumber"> · ขั้นตอน {{ item.stepNumber }}</template></span
               >
               <span v-if="item.externalKey"><v-icon icon="tabler:external-link" size="12" /> {{ item.externalKey }}</span>
+              <span v-if="item.environment"><v-icon icon="tabler:server" size="12" /> {{ item.environment }}</span>
+              <span v-if="item.cause === 'environment'" class="text-caution"
+                ><v-icon :icon="defectCauseOf(item.cause).icon" size="12" /> {{ defectCauseOf(item.cause).label }}</span
+              >
             </div>
           </div>
         </template>
@@ -292,6 +310,9 @@ watch(
               />
             </v-list>
           </v-menu>
+          <v-chip :color="defectCauseOf(detail.cause).tone" :prepend-icon="defectCauseOf(detail.cause).icon" size="small" variant="outlined">{{
+            defectCauseOf(detail.cause).label
+          }}</v-chip>
           <v-chip v-if="detail.externalKey" size="small" variant="outlined" prepend-icon="tabler:external-link">{{ detail.externalKey }}</v-chip>
         </div>
         <dl class="defect-meta text-body-2">
@@ -311,7 +332,7 @@ watch(
           <dd>{{ detail.assignee || '-' }}</dd>
           <dt>ผู้รายงาน</dt>
           <dd>{{ detail.reportedBy }}</dd>
-          <dt>Environment</dt>
+          <dt>พบบน</dt>
           <dd>{{ detail.environment || '-' }}</dd>
           <dt>รายงานเมื่อ</dt>
           <dd>{{ formatDateTime(detail.createdAt) }}</dd>

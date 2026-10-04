@@ -1,19 +1,26 @@
 import type { Request, Response } from 'express'
 import { principal } from '#core/auth/guards.js'
+import type { SearchRequest } from '#core/http/search.js'
 import { created, send } from '#core/http/response.js'
+import type { RequirementImportRow } from '#contract/types.js'
 import { requirementService, type RequirementFields } from './requirement.service.js'
 
 export const requirementController = {
   /** GET /requirements */
   list: async (_req: Request, res: Response) => send(res, await requirementService.list(principal())),
-  /** GET /requirements/search?q=:q&limit=:n */
+  /** GET /requirements/search?q=:q&limit=:n&offset=:n */
   search: async (req: Request, res: Response) => {
-    const { q, limit } = req.query as unknown as { q: string; limit: number }
-    return send(res, await requirementService.search(principal(), q, limit))
+    const { q, limit, offset } = req.query as unknown as SearchRequest
+    return send(res, await requirementService.search(principal(), q, limit, offset))
   },
   /** POST /projects/:projectId/requirements */
   create: async (req: Request, res: Response) =>
     created(res, await requirementService.create(principal(), req.params.projectId as string, req.body as RequirementFields)),
+  /** POST /projects/:projectId/requirements/import */
+  importMany: async (req: Request, res: Response) => {
+    const { requirements, updateExisting } = req.body as { requirements: RequirementImportRow[]; updateExisting: boolean }
+    return send(res, await requirementService.importMany(principal(), req.params.projectId as string, requirements, updateExisting))
+  },
   /** PUT /requirements/:id */
   update: async (req: Request, res: Response) =>
     send(res, await requirementService.update(principal(), req.params.id as string, req.body as RequirementFields)),

@@ -190,21 +190,28 @@ function exportMarkdown() {
   )
 }
 
-// deep link from notifications / search: /test-cases?caseId=TC-101 (once the project's cases have loaded)
+// deep link from notifications / search: /test-cases?caseId=TC-101 (once the project's cases have loaded).
+// A case made since this list loaded (by someone else) is not here yet: the project's cases are reloaded once.
 watch(
   [() => route.query.caseId, currentCasesLoaded],
-  ([caseId, loaded]) => {
-    if (!caseId || !loaded) return
-    const tc = typeof caseId === 'string' ? store.getById(caseId, currentProject.value?.id) : undefined
-    if (tc) openEdit(tc)
+  async ([caseId, loaded]) => {
+    if (typeof caseId !== 'string' || !loaded) return
     router.replace({ query: {} })
+    const projectId = currentProject.value?.id
+    let tc = store.getById(caseId, projectId)
+    if (!tc && projectId) {
+      await store.loadProject(projectId).catch(() => {})
+      tc = store.getById(caseId, projectId)
+    }
+    if (tc) openEdit(tc)
+    else notify(`ไม่พบ ${caseId} ในโปรเจกต์นี้ (อาจถูกลบไปแล้ว)`, 'error')
   },
   { immediate: true },
 )
 </script>
 
 <template>
-  <FoxPageHeader sticky title="Test Cases" :breadcrumbs="[{ title: 'Test Cases' }]">
+  <FoxPageHeader sticky :breadcrumbs="[{ title: 'Test Cases' }]">
     <template #actions>
       <v-menu location="bottom end">
         <template #activator="{ props }">

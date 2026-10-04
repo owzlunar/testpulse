@@ -111,3 +111,21 @@ test('editing the spec of a passed case warns, makes a new version and cancels t
   const steps = (await payCases(page)).find((c) => c.id === 'TC-101')!.steps
   expect(steps[0].action).not.toContain('บรรทัดที่สอง')
 })
+
+test('cases pasted from Excel: one row per step, a row without a name continues the case above', async ({ page }) => {
+  await page.getByRole('button', { name: 'สร้าง Test Case' }).first().click()
+  await page.locator('.v-overlay--active .v-list-item', { hasText: 'นำเข้าจาก Excel / CSV' }).click()
+  const dialog = page.locator('.v-dialog')
+  const table = [
+    ['Test Case', 'Action', 'Expected'],
+    ['ค้นหาสินค้า', 'พิมพ์คำค้น', 'แสดงรายการที่ตรง'],
+    ['', 'กดตัวกรองราคา', 'กรองตามช่วงราคา'],
+  ]
+  await dialog.locator('#imp-paste').fill(table.map((r) => r.join('\t')).join('\n'))
+  await expect(dialog.getByText('อ่านได้ 2 แถว · 3 คอลัมน์')).toBeVisible()
+  await dialog.getByRole('button', { name: 'ถัดไป' }).click()
+  await dialog.getByRole('button', { name: 'ตรวจสอบ' }).click()
+  await expect(dialog.getByText('รวม 2 ขั้นตอน')).toBeVisible()
+  await dialog.getByRole('button', { name: 'นำเข้า 1 เคส' }).click()
+  await expect.poll(() => caseIds(page)).toContain('TC-105')
+})

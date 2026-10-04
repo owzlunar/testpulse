@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { defineAsyncComponent, reactive, ref } from 'vue'
 import type { VForm } from 'vuetify/components'
 import AppLogo from '@/components/layout/AppLogo.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { errorMessage } from '@/api/errors'
 import { useAuthStore } from '@/stores/auth.store'
-import { DEMO_ACCOUNTS, DEMO_PASSWORD, showDemoAccounts } from '@/utils/demo-accounts'
 import * as v from '@/utils/validators'
 
 const auth = useAuthStore()
@@ -26,6 +25,9 @@ async function submit() {
   const result = await formRef.value?.validate()
   if (result?.valid) signIn(form.email.trim(), form.password)
 }
+
+// development only: in a production build the condition is false and the demo accounts are left out entirely
+const DemoAccounts = import.meta.env.DEV ? defineAsyncComponent(() => import('@/components/auth/DemoAccounts.vue')) : null
 
 const year = new Date().getFullYear()
 
@@ -61,35 +63,7 @@ const highlights: { icon: string; text: string }[] = [
         <h2 class="text-h2 mb-1">เข้าสู่ระบบ</h2>
         <p class="text-body-1 text-muted mb-6">ใช้อีเมลและรหัสผ่านของคุณ</p>
 
-        <template v-if="showDemoAccounts">
-          <div class="text-overline text-muted mb-2">บัญชีทดสอบ (รหัสผ่าน {{ DEMO_PASSWORD }})</div>
-          <div class="d-flex flex-column ga-2 mb-6">
-            <v-card
-              v-for="u in DEMO_ACCOUNTS"
-              :key="u.email"
-              variant="flat"
-              border
-              class="login__user"
-              :disabled="signingIn"
-              @click="signIn(u.email, DEMO_PASSWORD)"
-            >
-              <div class="d-flex align-center ga-3 pa-3">
-                <v-avatar :color="u.tone" variant="tonal" size="36"><v-icon icon="tabler:user" size="18" /></v-avatar>
-                <div class="flex-grow-1 overflow-hidden">
-                  <div class="text-subtitle-2 text-truncate">{{ u.name }}</div>
-                  <div class="text-caption text-muted text-truncate">{{ u.email }}</div>
-                </div>
-                <v-chip :color="u.tone" size="x-small" variant="tonal">{{ u.role }}</v-chip>
-              </div>
-            </v-card>
-          </div>
-
-          <div class="d-flex align-center ga-3 mb-6">
-            <v-divider />
-            <span class="text-caption text-muted text-no-wrap">หรือใช้อีเมล</span>
-            <v-divider />
-          </div>
-        </template>
+        <component :is="DemoAccounts" v-if="DemoAccounts" :disabled="signingIn" @sign-in="signIn" />
 
         <v-alert v-if="error" type="error" variant="tonal" density="compact" class="mb-4" :text="error" />
 
@@ -173,13 +147,5 @@ const highlights: { icon: string; text: string }[] = [
 .login__form {
   width: 100%;
   max-width: 440px;
-}
-
-.login__user {
-  transition: background-color 0.15s;
-}
-
-.login__user:hover {
-  background: rgba(var(--v-theme-primary), 0.04);
 }
 </style>

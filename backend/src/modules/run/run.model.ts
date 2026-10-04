@@ -19,6 +19,8 @@ const runSchema = new Schema<RunDoc>(
     name: { type: String, required: true, trim: true, maxlength: 200 },
     type: { type: String, enum: ['smoke', 'functional', 'regression', 'uat'], required: true },
     round: { type: Number, required: true, min: 1 },
+    // one of the project's environments, and its name when the run was made
+    environmentId: { type: String },
     environment: { type: String, default: '' },
     build: { type: String, default: '' },
     status: { type: String, enum: ['planned', 'in_progress', 'completed'], default: 'planned' },

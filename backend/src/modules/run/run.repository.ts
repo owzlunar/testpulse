@@ -30,6 +30,21 @@ class RunRepository extends BaseRepository<RunDoc, TestRun> {
     return this.find({ projectId })
   }
 
+  /** the free-text environments of a project's runs made before runs picked one of the project's */
+  async unplacedEnvironmentNames(projectId: string): Promise<string[]> {
+    return (await RunModel.distinct('environment', { projectId, environmentId: { $exists: false } })) as string[]
+  }
+
+  /** puts each of those runs on the environment `pick` gives for its free text; how many */
+  async place(projectId: string, pick: (name: string) => { id: string; name: string }): Promise<number> {
+    const docs = await RunModel.find({ projectId, environmentId: { $exists: false } }, { environment: 1 }).lean()
+    for (const d of docs) {
+      const env = pick(d.environment ?? '')
+      await RunModel.updateOne({ _id: d._id }, { $set: { environmentId: env.id, environment: env.name } })
+    }
+    return docs.length
+  }
+
   async update(id: string, fields: Partial<RunDoc>): Promise<TestRun | null> {
     return this.toApi(await RunModel.findOneAndUpdate({ _id: id }, { $set: fields }, { new: true }))
   }

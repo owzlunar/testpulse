@@ -259,8 +259,11 @@ testpulse/
 
 ### 5.11 Requirements & Traceability
 - จัดการ Requirement (รหัส, Acceptance Criteria, ประเภท, สถานะ Draft/Approved/Changed/Deprecated, แหล่งที่มา)
+- **ข้อกำหนดจาก TOR หรือเพิ่มเติม**: Requirement ตาม TOR ต้องระบุข้อใน TOR (เช่น `4.2.1`) เรียงตามข้อ แล้วตามด้วย Requirement เพิ่มเติม (จากการประชุม, Change Request …); กรองตามที่มาและค้นหาด้วยข้อใน TOR ได้ (รวมถึงค้นหาทั้งระบบ). Requirement ที่มีอยู่ก่อนถือเป็นเพิ่มเติม
 - เชื่อม Test Case ↔ Requirement จากฟอร์ม Test Case
-- **Traceability Matrix** พร้อมสถานะ Coverage (ยังไม่มีเคส / ยังไม่ทดสอบ / กำลังทดสอบ / มีเคสไม่ผ่าน / ผ่านทั้งหมด) และส่งออก CSV
+- **นำเข้า Requirement จาก Excel / CSV** (วางจาก Excel หรืออัปโหลด CSV, จับคู่คอลัมน์อัตโนมัติ, ตรวจสอบก่อนนำเข้า) หนึ่งแถวต่อหนึ่ง Requirement: แถวที่มีข้อใน TOR เป็น Requirement ตาม TOR, ไม่มีรหัส Server ออกรหัสถัดไปให้, รหัสที่มีอยู่แล้วข้าม หรือเลือกอัปเดต (เช่น TOR ฉบับแก้ไข: ถ้าความหมายเปลี่ยน เคสที่เชื่อมไว้ถูกแจ้งให้ทบทวน)
+- **Traceability Matrix** พร้อมสถานะ Coverage (ยังไม่มีเคส / ยังไม่ทดสอบ / กำลังทดสอบ / มีเคสไม่ผ่าน / ผ่านทั้งหมด) และส่งออก CSV (มีคอลัมน์ข้อใน TOR)
+- เอกสาร UAT Sign-off และ Traceability Matrix เลือก **"เฉพาะ Requirement ตาม TOR"** ได้: รวมเฉพาะ Requirement ตาม TOR และ Test Case ที่เชื่อมกับ Requirement เหล่านั้น (Sub-case ตามเคสแม่) ทั้งผลสรุป ความเสี่ยง และ Release gatekeeper
 - ปุ่ม "ร่างเคสด้วย AI" ต่อ Requirement
 
 ### 5.12 รอบการทดสอบ (Test Runs) และ Defects
@@ -269,6 +272,17 @@ testpulse/
 - **บันทึกผลรายขั้นตอน** (Pass / Fail / Blocked / Skip) พร้อมผลจริงและภาพหลักฐานต่อขั้นตอน, ปุ่ม "ผ่านทุกขั้นตอน", "บันทึกและไปเคสถัดไป"; ผลของรอบอัปเดตสถานะ Test Case อัตโนมัติ
 - ขั้นตอนที่ Fail → **รายงาน Defect ที่กรอกให้ครบ** (ขั้นตอนทำซ้ำ, ผลคาดหวัง/จริง, หลักฐาน, Environment, ผู้รับผิดชอบ, Severity ตาม Priority)
 - Defect workflow: Open → In Progress → Fixed → Retest → Closed / Rejected, ความคิดเห็น, Jira key
+
+#### Environment ที่ทดสอบ (TEST / STAGING)
+- โปรเจกต์กำหนด Environment ได้ในฟอร์มโปรเจกต์ เช่น **TEST** (Server ทดสอบของบริษัท) และ **STAGING** (Server ของลูกค้า); โปรเจกต์ใหม่เริ่มที่ TEST และต้องมี **Environment หลัก 1 รายการ** เสมอ
+- **สถานะของ Test Case = ผลบน Environment หลัก** (วงจร Dev ↔ QA, ส่งงาน, Churn และการแจ้ง Dev เหมือนเดิม); Environment อื่นเก็บผลแยกต่อเคส (ผลล่าสุดของรอบบน Environment นั้นชนะ) ไม่เปลี่ยนสถานะหลัก ไม่ส่งเคสกลับ Dev ไม่นับ Churn; ผลที่ทดสอบกับเวอร์ชันเก่าของเคสไม่นับ
+- รอบการทดสอบเลือก Environment จากรายการ (ไม่พิมพ์เอง); รอบบน Environment อื่นเลือกเคสด่วน "ผ่านบน TEST แล้ว" ให้ก่อน; เปลี่ยน Environment ของรอบได้เฉพาะเมื่อยังไม่มีผล
+- หน้า Test Cases แสดงสถานะหลัก + ชิปผลของแต่ละ Environment อื่น (เช่น `STAGING Pass`) และกรอง "ผ่านบน TEST แต่ยังไม่ผ่านบน STAGING" / "ไม่ผ่าน / Blocked บน STAGING"
+- **Defect**: ระบุ Environment ที่พบ และสาเหตุ **โค้ด** หรือ **Server / Environment** (Port ถูกปิด, WAF, การตั้งค่า …) ช่อง Issue key ใช้เก็บเลขที่คำขอ / Ticket ของลูกค้าได้
+- **ทีมดูแล Server**: Role discipline ใหม่ `ops` และ Role เริ่มต้น **Server/Infra** (ดูรอบทดสอบและ Defect อัปเดตความคืบหน้า Defect ได้ แต่ปิด Defect หรือแก้ Test Case ไม่ได้); ผูกทีมกับ Environment ได้ (ทีมนี้เข้าโปรเจกต์ได้ด้วย) → ปัญหาด้าน Server บน Environment นั้นแจ้งทีมนั้น (หรือผู้รับผิดชอบ) แทน Dev; ทีม Server กด Fixed → แจ้ง QA ผู้รายงานให้ทดสอบซ้ำบน Environment นั้น; QA ปิด Defect หรือเปลี่ยนสาเหตุเป็นโค้ด (ส่งต่อให้ Dev)
+- **รายงาน**: ผลตาม Environment (Pass / Fail / Blocked / ยังไม่ทดสอบ, Pass rate) และ Defect แยกโค้ด / Server พร้อมเวลาเฉลี่ยจนแก้ไขเสร็จ
+- **UAT Sign-off** เลือก Environment ที่ตรวจรับ (ค่าเริ่มต้น: Environment แรกที่ไม่ใช่หลัก เช่น STAGING): ผล Pass rate ความเสี่ยงและ Release gatekeeper ใช้ผลบน Environment นั้น (ไม่อ้างอิงรอบ = ผลล่าสุดของแต่ละเคสบน Environment นั้น; อ้างอิงรอบได้เฉพาะรอบบน Environment นั้น); ปัญหาด้าน Server ที่ยังเปิดบน Environment นั้นนับเป็นความเสี่ยง ส่วนของ Environment อื่นไม่นับ
+- ข้อมูลเดิม: ทุกโปรเจกต์ได้ TEST เป็นหลัก, Environment ที่พิมพ์ไว้ในรอบเดิม ("Staging", "UAT" …) กลายเป็น Environment ของโปรเจกต์ (รอบที่ไม่ระบุ = TEST), Defect เดิมเป็นสาเหตุโค้ด; สถานะเคสเดิมไม่เปลี่ยน
 
 ### 5.13 ศูนย์เอกสาร (Document Center)
 - เอกสาร 4 ประเภท สร้างจากข้อมูลจริงในระบบ: **UAT Sign-off**, **Test Summary Report** (ต่อรอบ), **Test Specification**, **Traceability Matrix**

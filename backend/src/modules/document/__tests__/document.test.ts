@@ -61,6 +61,51 @@ describe('generating', () => {
     expect(doc.snapshot.requirements.find((r) => r.code === 'REQ-PAY-04')).toMatchObject({ caseIds: ['TC-104'] })
   })
 
+  it('TOR only: the TOR requirements by clause, and only the cases that test them', async () => {
+    const doc = await generate({ type: 'uat', options: { ...request().options, runId: '', includeTraceability: true, torOnly: true } })
+    expect(doc.snapshot.requirements.map((r) => `${r.torClause} ${r.code}`)).toEqual([
+      '4.1.1 REQ-PAY-01',
+      '4.1.2 REQ-PAY-02',
+      '4.2.1 REQ-PAY-04',
+      '4.3 REQ-PAY-05',
+    ])
+    // TC-103 tests REQ-PAY-03 (additional); a sub-case goes with its parent
+    expect(doc.snapshot.cases.map((c) => c.id)).toEqual(['TC-101', 'TC-101-1', 'TC-104'])
+  })
+
+  it('UAT on STAGING: its latest results there, and only its server problems count as risks', async () => {
+    const verdict = (status: string) => ({ status, stepResults: [], actualResults: 'บน STAGING', evidence: [], defectIds: [], notes: '' })
+    const run = (
+      await as('user-qa-1')
+        .post('/projects/proj-1/test-runs')
+        .send({ name: 'UAT', type: 'uat', round: 1, environmentId: 'env-staging', caseIds: ['TC-101', 'TC-104'] })
+    ).body.data
+    await as('user-qa-1').put(`/test-runs/${run.id}/results/TC-104`).send(verdict('passed'))
+    const server = { title: 'WAF บล็อก Webhook', severity: 'major', status: 'open', cause: 'environment', evidence: [] }
+    await as('user-qa-1')
+      .post('/projects/proj-1/defects')
+      .send({ ...server, environmentId: 'env-staging' })
+    await as('user-qa-1')
+      .post('/projects/proj-1/defects')
+      .send({ ...server, title: 'Port บน TEST', environmentId: 'env-test' })
+
+    const uat = { testPeriod: '1-3 ต.ค.', environmentId: 'env-staging', decision: 'conditional', remarks: '', riskAcknowledged: true }
+    const doc = await generate({ type: 'uat', uat, options: { ...request().options, runId: '' } })
+    expect(doc.uat).toMatchObject({ environmentId: 'env-staging', environment: 'STAGING' })
+    expect(doc.snapshot.environment).toEqual({ name: 'STAGING', primary: false })
+    // TC-104 is blocked on TEST but passed on STAGING; TC-103 never ran there
+    expect(doc.snapshot.cases.find((c) => c.id === 'TC-104')).toMatchObject({ outcome: 'passed', actualResults: 'บน STAGING' })
+    expect(doc.snapshot.cases.find((c) => c.id === 'TC-103')).toMatchObject({ outcome: 'not_run' })
+    expect(doc.snapshot.risks).toContain('มีปัญหาด้าน Server / Environment ที่ยังเปิดอยู่ 1 รายการ')
+    expect(doc.snapshot.defects.map((d) => d.title)).not.toContain('Port บน TEST')
+
+    // a run on another environment can't be the source of a STAGING sign-off
+    const res = await as('user-qa-1')
+      .post('/documents')
+      .send(request({ type: 'uat', uat, options: { ...request().options, runId: 'run-1' } }))
+    expect(res.status).toBe(422)
+  })
+
   it('needs document.create and the project; a run of another project is not found', async () => {
     expect((await as('user-dev-1').post('/documents').send(request())).status).toBe(403)
     expect((await as('user-qa-2').post('/documents').send(request())).status).toBe(403)

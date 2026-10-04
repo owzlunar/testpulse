@@ -83,13 +83,19 @@ class TestCaseRepository extends BaseRepository<TestCaseDoc, TestCase> {
   }
 
   /** active cases of the projects matching the filter, list order, at most `limit` (and how many there are) */
-  async searchActive(projectIds: string[], filter: FilterQuery<TestCaseDoc>, limit: number): Promise<{ cases: TestCase[]; total: number }> {
-    const query = { projectId: { $in: projectIds }, ...active, ...filter }
-    const [docs, total] = await Promise.all([
-      TestCaseModel.find(query).sort({ projectId: 1, position: 1 }).limit(limit),
-      TestCaseModel.countDocuments(query),
-    ])
-    return { cases: this.toApiList(docs), total }
+  async searchActive(
+    projectIds: string[],
+    filter: FilterQuery<TestCaseDoc>,
+    limit: number,
+    offset = 0,
+  ): Promise<{ cases: TestCase[]; total: number }> {
+    const { items, total } = await this.findPage(
+      { projectId: { $in: projectIds }, ...active, ...filter },
+      { projectId: 1, position: 1 },
+      limit,
+      offset,
+    )
+    return { cases: items, total }
   }
 
   /** active cases of several projects, only what counting needs */

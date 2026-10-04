@@ -2,12 +2,16 @@
 import { computed, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import FoxEmptyState from '@/components/ui/FoxEmptyState.vue'
+import FoxImportMapping from '@/components/ui/FoxImportMapping.vue'
+import FoxImportSource from '@/components/ui/FoxImportSource.vue'
+import FoxSteps from '@/components/ui/FoxSteps.vue'
 import TestCasePriorityChip from './TestCasePriorityChip.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
+import { useTableImport, type ImportField } from '@/composables/useTableImport'
 import { useProjectStore } from '@/stores/project.store'
 import { useTestCaseStore } from '@/stores/test-case.store'
-import type { TestCaseDraft, TestCasePriority } from '@/types'
-import { downloadText, parseDelimited, toCsv } from '@/utils/table'
+import type { TestCaseDraft } from '@/types'
+import { priorityFromText } from '@/domain/test-case'
 
 // Import test cases from Excel (copy & paste) or CSV.
 // One row per step; rows with an empty case name continue the case above.
@@ -19,7 +23,7 @@ const store = useTestCaseStore()
 const { busy, run } = useAsyncAction()
 
 type Field = 'name' | 'requirement' | 'testScenario' | 'prerequisite' | 'priority' | 'action' | 'testData' | 'stepExpected' | 'expectedResults'
-const FIELDS: { key: Field; label: string; required?: boolean; aliases: string[] }[] = [
+const FIELDS: ImportField<Field>[] = [
   { key: 'name', label: 'ชื่อ Test Case', required: true, aliases: ['name', 'test case', 'title', 'ชื่อ', 'test case name'] },
   { key: 'requirement', label: 'Requirement', aliases: ['requirement', 'req', 'user story', 'ข้อกำหนด'] },
   { key: 'testScenario', label: 'Test Scenario', aliases: ['scenario', 'test scenario', 'สถานการณ์'] },
@@ -58,66 +62,22 @@ const SAMPLE = [
   ],
 ]
 
-// --- step 1: source --------------------------------------------------------------
+// --- step 1: source · step 2: mapping (useTableImport) ---------------------------------
 const step = ref(1)
-const source = ref<'paste' | 'file'>('paste')
-const text = ref('')
-const fileName = ref('')
-const hasHeader = ref(true)
+const { source, text, fileName, hasHeader, reset, onFile, header, body, rowNumber, mapping, autoMap, columnOptions, cell, sample, mappingValid } =
+  useTableImport(FIELDS)
 
 watch(
   open,
   (isOpen) => {
     if (!isOpen) return
     step.value = 1
-    text.value = ''
-    fileName.value = ''
+    reset()
   },
   { immediate: true },
 )
 
-function onFile(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0]
-  if (!file) return
-  fileName.value = file.name
-  file.text().then((t) => (text.value = t))
-}
-
-const rows = computed(() => parseDelimited(text.value))
-const header = computed(() => (hasHeader.value ? (rows.value[0] ?? []) : (rows.value[0] ?? []).map((_, i) => `คอลัมน์ ${i + 1}`)))
-const body = computed(() => (hasHeader.value ? rows.value.slice(1) : rows.value))
-
-// --- step 2: mapping ----------------------------------------------------------------
-const mapping = ref<Record<Field, number | null>>({} as Record<Field, number | null>)
-
-function autoMap() {
-  const names = header.value.map((h) => h.toLowerCase().trim())
-  mapping.value = Object.fromEntries(
-    FIELDS.map((f, i) => {
-      const exact = names.findIndex((n) => f.aliases.includes(n))
-      // headerless data: assume the sample column order
-      return [f.key, exact >= 0 ? exact : !hasHeader.value && i < names.length ? i : null]
-    }),
-  ) as Record<Field, number | null>
-}
-
-const columnOptions = computed(() => header.value.map((h, i) => ({ title: h || `คอลัมน์ ${i + 1}`, value: i })))
-const sample = (field: Field) => {
-  const col = mapping.value[field]
-  return col === null || col === undefined ? '' : (body.value.find((r) => r[col])?.[col] ?? '')
-}
-const mappingValid = computed(() =>
-  FIELDS.filter((f) => f.required).every((f) => mapping.value[f.key] !== null && mapping.value[f.key] !== undefined),
-)
-
 // --- step 3: preview ----------------------------------------------------------------
-function toPriority(v: string): TestCasePriority {
-  const s = v.toLowerCase()
-  if (/crit|วิกฤต|p1|blocker/.test(s)) return 'critical'
-  if (/high|สูง|p2|major/.test(s)) return 'high'
-  if (/low|ต่ำ|p4|trivial/.test(s)) return 'low'
-  return 'medium'
-}
 
 interface Parsed extends TestCaseDraft {
   row: number
@@ -125,10 +85,6 @@ interface Parsed extends TestCaseDraft {
 }
 
 const parsed = computed<Parsed[]>(() => {
-  const cell = (r: string[], f: Field) => {
-    const col = mapping.value[f]
-    return col === null || col === undefined ? '' : (r[col] ?? '')
-  }
   const out: Parsed[] = []
   body.value.forEach((r, i) => {
     const name = cell(r, 'name')
@@ -138,12 +94,12 @@ const parsed = computed<Parsed[]>(() => {
       return
     }
     out.push({
-      row: i + (hasHeader.value ? 2 : 1),
+      row: rowNumber(i),
       name,
       requirement: cell(r, 'requirement'),
       testScenario: cell(r, 'testScenario') || name,
       prerequisite: cell(r, 'prerequisite'),
-      priority: toPriority(cell(r, 'priority')),
+      priority: priorityFromText(cell(r, 'priority')),
       expectedResults: cell(r, 'expectedResults') || stepRow.expectedResult,
       steps: stepRow.action ? [stepRow] : [],
       errors: [],
@@ -192,97 +148,33 @@ const steps = ['แหล่งข้อมูล', 'จับคู่คอล
         <v-btn icon="tabler:x" variant="text" size="small" aria-label="ปิด" @click="open = false" />
       </div>
 
-      <!-- stepper -->
-      <div class="imp-steps fox-card-body pb-2">
-        <div
-          v-for="(label, i) in steps"
-          :key="label"
-          class="imp-step"
-          :class="{ 'imp-step--done': step > i + 1, 'imp-step--active': step === i + 1 }"
-        >
-          <v-avatar :color="step >= i + 1 ? 'primary' : 'secondary'" :variant="step > i + 1 ? 'flat' : 'tonal'" size="28">
-            <v-icon v-if="step > i + 1" icon="tabler:check" size="16" />
-            <span v-else class="text-caption fox-num">{{ i + 1 }}</span>
-          </v-avatar>
-          <span class="text-subtitle-2">{{ label }}</span>
-        </div>
-      </div>
+      <FoxSteps :steps="steps" :step="step" class="fox-card-body pb-2" />
       <v-divider />
 
       <v-card-text class="fox-card-body imp-body">
         <v-window v-model="step">
           <!-- 1. source -->
           <v-window-item :value="1">
-            <div class="d-flex flex-wrap align-center justify-space-between ga-3 mb-4">
-              <v-btn-toggle v-model="source" mandatory color="primary" variant="outlined" density="comfortable">
-                <v-btn value="paste" prepend-icon="tabler:clipboard-text">วางจาก Excel</v-btn>
-                <v-btn value="file" prepend-icon="tabler:file-upload">อัปโหลด CSV</v-btn>
-              </v-btn-toggle>
-              <v-btn
-                variant="text"
-                color="primary"
-                prepend-icon="tabler:download"
-                @click="downloadText('testpulse-import-template.csv', toCsv(SAMPLE))"
-              >
-                ดาวน์โหลดไฟล์ตัวอย่าง
-              </v-btn>
-            </div>
-
-            <template v-if="source === 'paste'">
-              <label class="fox-label" for="imp-paste">เลือกช่วงตารางใน Excel แล้วคัดลอก (Ctrl/⌘ + C) มาวางที่นี่</label>
-              <v-textarea id="imp-paste" v-model="text" rows="8" placeholder="Test Case	Requirement	Scenario	…" />
-            </template>
-            <template v-else>
-              <label class="fox-label" for="imp-file">ไฟล์ CSV (UTF-8)</label>
-              <v-file-input
-                id="imp-file"
-                accept=".csv,text/csv"
-                prepend-icon=""
-                prepend-inner-icon="tabler:file-spreadsheet"
-                :label="fileName || 'เลือกไฟล์'"
-                @change="onFile"
-              />
-              <p class="text-caption text-muted mt-2">ไฟล์ .xlsx ให้ "บันทึกเป็น CSV UTF-8" ก่อน หรือใช้วิธีคัดลอกวาง</p>
-            </template>
-
-            <v-checkbox v-model="hasHeader" label="แถวแรกเป็นหัวตาราง" class="mt-2" />
-
-            <v-alert type="info" variant="tonal" density="compact" icon="tabler:info-circle" class="mt-2">
-              หนึ่งแถวต่อหนึ่งขั้นตอน — ถ้าเว้นชื่อ Test Case ว่าง แถวนั้นจะเป็นขั้นตอนถัดไปของเคสด้านบน
-            </v-alert>
-            <p v-if="text" class="text-body-2 text-muted mt-3 mb-0">อ่านได้ {{ body.length }} แถว · {{ header.length }} คอลัมน์</p>
+            <FoxImportSource
+              v-model:source="source"
+              v-model:text="text"
+              v-model:has-header="hasHeader"
+              :file-name="fileName"
+              :rows="body.length"
+              :columns="header.length"
+              :template="{ name: 'testpulse-import-template.csv', rows: SAMPLE }"
+              placeholder="Test Case	Requirement	Scenario	…"
+              @file="onFile"
+            >
+              <v-alert type="info" variant="tonal" density="compact" icon="tabler:info-circle" class="mt-2">
+                หนึ่งแถวต่อหนึ่งขั้นตอน — ถ้าเว้นชื่อ Test Case ว่าง แถวนั้นจะเป็นขั้นตอนถัดไปของเคสด้านบน
+              </v-alert>
+            </FoxImportSource>
           </v-window-item>
 
           <!-- 2. mapping -->
           <v-window-item :value="2">
-            <p class="text-body-2 text-muted mb-4">ระบบจับคู่คอลัมน์ให้อัตโนมัติจากชื่อหัวตาราง ตรวจสอบและแก้ไขได้</p>
-            <v-table>
-              <thead>
-                <tr>
-                  <th>ข้อมูลใน TestPulse</th>
-                  <th>คอลัมน์จากไฟล์</th>
-                  <th>ตัวอย่างข้อมูล</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="f in FIELDS" :key="f.key">
-                  <td class="text-subtitle-2 text-no-wrap">{{ f.label }}<span v-if="f.required" class="text-error"> *</span></td>
-                  <td class="imp-map">
-                    <v-select
-                      v-model="mapping[f.key]"
-                      :items="columnOptions"
-                      density="compact"
-                      placeholder="— ไม่นำเข้า —"
-                      clearable
-                      :aria-label="f.label"
-                    />
-                  </td>
-                  <td class="text-body-2 text-muted">
-                    <span class="fox-clamp-2">{{ sample(f.key) || '—' }}</span>
-                  </td>
-                </tr>
-              </tbody>
-            </v-table>
+            <FoxImportMapping v-model="mapping" :fields="FIELDS" :columns="columnOptions" :sample="sample" />
           </v-window-item>
 
           <!-- 3. preview -->
@@ -336,29 +228,7 @@ const steps = ['แหล่งข้อมูล', 'จับคู่คอล
 </template>
 
 <style scoped>
-.imp-steps {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 24px;
-}
-
-.imp-step {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: rgb(var(--v-theme-muted));
-}
-
-.imp-step--active,
-.imp-step--done {
-  color: rgb(var(--v-theme-on-surface));
-}
-
 .imp-body {
   min-height: 380px;
-}
-
-.imp-map {
-  min-width: 220px;
 }
 </style>

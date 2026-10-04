@@ -30,6 +30,8 @@ export const teamService = {
   /** ids of the teams the user is a member of */
   idsOfMember: (userId: string) => teamRepository.idsWithMember(userId),
 
+  memberIds: async (teamId: string): Promise<string[]> => (await teamRepository.findById(teamId))?.memberIds ?? [],
+
   async create(fields: TeamFields): Promise<Team> {
     return teamRepository.create(await clean(fields))
   },

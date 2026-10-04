@@ -1,4 +1,5 @@
 import type { ClientSession } from 'mongoose'
+import { defaultEnvironments, environmentsProblem } from '#contract/rules/project.js'
 import type { Project, ProjectInput, ProjectStats, TestCaseStatus } from '#contract/types.js'
 import type { Principal } from '#core/auth/principal.js'
 import { emit } from '#core/events/event-bus.js'
@@ -47,13 +48,29 @@ async function withStats(projects: Project[]): Promise<Project[]> {
 
 // --- access -------------------------------------------------------------------------------------
 
-/** Admins open every project; otherwise a role is needed, and a project with teams is open only to their members */
-async function canAccess(principal: Principal, project: Pick<Project, 'teamIds'>, memberOf?: string[]): Promise<boolean> {
+/**
+ * Admins open every project; otherwise a role is needed, and a project with teams is open only to their
+ * members and to the teams that run its environments (e.g. the ops team of STAGING)
+ */
+async function canAccess(principal: Principal, project: Pick<Project, 'teamIds' | 'environments'>, memberOf?: string[]): Promise<boolean> {
   if (principal.isAdmin) return true
   if (!principal.roleId) return false
   if (!project.teamIds?.length) return true
   const mine = memberOf ?? (await teams.idsOfMember(principal.id))
-  return project.teamIds.some((id) => mine.includes(id))
+  const allowed = [...project.teamIds, ...(project.environments ?? []).map((e) => e.teamId).filter((t): t is string => !!t)]
+  return allowed.some((id) => mine.includes(id))
+}
+
+/** a new project starts with TEST; names given and different, exactly one primary (422) */
+function withEnvironments(fields: ProjectFields): ProjectFields {
+  const environments = (fields.environments?.length ? fields.environments : defaultEnvironments()).map(({ teamId, ...e }) => ({
+    ...e,
+    name: e.name.trim(),
+    ...(teamId && { teamId }),
+  }))
+  const problem = environmentsProblem(environments)
+  if (problem) throw ApiError.unprocessable(problem)
+  return { ...fields, environments }
 }
 
 async function accessible(principal: Principal): Promise<Project[]> {
@@ -77,7 +94,7 @@ export const projectService = {
 
   async create(fields: ProjectFields): Promise<Project> {
     await assertKeyFree(fields.key)
-    const [project] = await withStats([await projectRepository.create(fields)])
+    const [project] = await withStats([await projectRepository.create(withEnvironments(fields))])
     // everyone who can open it, but the Admin who made it
     await notify({
       type: 'MODIFIED',
@@ -92,7 +109,7 @@ export const projectService = {
   async update(id: string, fields: ProjectFields): Promise<Project> {
     if (!(await projectRepository.exists({ _id: id }))) throw ApiError.notFound('ไม่พบโปรเจกต์')
     await assertKeyFree(fields.key, id)
-    const [project] = await withStats([(await projectRepository.updateById(id, fields))!])
+    const [project] = await withStats([(await projectRepository.updateById(id, withEnvironments(fields)))!])
     return project!
   },
 
@@ -101,11 +118,15 @@ export const projectService = {
     await emit('project.deleted', { projectId: id })
   },
 
-  /** a deleted team leaves its projects (one update each, so each is audited); returns the changed projects */
+  /** a deleted team leaves its projects and environments (one update each, so each is audited); returns the changed projects */
   async dropTeam(teamId: string, session: ClientSession): Promise<Project[]> {
     const changed: Project[] = []
     for (const p of await projectRepository.withTeam(teamId, session)) {
-      changed.push((await projectRepository.updateById(p.id, { teamIds: (p.teamIds ?? []).filter((t) => t !== teamId) }, session))!)
+      const fields = {
+        teamIds: (p.teamIds ?? []).filter((t) => t !== teamId),
+        environments: (p.environments ?? []).map(({ teamId: t, ...e }) => (t && t !== teamId ? { ...e, teamId: t } : e)),
+      }
+      changed.push((await projectRepository.updateById(p.id, fields, session))!)
     }
     return changed
   },
@@ -116,6 +137,14 @@ export const projectService = {
     if (!project) throw ApiError.notFound('ไม่พบโปรเจกต์')
     if (!(await canAccess(principal, project))) throw ApiError.forbidden('คุณไม่ได้อยู่ในทีมของโปรเจกต์นี้')
     return project
+  },
+
+  /** every project (migrations) */
+  all: (): Promise<Project[]> => projectRepository.find(),
+
+  /** sets a project's environments as they are (migrations; audited) */
+  setEnvironments: async (id: string, environments: Project['environments']) => {
+    await projectRepository.updateById(id, { environments })
   },
 
   /** ids of the projects the user may open (list endpoints of other modules filter by it) */

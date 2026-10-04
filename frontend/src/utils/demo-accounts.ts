@@ -9,7 +9,5 @@ export const DEMO_ACCOUNTS = [
   { name: 'พิชญา ศรีสุข (Senior Tester)', email: 'pitchaya.qa@testpulse.dev', role: 'QA Tester', tone: 'info' },
   { name: 'กิตติศักดิ์ พัฒนา (Dev Lead)', email: 'kittisak.dev@testpulse.dev', role: 'Developer', tone: 'warning' },
   { name: 'ธนากร สุขใจ (Backend API)', email: 'thanakorn.dev@testpulse.dev', role: 'Developer', tone: 'warning' },
+  { name: 'อนุชา มั่นคง (Server/Infra)', email: 'anucha.ops@testpulse.dev', role: 'Server/Infra', tone: 'caution' },
 ] as const
-
-/** shown in development (npm run dev) only */
-export const showDemoAccounts = import.meta.env.DEV

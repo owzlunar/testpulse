@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { apiOn } from '@/api'
 import FoxEmptyState from '@/components/ui/FoxEmptyState.vue'
 import FoxTablePagination from '@/components/ui/FoxTablePagination.vue'
 import TestCaseArchiveList from './TestCaseArchiveList.vue'
@@ -9,10 +10,15 @@ import TestCaseSubRow from './TestCaseSubRow.vue'
 import { useAsyncAction } from '@/composables/useAsyncAction'
 import { useDragAutoScroll } from '@/composables/useDragAutoScroll'
 import { useTestCasePermissions } from '@/composables/useTestCasePermissions'
+import { useAuthStore } from '@/stores/auth.store'
+import { useProjectStore } from '@/stores/project.store'
 import { useRequirementStore } from '@/stores/requirement.store'
+import { useRunStore } from '@/stores/run.store'
 import { useTestCaseStore } from '@/stores/test-case.store'
 import type { MoveTarget, TestCase, TestCaseNode, TestCasePriority, TestCaseStatus } from '@/types'
 import { PRIORITIES, STATUSES, isHighChurn, isOverdue } from '@/domain/test-case'
+import { primaryEnvironment } from '@/domain/project'
+import { currentResultOf } from '@/domain/run'
 
 const props = defineProps<{
   projectId: string
@@ -39,6 +45,15 @@ const store = useTestCaseStore()
 const requirementStore = useRequirementStore()
 const { busy, run } = useAsyncAction()
 const { canCreate, canReorder: mayReorder } = useTestCasePermissions()
+const runStore = useRunStore()
+const projectStore = useProjectStore()
+const auth = useAuthStore()
+
+// results on the project's other environments (chips and the environment filter) come from its runs
+const { run: load } = useAsyncAction()
+onMounted(() => {
+  if (apiOn.run && auth.can('run.view')) load(() => runStore.ensureLoaded())
+})
 
 // --- active cases / archive ----------------------------------------------------
 const view = ref<'active' | 'archive'>('active')
@@ -48,6 +63,24 @@ type StatusFilter = TestCaseStatus | 'OVERDUE' | 'PING_PONG' | 'NEEDS_REVIEW'
 const search = ref('')
 const status = ref<StatusFilter | null>(null)
 const priority = ref<TestCasePriority | null>(null)
+/** "<kind>:<environment id>": passed on the primary but not (yet) there, or failed / blocked there */
+const envFilter = ref<string | null>(null)
+
+const envFilters = computed(() => {
+  const primary = projectStore.currentProject ? primaryEnvironment(projectStore.currentProject).name : 'TEST'
+  return runStore.environmentResults.flatMap((env) => [
+    { value: `behind:${env.id}`, label: `ผ่านบน ${primary} แต่ยังไม่ผ่านบน ${env.name}` },
+    { value: `failed:${env.id}`, label: `ไม่ผ่าน / Blocked บน ${env.name}` },
+  ])
+})
+
+function matchesEnvironment(tc: TestCase): boolean {
+  if (!envFilter.value) return true
+  const [kind, envId] = envFilter.value.split(':')
+  const results = runStore.environmentResults.find((e) => e.id === envId)?.results
+  const status = results && currentResultOf(tc, results)?.status
+  return kind === 'behind' ? tc.status === 'passed' && status !== 'passed' : status === 'failed' || status === 'blocked'
+}
 
 const statusFilters = [
   { value: 'OVERDUE', label: 'เลยกำหนด (Overdue)', icon: 'tabler:clock-exclamation', tone: 'error' },
@@ -64,10 +97,10 @@ function matches(tc: TestCase): boolean {
   if (status.value === 'NEEDS_REVIEW' && !tc.reviewNeeded) return false
   if (status.value && !['OVERDUE', 'PING_PONG', 'NEEDS_REVIEW'].includes(status.value) && tc.status !== status.value) return false
   if (priority.value && tc.priority !== priority.value) return false
-  return true
+  return matchesEnvironment(tc)
 }
 
-const isFiltering = computed(() => !!(search.value || status.value || priority.value))
+const isFiltering = computed(() => !!(search.value || status.value || priority.value || envFilter.value))
 /** a parent stays visible when it or any of its sub-cases match */
 const visible = computed(() => props.cases.filter((p) => matches(p) || p.subCases.some(matches)))
 
@@ -78,7 +111,7 @@ const perPage = ref(20)
 const pageStart = computed(() => (page.value - 1) * perPage.value)
 const pageEnd = computed(() => Math.min(pageStart.value + perPage.value, visible.value.length))
 const paged = computed(() => visible.value.slice(pageStart.value, pageEnd.value).map((parent, i) => ({ parent, pIdx: pageStart.value + i })))
-watch([search, status, priority], () => (page.value = 1))
+watch([search, status, priority, envFilter], () => (page.value = 1))
 // the last page can empty out (archive, filters): step back
 watch([pageStart, () => visible.value.length], ([start, count]) => {
   if (start > 0 && start >= count) page.value = Math.max(1, Math.ceil(count / perPage.value))
@@ -88,6 +121,7 @@ function resetFilters() {
   search.value = ''
   status.value = null
   priority.value = null
+  envFilter.value = null
 }
 
 // --- collapse sub-cases --------------------------------------------------------
@@ -315,6 +349,20 @@ function insertClass(list: string, index: number, length: number) {
                 <v-list-item v-bind="item" :prepend-icon="raw.icon" :base-color="raw.tone" />
               </template>
             </v-select>
+          </v-col>
+          <v-col v-if="envFilters.length" cols="12" md="4">
+            <v-select
+              v-model="envFilter"
+              :items="envFilters"
+              item-title="label"
+              item-value="value"
+              density="compact"
+              placeholder="ทุก Environment"
+              aria-label="กรองตาม Environment"
+              prepend-inner-icon="tabler:server"
+              clearable
+              :disabled="reorderMode"
+            />
           </v-col>
           <v-col cols="12" md="2" lg="3" class="text-md-end">
             <span class="text-body-2 text-muted">{{ visible.length }} จาก {{ cases.length }} เคสหลัก</span>

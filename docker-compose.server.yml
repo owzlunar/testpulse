@@ -1,0 +1,27 @@
+# A server that has only the image (no source code): put this file in a folder such as /opt/testpulse with
+#   backend/.env       shared defaults (copy from the repository; no secrets)
+#   backend/.env.prod  this deployment's settings and secrets (made with `npm --prefix backend run env:init -- prod`
+#                      on a machine with the repository, then copied here; chmod 600)
+# and run `docker compose -f docker-compose.server.yml up -d`. The image never contains an env file.
+#
+# Changed a setting (including keys)? `docker compose -f docker-compose.server.yml up -d --force-recreate`:
+# a plain `restart` keeps the old environment. New version: change `image:` and run `up -d`.
+
+services:
+  testpulse:
+    # the version to run: loaded with `docker load` or pulled from your registry
+    image: testpulse:0.2.0
+    container_name: testpulse
+    ports:
+      # nginx only: the API (8081) is not published
+      - '8080:8080'
+    env_file:
+      - backend/.env
+      - backend/.env.prod
+    volumes:
+      # uploaded files (STORAGE_DRIVER=local) and access / error logs, kept on the host
+      - ./docker-data/uploads:/app/backend/storage/uploads
+      - ./docker-data/logs:/app/backend/logs
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    restart: unless-stopped

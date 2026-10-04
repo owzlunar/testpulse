@@ -3,8 +3,9 @@
 #   1. (as root) give the mounted folders (uploads, logs) to the app user
 #   2. serve the web app under BASE_URL's path (e.g. /testpulse): <base href> and nginx rewrites
 #   3. preflight: MongoDB, storage, SMTP and the log folder must work, otherwise the container stops
-#   4. build the database indexes, then run the pending migrations (the first one creates the first
-#      Admin from INITIAL_ADMIN_*; RUN_DB_INDEXES / RUN_MIGRATIONS=false to skip)
+#   4. build the database indexes, then run the pending migrations (the first Admin from
+#      INITIAL_ADMIN_*, the built-in templates, the default roles; RUN_DB_INDEXES / RUN_MIGRATIONS=false
+#      to skip)
 #   5. supervisor runs nginx and the API (as the app user)
 set -e
 
@@ -53,7 +54,10 @@ if ! as_app node dist/cli/preflight.js; then
   exit 1
 fi
 if [ "${RUN_DB_INDEXES:-true}" = "true" ]; then
-  as_app node dist/cli/db-indexes.js
+  if ! as_app node dist/cli/db-indexes.js; then
+    echo "[entrypoint] building the database indexes failed: see the message above" >&2
+    exit 1
+  fi
 fi
 if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
   if ! as_app node dist/cli/migrate.js up; then

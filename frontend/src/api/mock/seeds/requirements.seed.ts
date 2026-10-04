@@ -2,6 +2,15 @@
 import type { Requirement, RequirementStatus, RequirementType } from '@/types'
 
 const at = '2026-09-15T09:00:00Z'
+/** the demo requirements that come from a TOR clause; the rest were added on top of it */
+const TOR_CLAUSES: Record<string, string> = {
+  'REQ-PAY-01': '4.1.1',
+  'REQ-PAY-02': '4.1.2',
+  'REQ-PAY-04': '4.2.1',
+  'REQ-PAY-05': '4.3',
+  'REQ-SHOP-01': '3.2.1',
+  'REQ-AUTH-01': '5.1',
+}
 const req = (
   projectId: string,
   code: string,
@@ -21,6 +30,7 @@ const req = (
   type,
   priority,
   status,
+  ...(TOR_CLAUSES[code] ? { origin: 'tor' as const, torClause: TOR_CLAUSES[code] } : { origin: 'additional' as const }),
   source,
   acceptanceCriteria,
   createdAt: at,

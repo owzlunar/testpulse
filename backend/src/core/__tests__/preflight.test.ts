@@ -1,7 +1,8 @@
 import { chmod, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import mongoose from 'mongoose'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { useTestDatabase } from '../../../tests/helpers/database.js'
 import { setMailer, type Mailer } from '../mail/mailer.js'
 import { runPreflight } from '../preflight.js'
@@ -18,6 +19,7 @@ afterAll(() => rm(dir, { recursive: true, force: true }))
 afterEach(() => {
   setStorage(null)
   setMailer(null)
+  vi.restoreAllMocks()
 })
 
 const byName = async () => Object.fromEntries((await runPreflight()).map((r) => [r.name.split(' ')[0], r]))
@@ -46,5 +48,19 @@ describe('preflight', () => {
     const { storage } = await byName()
     await chmod(locked, 0o700)
     expect(storage!.ok).toBe(false)
+  })
+
+  it('fails when the database login may not write (indexes and migrations would fail next)', async () => {
+    setStorage(new LocalStorageAdapter(join(dir, 'ok')))
+    const db = mongoose.connection.db!
+    const real = db.collection.bind(db)
+    vi.spyOn(db, 'collection').mockImplementation(((name: string) => {
+      const collection = real(name)
+      if (name === 'preflight')
+        vi.spyOn(collection, 'insertOne').mockRejectedValue(new Error('not authorized on testpulse to execute command insert'))
+      return collection
+    }) as typeof db.collection)
+    const { database } = await byName()
+    expect(database).toMatchObject({ ok: false, detail: expect.stringContaining('cannot write (the MongoDB user needs readWrite') })
   })
 })

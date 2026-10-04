@@ -19,6 +19,8 @@ const requirementSchema = new Schema<RequirementDoc>(
     type: { type: String, enum: ['functional', 'non_functional', 'business_rule'], required: true },
     priority: { type: String, enum: ['low', 'medium', 'high', 'critical'], required: true },
     status: { type: String, enum: ['draft', 'approved', 'changed', 'deprecated'], required: true },
+    origin: { type: String, enum: ['tor', 'additional'], required: true },
+    torClause: { type: String, trim: true, maxlength: 40 },
     source: { type: String, maxlength: 300 },
     acceptanceCriteria: { type: [String], default: [] },
   },

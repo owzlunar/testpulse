@@ -1,6 +1,8 @@
-import type { DocumentRecord, DocumentRequest, DocumentSnapshot, DocumentTemplate, Signatory } from '@/types'
+import type { DocumentRecord, DocumentRequest, DocumentSearchHit, DocumentSnapshot, DocumentTemplate, Signatory } from '@/types'
 import { ApiError } from '@/api/errors'
 import { DEFAULT_TEMPLATE, buildSnapshot, uatBlock } from '@/domain/document'
+import { environmentOf } from '@/domain/project'
+import { runEnvironmentId } from '@/domain/run'
 import { newId } from '@/utils/ids'
 import { defectsOf } from './defect'
 import { respond } from './http'
@@ -11,16 +13,25 @@ import { STORAGE_KEYS, load, save } from './storage'
 import { storedCases } from './test-case'
 
 // --- snapshot (built on the server by the same rule) ---------------------------------
-function snapshotOf(req: Pick<DocumentRequest, 'projectId' | 'type' | 'options'>): DocumentSnapshot {
+function snapshotOf(req: Pick<DocumentRequest, 'projectId' | 'type' | 'options' | 'uat'>): DocumentSnapshot {
   // read through each owner's loader: a bare load(key, []) would store [] over data not seeded yet
   const project = storedProjects().find((p) => p.id === req.projectId)
   if (!project) throw new ApiError('ไม่พบโปรเจกต์', 404)
-  const run = req.options.runId ? runsOf(req.projectId).find((r) => r.id === req.options.runId) : undefined
+  const runs = runsOf(req.projectId)
+  const run = req.options.runId ? runs.find((r) => r.id === req.options.runId) : undefined
   if (req.options.runId && !run) throw new ApiError('ไม่พบรอบการทดสอบที่เลือก', 404)
+  // a UAT on an environment: one of the project's (its name is the server's), and a run on it
+  if (req.uat?.environmentId) {
+    const env = environmentOf(project, req.uat.environmentId)
+    if (!env) throw new ApiError('ไม่พบ Environment นี้ในโปรเจกต์', 422)
+    if (run && runEnvironmentId(run, project) !== env.id) throw new ApiError(`รอบที่เลือกทดสอบบน ${run.environment} ไม่ใช่ ${env.name}`, 422)
+    req.uat.environment = env.name
+  }
   return buildSnapshot(req, {
     project,
     cases: storedCases().filter((c) => c.projectId === req.projectId),
     run,
+    runs,
     defects: defectsOf(req.projectId),
     requirements: requirementsOf(req.projectId),
   })
@@ -49,6 +60,27 @@ const write = (list: DocumentRecord[], doc: DocumentRecord) => {
 
 /** GET /documents */
 export const fetchDocuments = () => respond(() => (sessionCan('document.view') ? inAccessibleProjects(documents()) : []))
+
+/** GET /documents/search?q=:q&limit=:limit&offset=:offset */
+export const searchDocuments = (q: string, limit = 20, offset = 0) =>
+  respond(() => {
+    const text = q.trim().toLowerCase()
+    if (!text || !sessionCan('document.view')) return { documents: [] as DocumentSearchHit[], total: 0 }
+    const found = inAccessibleProjects(documents())
+      .filter((d) => `${d.docNumber} ${d.title}`.toLowerCase().includes(text))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    const hits = found.slice(offset, offset + limit).map(({ id, projectId, type, title, docNumber, version, status, updatedAt }) => ({
+      id,
+      projectId,
+      type,
+      title,
+      docNumber,
+      version,
+      status,
+      updatedAt,
+    }))
+    return { documents: hits, total: found.length }
+  })
 
 /** POST /documents (the server collects the data and freezes it in `snapshot`) */
 export const generateDocument = (req: DocumentRequest, createdBy: string) =>

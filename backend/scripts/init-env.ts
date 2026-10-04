@@ -4,7 +4,8 @@ import { resolve } from 'node:path'
 
 // npm run env:init -- dev    -> .env.dev   (development)
 // npm run env:init -- prod   -> .env.prod  (the container, via docker-compose's env_file)
-// Copies env-example with fresh secrets (JWT keypair, encryption key, blind index salt).
+// Copies env-example with fresh secrets (JWT keypair, encryption key v1 and ENCRYPTION_CURRENT_KEY_ID=v1,
+// blind index salt): the file is complete on its own (a server with only the image has no backend/.env).
 // Never overwrites an existing file: secrets in use must not change (stored data would become
 // unreadable). Shared defaults stay in .env.
 
@@ -33,6 +34,7 @@ const values: Record<string, string> = {
   JWT_PRIVATE_KEY: oneLine(privateKey),
   JWT_PUBLIC_KEY: oneLine(publicKey),
   ENCRYPTION_KEY_V1: randomBytes(32).toString('hex'),
+  ENCRYPTION_CURRENT_KEY_ID: 'v1',
   BLIND_INDEX_SALT: randomBytes(32).toString('hex'),
   // the container's starting points (see docker-compose.yml)
   ...(which === 'prod'

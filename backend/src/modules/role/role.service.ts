@@ -3,6 +3,7 @@ import type { Role, RoleInput, User } from '#contract/types.js'
 import { transaction } from '#core/database/transaction.js'
 import { emit } from '#core/events/event-bus.js'
 import { ApiError } from '#core/http/errors.js'
+import { DEFAULT_ROLES } from './role.defaults.js'
 import { roleRepository } from './role.repository.js'
 import { ADMIN_ROLE, ADMIN_ROLE_ID, ALL_PERMISSIONS, isPermissionKey } from './role.permissions.js'
 
@@ -55,6 +56,20 @@ export const roleService = {
       await roleRepository.deleteById(id, session)
       return moved
     })
+  },
+
+  /**
+   * migrations: adds the default roles (QA Lead, QA Tester, Developer, Server/Infra; or only the ids given) that are missing, by id; one an
+   * Admin already has (by id or by name) is left as it is. Returns the names of the added ones.
+   */
+  async ensureDefaultRoles(only?: string[]): Promise<string[]> {
+    const added: string[] = []
+    for (const { _id, ...role } of DEFAULT_ROLES.filter((r) => !only || only.includes(r._id))) {
+      if ((await roleRepository.exists({ _id })) || (await roleRepository.findByName(role.name))) continue
+      await roleRepository.create({ _id, ...role })
+      added.push(role.name)
+    }
+    return added
   },
 
   /** start-up: the built-in Admin role always exists and has every permission */

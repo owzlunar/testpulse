@@ -1,14 +1,11 @@
 import Joi from 'joi'
+import { ENVIRONMENT_NAME_MAX, PROJECT_KEY_PATTERN } from '#contract/rules/project.js'
 import { idParams, idSchema } from '#core/http/validate.js'
 
 const date = Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/)
 
 const projectBody = Joi.object({
-  key: Joi.string()
-    .trim()
-    .uppercase()
-    .pattern(/^[A-Z0-9]{2,12}$/)
-    .required(),
+  key: Joi.string().trim().uppercase().pattern(PROJECT_KEY_PATTERN).required(),
   name: Joi.string().trim().min(1).max(200).required(),
   description: Joi.string().allow('').max(2000).default(''),
   logo: Joi.string().allow('').max(2048),
@@ -28,6 +25,18 @@ const projectBody = Joi.object({
     .max(50)
     .default([]),
   teamIds: Joi.array().items(idSchema).max(100).default([]),
+  // none: the server starts it with TEST; exactly one primary is checked in the service
+  environments: Joi.array()
+    .items(
+      Joi.object({
+        id: idSchema.required(),
+        name: Joi.string().trim().min(1).max(ENVIRONMENT_NAME_MAX).required(),
+        primary: Joi.boolean().default(false),
+        teamId: idSchema.allow('', null),
+      }),
+    )
+    .max(20)
+    .default([]),
 })
 
 export const projectValidation = {

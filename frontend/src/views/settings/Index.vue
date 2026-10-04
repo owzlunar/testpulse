@@ -48,7 +48,7 @@ function reset() {
 </script>
 
 <template>
-  <FoxPageHeader title="ตั้งค่า" :breadcrumbs="[{ title: 'ตั้งค่า' }]" />
+  <FoxPageHeader :breadcrumbs="[{ title: 'ตั้งค่า' }]" />
 
   <v-row class="fox-grid">
     <v-col cols="12" md="6">

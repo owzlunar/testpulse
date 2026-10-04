@@ -148,7 +148,7 @@ function onDelete() {
 </script>
 
 <template>
-  <FoxPageHeader sticky title="Role และสิทธิ์" :breadcrumbs="[{ title: 'ผู้ดูแลระบบ' }, { title: 'Role และสิทธิ์' }]">
+  <FoxPageHeader sticky :breadcrumbs="[{ title: 'ผู้ดูแลระบบ' }, { title: 'Role และสิทธิ์' }]">
     <template #actions>
       <v-btn color="primary" prepend-icon="tabler:plus" @click="openRole(null)">สร้าง Role</v-btn>
     </template>

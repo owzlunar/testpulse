@@ -1,11 +1,13 @@
 <script setup lang="ts">
-// Page title block used at the top of every page.
-//   <FoxPageHeader title="ปฏิทิน" :breadcrumbs="[{ title: 'ปฏิทิน' }]">
+// Page title block used at the top of every page. The title is the route's (meta.title in
+// router/index.ts) unless the page passes one, e.g. a record's name.
+//   <FoxPageHeader :breadcrumbs="[{ title: 'ปฏิทิน' }]">
 //     <template #actions> ...buttons... </template>
 //   </FoxPageHeader>
 // `sticky` (long pages): stays under the app bar while scrolling and turns compact once it sticks.
 // Users can turn it off in Settings (stickyPageHeader); it only applies from md up.
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useDisplay } from 'vuetify'
 import { useSettingsStore } from '@/stores/settings.store'
@@ -13,7 +15,8 @@ import type { Breadcrumb } from '@/types'
 
 const props = withDefaults(
   defineProps<{
-    title: string
+    /** default: the route's meta.title */
+    title?: string
     /** small line above the title (e.g. "ยินดีต้อนรับ ...") */
     eyebrow?: string
     /** a home icon is prepended automatically */
@@ -23,6 +26,9 @@ const props = withDefaults(
   }>(),
   { eyebrow: '', breadcrumbs: () => [], sticky: false },
 )
+
+const route = useRoute()
+const heading = computed(() => props.title ?? route.meta.title ?? '')
 
 const { settings } = storeToRefs(useSettingsStore())
 const { mdAndUp } = useDisplay()
@@ -67,7 +73,7 @@ const STUCK_DEFAULTS = { VBtn: { size: 'small' }, VBtnToggle: { density: 'compac
         </v-breadcrumbs>
         <div v-else-if="eyebrow" class="text-subtitle-1 text-muted">{{ eyebrow }}</div>
       </template>
-      <h1 :class="isSticky && stuck ? 'text-h5' : 'text-h1'">{{ title }}</h1>
+      <h1 :class="isSticky && stuck ? 'text-h5' : 'text-h1'">{{ heading }}</h1>
     </div>
     <div v-if="$slots.actions" class="fox-page-header__actions">
       <v-defaults-provider :defaults="isSticky && stuck ? STUCK_DEFAULTS : undefined">

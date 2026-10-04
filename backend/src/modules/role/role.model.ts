@@ -20,7 +20,7 @@ const roleSchema = new Schema<RoleDoc>(
     name: { type: String, required: true, trim: true, maxlength: 80 },
     nameKey: { type: String, required: true, unique: true, private: true },
     description: { type: String, default: '', maxlength: 500 },
-    discipline: { type: String, enum: ['qa', 'dev', 'other'], required: true },
+    discipline: { type: String, enum: ['qa', 'dev', 'ops', 'other'], required: true },
     tone: { type: String, enum: TONES, required: true },
     icon: { type: String, required: true },
     permissions: { type: [String], default: [] as PermissionKey[] },
