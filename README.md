@@ -216,6 +216,25 @@ scripts/restore.sh --to-db testpulse --overwrite-live
 docker compose -f docker-compose.server.yml start testpulse
 ```
 
+**ตรวจ backup** (`scripts/verify.sh` อ่านอย่างเดียว ไม่แก้อะไรทั้งใน MongoDB และ MinIO)
+
+```bash
+scripts/verify.sh                                   # ตรวจ storage: ล็อก / versioning เปิดอยู่, ทุกไฟล์มีที่ off-site ขนาดตรงกัน,
+                                                    #   dump ล่าสุดไม่เก่ากว่า 26 ชม. และเปิดอ่านได้ (ดึงจาก off-site)
+scripts/verify.sh restore --db testpulse-restore    # หลัง restore.sh: เทียบกับฐานจริง แล้วหาไฟล์อัปโหลดทุกไฟล์ที่ข้อมูลอ้างถึง
+scripts/verify.sh restore --db testpulse-restore --uploads-dir ./docker-data/uploads-restored   # local
+```
+
+แต่ละบรรทัดขึ้นต้นด้วย `ok`, `WARN` หรือ `FAIL` ถ้ามี `FAIL` จะได้ exit code 1
+
+| ผล | ความหมาย |
+| --- | --- |
+| `ok` | จำนวน, index และเอกสารที่สุ่มเทียบ (ค่าเริ่มต้น 500 ต่อ collection, `--sample N`) ตรงกับฐานจริง |
+| `WARN` | ต่างกันแบบที่เกิดได้หลัง backup เช่นมีข้อมูลใหม่หรือแก้ไข, collection ที่มีแต่ในฐานที่กู้ (ของค้างในฐานนั้นก่อนกู้ ควรกู้ลงฐานว่าง) หรือ backup เก่ากว่า `VERIFY_MAX_AGE_HOURS` |
+| `FAIL` | collection หรือ index หาย, collection กลับมาว่าง, เอกสารที่เทียบไม่ตรงกับฐานจริงเลยสักตัว (เลือก backup หรือฐานผิด), ไฟล์ไม่มีที่ off-site หรือขนาดไม่ตรง, dump เสีย |
+
+`refresh_tokens`, `notifications`, `audit_logs`, `job_locks`, `invites` และ `preflight` เปลี่ยนตลอดเวลาที่ใช้งาน จึงแสดงแค่จำนวนแต่ไม่นับเป็นความต่าง ใส่ `scripts/verify.sh` ต่อท้าย `backup.sh` ใน cron ได้ (`backup.sh && verify.sh`)
+
 - backup ที่ทำก่อนหมุน encryption key ต้องใช้ key เก่าตอนกู้ (ดู [หมุน encryption key](#หมุน-encryption-key-key-rotation))
 - `STORAGE_DRIVER=minio`: ไฟล์ที่ถูกลบหรือเขียนทับ ดูเวอร์ชันเดิมด้วย `mc ls --versions` แล้วกู้ด้วย `mc cp --version-id`
 - ทดลองกู้เป็นระยะ backup ที่ไม่เคยลองกู้ ยังไม่รู้ว่าใช้ได้จริง
