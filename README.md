@@ -185,9 +185,27 @@ location /testpulse/ {
   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
   proxy_set_header X-Forwarded-Proto $scheme;
 }
+
+# การแจ้งเตือนแบบ real-time (server-sent events): ส่งทีละ event ทันที ห้ามพักหรือบีบอัด
+location /testpulse/api/v1/notifications/stream {
+  proxy_pass http://testpulse-host:8080;
+  proxy_http_version 1.1;
+  proxy_set_header Connection "";
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_buffering off;
+  proxy_cache off;
+  gzip off;
+  proxy_read_timeout 1h;                       # ต้องนานกว่า heartbeat ของ API (ทุก 25 วินาที)
+}
 ```
 
 และตั้ง `COOKIE_SECURE=true` (ถ้าเป็น https) กับ `TRUST_PROXY` ให้รวม address ของ proxy
+
+- image ส่ง header `X-Accel-Buffering: no` มากับ stream แล้ว nginx ด้านหน้าจึงไม่พักข้อมูลเองแม้ไม่มี `location` ที่สอง แต่ให้ใส่ไว้เสมอ เพราะ `gzip` ที่เปิดกับ `text/event-stream`, proxy ที่ไม่ใช่ nginx หรือ CDN อาจยังพัก stream จนการแจ้งเตือนไม่มาถึง
+- proxy ตัวอื่น (Apache, Traefik, Caddy, CDN) ให้ปิด buffering, ปิดการบีบอัด และตั้ง read timeout ให้นานกว่า 25 วินาที สำหรับ path `…/api/v1/notifications/stream`
+- ถ้า event ไม่มาหรือมาเป็นก้อน ลอง `curl -N -H "Authorization: Bearer <token>" https://mydomain/testpulse/api/v1/notifications/stream` ต้องเห็น `: connected` ทันที และ `: ping` ทุก 25 วินาที
 
 ### คำสั่งใน container
 
