@@ -4,7 +4,7 @@ import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import type { VForm } from 'vuetify/components'
 import type { Requirement, RequirementInput } from '@/types'
 import { required } from '@/utils/validators'
-import { REQUIREMENT_STATUSES, REQUIREMENT_TYPES } from '@/domain/requirement'
+import { REQUIREMENT_ORIGINS, REQUIREMENT_STATUSES, REQUIREMENT_TYPES } from '@/domain/requirement'
 import { PRIORITIES } from '@/domain/test-case'
 
 const open = defineModel<boolean>({ default: false })
@@ -23,6 +23,8 @@ const empty = (): RequirementInput => ({
   type: 'functional',
   priority: 'medium',
   status: 'draft',
+  origin: 'tor',
+  torClause: '',
   source: '',
   acceptanceCriteria: [],
 })
@@ -46,6 +48,7 @@ async function submit() {
   if (!result?.valid) return
   emit('save', {
     ...form,
+    torClause: form.origin === 'tor' ? form.torClause?.trim() : undefined,
     acceptanceCriteria: criteriaText.value
       .split('\n')
       .map((l) => l.replace(/^[-•*\d.\s]+/, '').trim())
@@ -74,6 +77,16 @@ async function submit() {
             <v-col cols="12" sm="8">
               <label class="fox-label" for="rq-title">ชื่อ Requirement *</label>
               <v-text-field id="rq-title" v-model="form.title" :rules="[required]" />
+            </v-col>
+            <v-col cols="12" sm="8">
+              <span class="fox-label">ข้อกำหนดจาก</span>
+              <v-btn-toggle v-model="form.origin" mandatory color="primary" variant="outlined" divided density="comfortable" aria-label="ข้อกำหนดจาก">
+                <v-btn v-for="o in REQUIREMENT_ORIGINS" :key="o.value" :value="o.value" :prepend-icon="o.icon" :title="o.hint">{{ o.label }}</v-btn>
+              </v-btn-toggle>
+            </v-col>
+            <v-col v-if="form.origin === 'tor'" cols="12" sm="4">
+              <label class="fox-label" for="rq-tor">ข้อใน TOR *</label>
+              <v-text-field id="rq-tor" v-model="form.torClause" :rules="[required]" placeholder="เช่น 4.2.1" />
             </v-col>
             <v-col cols="12">
               <label class="fox-label" for="rq-desc">รายละเอียด / User Story</label>

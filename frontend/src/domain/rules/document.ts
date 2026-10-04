@@ -12,7 +12,7 @@ import type {
   UatDetails,
 } from '@/types'
 import { isOpenDefect } from './defect.js'
-import { casesForRequirement, coverageStatus, requirementText } from './requirement.js'
+import { casesForRequirement, compareRequirements, coverageStatus, requirementText, torCaseIds } from './requirement.js'
 import { RESULT_LABELS, RESULT_TONES } from './run.js'
 import { STATUS_LABELS, STATUS_TONES, isOverdue } from './test-case.js'
 
@@ -49,11 +49,15 @@ const byId = (a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id, 
 /** the data a document prints, frozen when it is generated */
 export function buildSnapshot(
   req: { type: DocumentType; options: DocumentOptions },
-  { project, cases: projectCases, run, defects, requirements }: SnapshotSources,
+  { project, cases: projectCases, run, defects, requirements: projectRequirements }: SnapshotSources,
   generatedAt = new Date().toISOString(),
 ): DocumentSnapshot {
   // archived cases are out of scope (lists, coverage)
   const allCases = projectCases.filter((c) => !c.archivedAt)
+  const torOnly = !!req.options.torOnly
+  const requirements = (torOnly ? projectRequirements.filter((r) => r.origin === 'tor') : projectRequirements).slice().sort(compareRequirements)
+  // TOR only: the cases that test a TOR requirement (a run's deleted cases can't say, so they are left out)
+  const torCases = torOnly ? torCaseIds(requirements, projectCases) : null
 
   let cases: DocCase[]
   if (run) {
@@ -63,7 +67,7 @@ export function buildSnapshot(
         id: r.caseDeleted ? `${r.caseId} (ลบแล้ว)` : r.caseId,
         name: r.caseName,
         parentId: tc?.parentId,
-        requirement: tc ? requirementText(tc, requirements) : '',
+        requirement: tc ? requirementText(tc, projectRequirements) : '',
         testScenario: tc?.testScenario ?? '',
         prerequisite: tc?.prerequisite ?? '',
         priority: r.priority,
@@ -85,7 +89,7 @@ export function buildSnapshot(
       id: tc.id,
       name: tc.name,
       parentId: tc.parentId,
-      requirement: requirementText(tc, requirements),
+      requirement: requirementText(tc, projectRequirements),
       testScenario: tc.testScenario,
       prerequisite: tc.prerequisite,
       priority: tc.priority,
@@ -101,6 +105,7 @@ export function buildSnapshot(
       defectIds: defects.filter((d) => d.caseId === tc.id && !d.caseDeleted).map((d) => d.id),
     }))
   }
+  if (torCases) cases = cases.filter((c) => torCases.has(c.id))
   if (!req.options.includeSubCases) cases = cases.filter((c) => !c.parentId)
   if (!req.options.includeEvidence)
     cases = cases.map((c) => ({ ...c, evidence: [], stepResults: c.stepResults?.map((s) => ({ ...s, evidence: [] })) }))
@@ -161,7 +166,7 @@ export function buildSnapshot(
       req.options.includeTraceability || req.type === 'rtm'
         ? requirements.map((r) => {
             const linked = casesForRequirement(r, allCases)
-            return { code: r.code, title: r.title, caseIds: linked.map((c) => c.id), coverage: coverageStatus(linked) }
+            return { code: r.code, title: r.title, torClause: r.torClause, caseIds: linked.map((c) => c.id), coverage: coverageStatus(linked) }
           })
         : [],
     risks,

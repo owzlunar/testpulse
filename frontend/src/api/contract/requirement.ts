@@ -4,7 +4,7 @@ export interface RequirementApi {
   /** GET /requirements (of the projects the signed-in user may open) */
   fetchRequirements(): Promise<Requirement[]>
 
-  /** GET /requirements/search?q=:q&limit=:limit&offset=:offset (code, title or description, in the projects the user may open) */
+  /** GET /requirements/search?q=:q&limit=:limit&offset=:offset (code, TOR clause, title or description, in the projects the user may open) */
   searchRequirements(q: string, limit?: number, offset?: number): Promise<{ requirements: Requirement[]; total: number }>
 
   /**

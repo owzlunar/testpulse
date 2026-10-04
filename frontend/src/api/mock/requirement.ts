@@ -4,11 +4,21 @@ import { newId } from '@/utils/ids'
 import { respond } from './http'
 import { assertCan, inAccessibleProjects, sessionCan } from './project'
 import { SEED_REQUIREMENTS } from './seeds/requirements.seed'
-import { STORAGE_KEYS, load, save } from './storage'
+import { STORAGE_KEYS, load, migrateOnce, save } from './storage'
 import { flagCasesForReview } from './test-case'
 
 // --- API ------------------------------------------------------------------------
-const requirements = () => load(STORAGE_KEYS.requirements, SEED_REQUIREMENTS)
+function requirements(): Requirement[] {
+  // stored before requirements had an origin: they were added on top of the TOR
+  migrateOnce('requirement-origin-v1', () => {
+    const list = load(STORAGE_KEYS.requirements, SEED_REQUIREMENTS)
+    save(
+      STORAGE_KEYS.requirements,
+      list.map((r) => ({ ...r, origin: r.origin ?? 'additional' })),
+    )
+  })
+  return load(STORAGE_KEYS.requirements, SEED_REQUIREMENTS)
+}
 
 /** server-side: the stored requirements of a project */
 export const requirementsOf = (projectId: string): Requirement[] => requirements().filter((r) => r.projectId === projectId)
@@ -16,12 +26,14 @@ export const requirementsOf = (projectId: string): Requirement[] => requirements
 /** GET /requirements (of the projects the signed-in user may open) */
 export const fetchRequirements = () => respond(() => (sessionCan('requirement.view') ? inAccessibleProjects(requirements()) : []))
 
-/** GET /requirements/search?q=:q&limit=:limit (code, title or description, in the projects the user may open) */
+/** GET /requirements/search?q=:q&limit=:limit (code, TOR clause, title or description, in the projects the user may open) */
 export const searchRequirements = (q: string, limit = 20, offset = 0) =>
   respond(() => {
     const text = q.trim().toLowerCase()
     if (!text || !sessionCan('requirement.view')) return { requirements: [] as Requirement[], total: 0 }
-    const found = inAccessibleProjects(requirements()).filter((r) => `${r.code} ${r.title} ${r.description}`.toLowerCase().includes(text))
+    const found = inAccessibleProjects(requirements()).filter((r) =>
+      `${r.code} ${r.torClause ?? ''} ${r.title} ${r.description}`.toLowerCase().includes(text),
+    )
     return { requirements: found.slice(offset, offset + limit), total: found.length }
   })
 
@@ -36,9 +48,13 @@ const MEANING_FIELDS: { field: 'title' | 'description' | 'acceptanceCriteria'; l
  * POST /projects/:projectId/requirements · PUT /requirements/:id
  * When the meaning of an existing requirement changes, the server flags its linked cases for review.
  */
-export const saveRequirement = (input: RequirementInput) =>
+export const saveRequirement = (fields: RequirementInput) =>
   respond<RequirementChangeResult>(() => {
-    assertCan('requirement.edit', input.projectId)
+    assertCan('requirement.edit', fields.projectId)
+    // a TOR requirement names its clause; an additional one has none
+    const torClause = fields.origin === 'tor' ? fields.torClause?.trim() : undefined
+    if (fields.origin === 'tor' && !torClause) throw new ApiError('กรุณาระบุข้อใน TOR', 400)
+    const input: RequirementInput = { ...fields, torClause }
     const list = requirements()
     const now = new Date().toISOString()
     if (list.some((r) => r.projectId === input.projectId && r.code === input.code && r.id !== input.id)) {

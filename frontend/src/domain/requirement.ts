@@ -1,4 +1,4 @@
-import type { CoverageStatus, Option, RequirementStatus, RequirementType } from '@/types'
+import type { CoverageStatus, Option, Requirement, RequirementOrigin, RequirementStatus, RequirementType } from '@/types'
 
 // Rules the backend shares (links between requirements and cases) live in ./rules/requirement.ts
 export * from './rules/requirement'
@@ -16,6 +16,11 @@ export const REQUIREMENT_STATUSES: Option<RequirementStatus>[] = [
   { value: 'deprecated', label: 'Deprecated', hint: 'ยกเลิกแล้ว', tone: 'secondary', icon: 'tabler:archive' },
 ]
 
+export const REQUIREMENT_ORIGINS: Option<RequirementOrigin>[] = [
+  { value: 'tor', label: 'TOR', hint: 'ตามข้อกำหนดใน TOR', tone: 'primary', icon: 'tabler:file-certificate' },
+  { value: 'additional', label: 'เพิ่มเติม', hint: 'นอกเหนือ TOR เช่น จากการประชุมหรือ Change Request', tone: 'secondary', icon: 'tabler:file-plus' },
+]
+
 export const COVERAGE: Option<CoverageStatus>[] = [
   { value: 'not_covered', label: 'ยังไม่มีเคส', tone: 'error', icon: 'tabler:circle-dashed' },
   { value: 'not_run', label: 'ยังไม่ทดสอบ', tone: 'secondary', icon: 'tabler:clock' },
@@ -27,5 +32,11 @@ export const COVERAGE: Option<CoverageStatus>[] = [
 export const requirementTypeOf = (v: RequirementType) => REQUIREMENT_TYPES.find((t) => t.value === v) ?? REQUIREMENT_TYPES[0]
 
 export const requirementStatusOf = (v: RequirementStatus) => REQUIREMENT_STATUSES.find((s) => s.value === v) ?? REQUIREMENT_STATUSES[0]
+
+export const requirementOriginOf = (v: RequirementOrigin) => REQUIREMENT_ORIGINS.find((o) => o.value === v) ?? REQUIREMENT_ORIGINS[1]
+
+/** "TOR 4.2.1" or "เพิ่มเติม" */
+export const originLabel = (r: Pick<Requirement, 'origin' | 'torClause'>) =>
+  r.origin === 'tor' ? `TOR ${r.torClause ?? ''}`.trim() : requirementOriginOf(r.origin).label
 
 export const coverageOf = (v: CoverageStatus) => COVERAGE.find((c) => c.value === v) ?? COVERAGE[0]

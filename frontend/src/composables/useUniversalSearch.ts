@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import { apiOn, defectApi, documentApi, requirementApi, runApi, testCaseApi } from '@/api'
 import { defectStatusOf } from '@/domain/defect'
 import { documentStatusOf } from '@/domain/document'
+import { originLabel } from '@/domain/requirement'
 import { runStatusOf } from '@/domain/run'
 import { statusOf } from '@/domain/test-case'
 import { useAuthStore } from '@/stores/auth.store'
@@ -97,7 +98,7 @@ export function useUniversalSearch() {
             projectKey: projectKey(r.projectId),
             code: r.code,
             title: r.title,
-            subtitle: projectName(r.projectId),
+            subtitle: [projectName(r.projectId), originLabel(r)].join(' · '),
             projectId: r.projectId,
             to: { path: '/requirements', query: { search: r.code } },
           }))

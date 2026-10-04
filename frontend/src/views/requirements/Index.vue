@@ -17,15 +17,18 @@ import { useTestCasePermissions } from '@/composables/useTestCasePermissions'
 import { useAuthStore } from '@/stores/auth.store'
 import { useProjectStore } from '@/stores/project.store'
 import { useRequirementStore } from '@/stores/requirement.store'
-import type { CoverageStatus, Requirement, RequirementInput, RequirementStatus, Tone } from '@/types'
+import type { CoverageStatus, Requirement, RequirementInput, RequirementOrigin, RequirementStatus, Tone } from '@/types'
 import { formatPercent } from '@/utils/format'
 import { downloadText, toCsv } from '@/utils/table'
 import {
   COVERAGE,
+  REQUIREMENT_ORIGINS,
   REQUIREMENT_STATUSES,
   casesForRequirement,
   coverageOf,
   coverageStatus,
+  originLabel,
+  requirementOriginOf,
   requirementStatusOf,
   requirementTypeOf,
 } from '@/domain/requirement'
@@ -60,7 +63,12 @@ const stats = computed(() => {
   const active = rows.value.filter((r) => r.status !== 'deprecated')
   const covered = active.filter((r) => r.coverage !== 'not_covered').length
   return [
-    { label: 'Requirement ทั้งหมด', value: active.length, icon: 'tabler:clipboard-list', tone: 'primary' as Tone },
+    {
+      label: `Requirement ทั้งหมด · ตาม TOR ${active.filter((r) => r.origin === 'tor').length}`,
+      value: active.length,
+      icon: 'tabler:clipboard-list',
+      tone: 'primary' as Tone,
+    },
     {
       label: `ครอบคลุมด้วย Test Case · ${formatPercent(active.length ? (covered / active.length) * 100 : 0, 0)}`,
       value: covered,
@@ -92,13 +100,15 @@ watch(
   },
   { immediate: true },
 )
+const origin = ref<RequirementOrigin | null>(null)
 const status = ref<RequirementStatus | null>(null)
 const coverage = ref<CoverageStatus | null>(null)
 const filtered = computed(() => {
   const q = search.value?.trim().toLowerCase() ?? ''
   return rows.value.filter(
     (r) =>
-      (!q || `${r.code} ${r.title} ${r.description}`.toLowerCase().includes(q)) &&
+      (!q || `${r.code} ${r.torClause ?? ''} ${r.title} ${r.description}`.toLowerCase().includes(q)) &&
+      (!origin.value || r.origin === origin.value) &&
       (!status.value || r.status === status.value) &&
       (!coverage.value || r.coverage === coverage.value),
   )
@@ -160,9 +170,10 @@ function draftFor(r: Requirement) {
 const openCase = (id: string) => router.push({ path: '/test-cases', query: { caseId: id } })
 
 function exportRtm() {
-  const header = ['Requirement', 'ชื่อ', 'Priority', 'สถานะ', 'Test Cases', 'ผลล่าสุด', 'Coverage']
+  const header = ['Requirement', 'ข้อใน TOR', 'ชื่อ', 'Priority', 'สถานะ', 'Test Cases', 'ผลล่าสุด', 'Coverage']
   const data = rows.value.map((r) => [
     r.code,
+    r.origin === 'tor' ? (r.torClause ?? '') : requirementOriginOf(r.origin).label,
     r.title,
     r.priority,
     requirementStatusOf(r.status).label,
@@ -200,17 +211,29 @@ function exportRtm() {
 
       <div class="fox-card-body pb-0">
         <v-row dense class="row-gap-3 align-center">
-          <v-col cols="12" md="5">
+          <v-col cols="12" md="4">
             <v-text-field
               v-model="search"
               density="compact"
-              placeholder="ค้นหารหัส ชื่อ หรือรายละเอียด"
+              placeholder="ค้นหารหัส ข้อใน TOR ชื่อ หรือรายละเอียด"
               prepend-inner-icon="tabler:search"
               aria-label="ค้นหา Requirement"
               clearable
             />
           </v-col>
-          <v-col cols="6" md="3">
+          <v-col cols="12" sm="4" md="2">
+            <v-select
+              v-model="origin"
+              :items="REQUIREMENT_ORIGINS"
+              item-title="label"
+              item-value="value"
+              density="compact"
+              placeholder="ทุกที่มา"
+              aria-label="ข้อกำหนดจาก"
+              clearable
+            />
+          </v-col>
+          <v-col cols="6" sm="4" md="3">
             <v-select
               v-model="status"
               :items="REQUIREMENT_STATUSES"
@@ -222,7 +245,7 @@ function exportRtm() {
               clearable
             />
           </v-col>
-          <v-col cols="6" md="3">
+          <v-col cols="6" sm="4" md="3">
             <v-select
               v-model="coverage"
               :items="COVERAGE"
@@ -246,6 +269,16 @@ function exportRtm() {
                 <div class="flex-grow-1 overflow-hidden req-main">
                   <div class="d-flex flex-wrap align-center ga-2 mb-1">
                     <v-chip color="primary" size="small" variant="flat" class="fox-num">{{ r.code }}</v-chip>
+                    <v-chip
+                      :color="requirementOriginOf(r.origin).tone"
+                      :prepend-icon="requirementOriginOf(r.origin).icon"
+                      :title="requirementOriginOf(r.origin).hint"
+                      size="small"
+                      variant="outlined"
+                      class="fox-num"
+                    >
+                      {{ originLabel(r) }}
+                    </v-chip>
                     <v-chip
                       :color="requirementStatusOf(r.status).tone"
                       :prepend-icon="requirementStatusOf(r.status).icon"
@@ -330,6 +363,7 @@ function exportRtm() {
             <thead>
               <tr>
                 <th>Requirement</th>
+                <th>ข้อใน TOR</th>
                 <th>Test Cases</th>
                 <th class="text-center">ผ่าน / ทั้งหมด</th>
                 <th>Coverage</th>
@@ -345,6 +379,10 @@ function exportRtm() {
                     </div>
                     <div class="text-caption text-muted">{{ requirementStatusOf(r.status).label }} · {{ requirementTypeOf(r.type).label }}</div>
                   </div>
+                </td>
+                <td class="fox-num text-no-wrap">
+                  <span v-if="r.origin === 'tor'">{{ r.torClause }}</span>
+                  <span v-else class="text-caption text-muted">{{ requirementOriginOf(r.origin).label }}</span>
                 </td>
                 <td>
                   <div class="d-flex flex-wrap ga-1">
