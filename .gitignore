@@ -2,3 +2,6 @@
 .DS_Store
 .claude/
 docker-data/
+
+# backup.sh / restore.sh settings (passwords)
+backup.env

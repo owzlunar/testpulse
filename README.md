@@ -72,6 +72,7 @@ docker logs -f testpulse
    |--- backend/.env                จาก repo: ค่ากลาง ไม่มี secret
    |--- backend/.env.prod           จากข้อ 2 (chmod 600)
    |--- docker-data/                ไฟล์ upload และ log (สร้างให้เอง)
+   |--- scripts/ + backup.env       สำรองและกู้คืนข้อมูล (ดูหัวข้อด้านล่าง)
    ```
 
    ```bash
@@ -164,6 +165,60 @@ container อ่านค่าจากสองไฟล์ผ่าน `env_f
 - **ทุก instance ที่ใช้ฐานเดียวกันต้องมีชุด key เดียวกัน** อัปเดต `.env.prod` และสร้าง container ใหม่ให้ครบทุกเครื่องก่อนรันข้อ 4
 - **`BLIND_INDEX_SALT` ไม่ต้องหมุนและห้ามเปลี่ยน** ใช้ค้นผู้ใช้จากอีเมล (รวมถึงตอนเข้าสู่ระบบ) ไม่ได้ผูกกับ encryption key ถ้าเปลี่ยนจะค้นผู้ใช้เดิมไม่เจอ
 - รอบต่อไปทำแบบเดียวกัน (v2 → v3) ชื่อ key เป็นตัวอักษรหรือตัวเลขอะไรก็ได้ (`ENCRYPTION_KEY_<ID>` คู่กับ `ENCRYPTION_CURRENT_KEY_ID=<id>` ไม่สนตัวพิมพ์เล็กใหญ่) แต่ละ key ต้องเป็น hex 64 ตัว
+
+### สำรองและกู้คืนข้อมูล
+
+`scripts/backup.sh` สำรองฐานข้อมูลและไฟล์อัปโหลดไปเก็บใน MinIO / S3 ใน bucket ที่ล็อกไว้ ไม่มีใครลบ backup ได้ก่อนครบอายุ (ค่าเริ่มต้น 14 วัน) แล้ว mirror ไปอีกเครื่อง (off-site) ส่วน `scripts/restore.sh` ใช้กู้คืน ทั้งสองตัวรันด้วยมือในโฟลเดอร์ deploy และใช้แค่ Docker บน server (`mongodump`, `mongorestore` และ `mc` รันใน container)
+
+| ข้อมูล | `STORAGE_DRIVER=local` | `STORAGE_DRIVER=minio` |
+| --- | --- | --- |
+| ฐานข้อมูล | `<bucket backup>/db/<ฐาน>-<วันเวลา>.archive.gz` | เหมือนกัน |
+| ไฟล์อัปโหลด | `<bucket backup>/uploads/uploads-<วันเวลา>.tar.gz` | อยู่ใน bucket ของแอปอยู่แล้ว เปิด versioning ไว้ (ไฟล์ที่ถูกเขียนทับหรือลบ กู้เวอร์ชันเดิมได้ภายใน 14 วัน) และ mirror bucket นี้ไป off-site ด้วย |
+| `backend/.env.prod` | **ไม่อยู่ใน backup** เก็บไว้ในที่เก็บ secret ของทีม พร้อม key ทุกเวอร์ชันที่ backup ยังใช้อยู่ | เหมือนกัน |
+
+**ติดตั้ง (ครั้งเดียว)** วางโฟลเดอร์ `scripts/` จาก repo ไว้ในโฟลเดอร์ deploy แล้ว
+
+```bash
+cd /opt/testpulse
+cp scripts/backup.env.example backup.env && chmod 600 backup.env
+# กรอก MONGODB_URI (ตัวเดียวกับ .env.prod แต่ใช้ host.docker.internal แทน localhost),
+# BACKUP_S3_* (พอร์ต API ของ MinIO ไม่ใช่หน้า console), OFFSITE_S3_*, STORAGE_DRIVER ให้ตรงกับ .env.prod
+scripts/backup.sh init      # สร้าง bucket ทั้งสองฝั่ง: object lock, versioning, อายุ 14 วัน (รันซ้ำได้)
+```
+
+- bucket backup ฝั่ง off-site ต้องเปิด object lock ตั้งแต่ตอนสร้าง ถ้ามี bucket ชื่อนั้นอยู่แล้วแบบไม่ล็อก `init` จะหยุดและแจ้ง เพราะเปิดล็อกภายหลังไม่ได้
+- user ของ MongoDB ใน `MONGODB_URI` ต้องอ่านฐานได้ ส่วน `RESTORE_MONGODB_URI` (ถ้ามี) ใช้เขียนฐานที่จะกู้ลงไป
+
+**สำรอง**
+
+```bash
+scripts/backup.sh           # dump ฐาน → ตรวจไฟล์ → อัปโหลด → (local) แพ็กไฟล์อัปโหลด → mirror off-site
+scripts/backup.sh list      # รายการ backup ทั้งสองฝั่ง
+```
+
+ถ้าขั้นไหนล้ม สคริปต์จะหยุดพร้อมข้อความ `ERROR` และ exit code 1 ระหว่าง dump จะเก็บไฟล์ไว้ที่ `docker-data/backup-work` ก่อน และลบทิ้งเมื่อจบ dump ที่เสียจึงไม่ถูกอัปโหลดไปค้างใน bucket ที่ลบไม่ได้
+
+**กู้คืน** ลองกู้ลงฐานอื่นก่อนเสมอ แล้วเปิดดูว่าข้อมูลครบ
+
+```bash
+scripts/restore.sh --to-db testpulse-restore                    # backup ล่าสุดของฝั่งนี้
+scripts/restore.sh --to-db testpulse-restore --from off \
+  --file testpulse-20261005-020000.archive.gz                   # ไฟล์ที่ระบุ จาก off-site
+scripts/restore.sh --to-db testpulse-restore --uploads-to ./docker-data/uploads-restored   # local: ได้ไฟล์อัปโหลดของรอบเดียวกันด้วย
+```
+
+กู้ทับฐานจริง ต้องหยุดแอปก่อน ใส่ `--overwrite-live` และพิมพ์ชื่อฐานยืนยัน collection ที่อยู่ใน backup จะถูกแทนที่ทั้งหมด
+
+```bash
+docker compose -f docker-compose.server.yml stop testpulse
+scripts/restore.sh --to-db testpulse --overwrite-live
+# local: กู้ไฟล์ลงโฟลเดอร์ใหม่ (--uploads-to) แล้วสลับกับ docker-data/uploads
+docker compose -f docker-compose.server.yml start testpulse
+```
+
+- backup ที่ทำก่อนหมุน encryption key ต้องใช้ key เก่าตอนกู้ (ดู [หมุน encryption key](#หมุน-encryption-key-key-rotation))
+- `STORAGE_DRIVER=minio`: ไฟล์ที่ถูกลบหรือเขียนทับ ดูเวอร์ชันเดิมด้วย `mc ls --versions` แล้วกู้ด้วย `mc cp --version-id`
+- ทดลองกู้เป็นระยะ backup ที่ไม่เคยลองกู้ ยังไม่รู้ว่าใช้ได้จริง
 
 ### Volume (เก็บไว้บน host)
 
