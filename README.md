@@ -42,6 +42,48 @@ docker logs -f testpulse
 
 > secret ใน `.env.prod` ต้องเก็บไว้และใช้ชุดเดียวกับทุกตัวที่เชื่อมฐานข้อมูลเดียวกัน ข้อมูล (เช่นอีเมลผู้ใช้) ถูกเข้ารหัสด้วย key นี้ ถ้าเปลี่ยน key ข้อมูลเดิมจะอ่านไม่ได้
 
+### Deploy บนเครื่องที่มีแค่ image
+
+เครื่อง server ไม่ต้องมีซอร์สโค้ด ใช้แค่ image กับไฟล์ตั้งค่า (image ไม่มีไฟล์ env อยู่ข้างใน)
+
+1. build และส่ง image (บนเครื่องที่มี repo)
+
+   ```bash
+   docker build -t testpulse:0.2.0 .
+   # ส่งเป็นไฟล์ ...
+   docker save testpulse:0.2.0 | gzip > testpulse-0.2.0.tar.gz
+   scp testpulse-0.2.0.tar.gz server:/opt/testpulse/      # บน server: gunzip -c testpulse-0.2.0.tar.gz | docker load
+   # ... หรือผ่าน registry: docker tag / docker push แล้ว docker pull บน server
+   ```
+
+2. เตรียมไฟล์ตั้งค่า (บนเครื่องที่มี repo) แล้วส่งไปแบบเข้ารหัส (`scp`)
+
+   ```bash
+   npm --prefix backend run env:init -- prod    # backend/.env.prod พร้อม secret ใหม่
+   # กรอก BASE_URL, MONGODB_URI, STORAGE_DRIVER / MINIO_*, SMTP_*, INITIAL_ADMIN_* (ครั้งแรก)
+   # เก็บสำเนา .env.prod ไว้ในที่เก็บ secret ของทีม (password manager / vault) ก่อน แล้วค่อยลบออกจากเครื่องนี้
+   ```
+
+3. บนเครื่อง server
+
+   ```text
+   /opt/testpulse
+   |--- docker-compose.server.yml   จาก repo (แก้ image: ให้ตรงเวอร์ชัน)
+   |--- backend/.env                จาก repo: ค่ากลาง ไม่มี secret
+   |--- backend/.env.prod           จากข้อ 2 (chmod 600)
+   |--- docker-data/                ไฟล์ upload และ log (สร้างให้เอง)
+   ```
+
+   ```bash
+   cd /opt/testpulse
+   docker compose -f docker-compose.server.yml up -d
+   docker logs -f testpulse
+   ```
+
+- **แก้ค่าใน `.env.prod`** (รวมถึง key): `docker compose -f docker-compose.server.yml up -d --force-recreate` ไม่ต้อง build image ใหม่ (`docker compose restart` ไม่อ่าน env ใหม่)
+- **อัปเดตเวอร์ชัน**: โหลด image ใหม่ แก้ `image:` แล้ว `docker compose -f docker-compose.server.yml up -d` (migration รันเองตอน start)
+- **หมุน encryption key**: สร้าง key ใหม่ (`openssl rand -hex 32`) เก็บลงที่เก็บ secret ก่อน แล้วใน `.env.prod` เพิ่ม `ENCRYPTION_KEY_V2=…` และตั้ง `ENCRYPTION_CURRENT_KEY_ID=v2` (คง `ENCRYPTION_KEY_V1` ไว้) → `up -d --force-recreate` → รัน `rotate-keys.js` (หัวข้อคำสั่งใน container) ซ้ำจนทุก collection รายงาน 0 → ลบ `ENCRYPTION_KEY_V1` → `up -d --force-recreate` อีกครั้ง
+
 ### ค่าตั้งค่า (environment)
 
 container อ่านค่าจากสองไฟล์ผ่าน `env_file` ของ compose ไฟล์หลังทับไฟล์แรก:
