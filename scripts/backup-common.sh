@@ -40,6 +40,7 @@ load_env() {
   BACKUP_WORK_DIR=${BACKUP_WORK_DIR:-./docker-data/backup-work}
   MONGO_TOOLS_IMAGE=${MONGO_TOOLS_IMAGE:-mongo:8}
   MC_IMAGE=${MC_IMAGE:-minio/mc:RELEASE.2025-08-13T08-35-41Z}
+  BACKUP_DOCKER_NETWORK=${BACKUP_DOCKER_NETWORK:-}
 
   case "$STORAGE_DRIVER" in local | minio) ;; *) die "STORAGE_DRIVER must be local or minio, not '$STORAGE_DRIVER'" ;; esac
   [[ "$BACKUP_RETENTION_DAYS" =~ ^[1-9][0-9]*$ ]] || die "BACKUP_RETENTION_DAYS must be a whole number of days"
@@ -48,6 +49,15 @@ load_env() {
     : "${OFFSITE_S3_SECRET_KEY:?OFFSITE_S3_SECRET_KEY is not set in $file}"
   fi
   command -v docker >/dev/null || die "docker is not installed"
+
+  # the tool containers join the compose network (to reach mongodb / minio by service name), or else
+  # reach this machine as host.docker.internal
+  DOCKER_NET_ARGS=(--add-host host.docker.internal:host-gateway)
+  if [ -n "$BACKUP_DOCKER_NETWORK" ]; then
+    docker network inspect "$BACKUP_DOCKER_NETWORK" >/dev/null 2>&1 ||
+      die "BACKUP_DOCKER_NETWORK: no docker network '$BACKUP_DOCKER_NETWORK' (start the services first; \`docker network ls\`)"
+    DOCKER_NET_ARGS+=(--network "$BACKUP_DOCKER_NETWORK")
+  fi
 
   # mc reaches its servers through these: alias `src` (this side) and `off` (off-site)
   MC_HOST_src=$(mc_host_url "$BACKUP_S3_URL" "$BACKUP_S3_ACCESS_KEY" "$BACKUP_S3_SECRET_KEY")
@@ -93,7 +103,7 @@ mc() {
   # ${a[@]+...}: an empty array under `set -u` is an error in bash 3.2 (macOS)
   docker run --rm ${stdin[@]+"${stdin[@]}"} \
     -e MC_HOST_src -e MC_HOST_off \
-    --add-host host.docker.internal:host-gateway \
+    "${DOCKER_NET_ARGS[@]}" \
     -v "$WORK_DIR:/work" \
     "$MC_IMAGE" --quiet --no-color "$@"
 }
@@ -117,7 +127,7 @@ mongo_tool() {
   local status=0
   docker run --rm \
     --user "$(id -u):$(id -g)" \
-    --add-host host.docker.internal:host-gateway \
+    "${DOCKER_NET_ARGS[@]}" \
     -v "$WORK_DIR:/work" \
     "$MONGO_TOOLS_IMAGE" "$tool" --config="/work/$(basename "$config")" "$@" || status=$?
   rm -f "$config"

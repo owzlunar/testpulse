@@ -141,7 +141,7 @@ cmd_restore() {
     SAMPLE=$sample KEYS_OUT=/work/file-keys.tsv \
     docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
     -e LIVE_URI -e LIVE_DB -e RESTORED_URI -e RESTORED_DB -e SAMPLE -e KEYS_OUT \
-    --add-host host.docker.internal:host-gateway \
+    "${DOCKER_NET_ARGS[@]}" \
     -v "$SCRIPT_DIR:/scripts:ro" -v "$WORK_DIR:/work" \
     "$MONGO_TOOLS_IMAGE" mongosh --quiet --nodb --file /scripts/verify-db.js | tee "$WORK_DIR/db-check.txt" || status=$?
   # count its ok / WARN / FAIL lines with ours
