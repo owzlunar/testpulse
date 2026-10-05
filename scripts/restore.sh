@@ -3,13 +3,15 @@
 #
 #   scripts/restore.sh list
 #   scripts/restore.sh --to-db <name> [--file <dump name>|latest] [--from src|off] [--uploads-to <dir>]
-#                      [--overwrite-live]
+#                      [--uploads-from-off] [--overwrite-live]
 #
 #   --to-db        the database to restore into; its collections that are in the dump are replaced
 #   --file         a dump name from `list` (e.g. testpulse-20261005-020000.archive.gz); default latest
 #   --from         src = this side (default), off = the off-site copy
 #   --uploads-to   STORAGE_DRIVER=local: also unpack the uploaded files of the same backup into this
 #                  folder (empty or new). With minio the files stay in their versioned bucket.
+#   --uploads-from-off  STORAGE_DRIVER=minio, with --from off: also copy the off-site files bucket
+#                  into this side's (empty or new), e.g. on a new machine after the old one is lost
 #   --overwrite-live  needed when --to-db is the live database (MONGODB_URI's); the app must be stopped
 #
 # Try a restore into a scratch database first, e.g. --to-db testpulse-test.
@@ -20,7 +22,7 @@ SCRIPT_NAME=restore
 
 APP_CONTAINER=${APP_CONTAINER:-testpulse}
 
-usage() { sed -n '4,15p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
+usage() { sed -n '4,17p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
 
 # the newest dump on one side (names sort by their stamp)
 latest_dump() {
@@ -43,13 +45,14 @@ restore_uri() {
 }
 
 cmd_restore() {
-  local to_db='' file=latest from=src uploads_to='' overwrite_live=false
+  local to_db='' file=latest from=src uploads_to='' uploads_from_off=false overwrite_live=false
   while [ $# -gt 0 ]; do
     case "$1" in
       --to-db) to_db=${2:-}; shift 2 ;;
       --file) file=${2:-}; shift 2 ;;
       --from) from=${2:-}; shift 2 ;;
       --uploads-to) uploads_to=${2:-}; shift 2 ;;
+      --uploads-from-off) uploads_from_off=true; shift ;;
       --overwrite-live) overwrite_live=true; shift ;;
       -h | --help) usage ;;
       *) die "unknown option $1 (see --help)" ;;
@@ -65,6 +68,14 @@ cmd_restore() {
     [ "$STORAGE_DRIVER" = local ] || die "--uploads-to is for STORAGE_DRIVER=local; with minio the files are in the bucket $UPLOADS_BUCKET"
     if [ -d "$uploads_to" ] && [ -n "$(ls -A "$uploads_to")" ]; then
       die "$uploads_to is not empty: unpack into a new folder, then swap it in"
+    fi
+  fi
+  if $uploads_from_off; then
+    [ "$STORAGE_DRIVER" = minio ] || die "--uploads-from-off is for STORAGE_DRIVER=minio; with local use --uploads-to"
+    [ "$from" = off ] || die "--uploads-from-off needs --from off"
+    # never over live files: a bucket that holds anything is someone's data
+    if [ -n "$(mc ls "src/$UPLOADS_BUCKET" 2>/dev/null | head -n 1)" ]; then
+      die "src/$UPLOADS_BUCKET is not empty: --uploads-from-off only fills a new or empty bucket"
     fi
   fi
 
@@ -113,6 +124,13 @@ cmd_restore() {
     mkdir -p "$uploads_to"
     tar -xzf "$WORK_DIR/$tarball" -C "$uploads_to"
     log "uploaded files of $stamp unpacked into $uploads_to"
+  fi
+  if $uploads_from_off; then
+    # the newest version of every file; `backup.sh init` turns versioning on afterwards
+    log "copying off/$UPLOADS_BUCKET -> src/$UPLOADS_BUCKET"
+    mc mb --ignore-existing "src/$UPLOADS_BUCKET" >/dev/null
+    mc mirror "off/$UPLOADS_BUCKET" "src/$UPLOADS_BUCKET" >/dev/null || die "copying the uploaded files failed (the database is restored; run again with an empty bucket)"
+    log "uploaded files copied into src/$UPLOADS_BUCKET ($(mc ls --recursive "src/$UPLOADS_BUCKET" | wc -l | tr -d ' ') files)"
   fi
   log "done: $file restored into $to_db"
 }
