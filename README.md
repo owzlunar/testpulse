@@ -46,6 +46,8 @@ docker logs -f testpulse
 
 เครื่อง server ไม่ต้องมีซอร์สโค้ด ใช้แค่ image กับไฟล์ตั้งค่า (image ไม่มีไฟล์ env อยู่ข้างใน)
 
+> ติดตั้ง prod แบบครบชุด (MongoDB + MinIO + แอป บนเครื่องเดียวใน Docker network ภายใน, https ด้วย proxy, เครื่อง off-site สำหรับ backup, Ubuntu 24.04) ดู [deploy/README.md](deploy/README.md) หัวข้อนี้คือแบบแอปตัวเดียวที่ต่อ MongoDB / MinIO ที่มีอยู่แล้ว
+
 1. build และส่ง image (บนเครื่องที่มี repo)
 
    ```bash
@@ -199,6 +201,7 @@ scripts/backup.sh && scripts/verify.sh    # ลองสำรองรอบแ
 
 - bucket backup ฝั่ง off-site ต้องเปิด object lock ตั้งแต่ตอนสร้าง ถ้ามี bucket ชื่อนั้นอยู่แล้วแบบไม่ล็อก `init` จะหยุดและแจ้ง เพราะเปิดล็อกภายหลังไม่ได้
 - user ของ MongoDB ใน `MONGODB_URI` ต้องอ่านฐานได้ ส่วน `RESTORE_MONGODB_URI` (ถ้ามี) ใช้เขียนฐานที่จะกู้ลงไป
+- MongoDB / MinIO ที่ไม่ได้เปิดพอร์ตบน host (อยู่ใน Docker network เดียวกับแอป เช่น [deploy/](deploy/README.md)): ตั้ง `BACKUP_DOCKER_NETWORK=<ชื่อ network>` แล้วใช้ชื่อ service ใน URI (`mongodb-prod:27017`, `http://minio-prod:9001`) container ของ `mongodump` / `mc` จะเข้า network นั้น
 
 **สำรอง**
 

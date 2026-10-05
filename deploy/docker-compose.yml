@@ -1,0 +1,98 @@
+# The prod machine's own services: MongoDB and the MinIO the app stores files in (the app itself is
+# docker-compose.server.yml). Start this file first: it makes the network `testpulse` the others join.
+# Nothing is published to the outside: the app, the proxy and the backup scripts reach these by service
+# name on that network. Only the MinIO console is published, on 127.0.0.1 (SSH tunnel on a server).
+#
+# Settings and passwords: ./.env (chmod 600). Keyfile: ./mongodb-keyfile (chmod 400).
+# Data: ./mongo-prod/data, ./minio-prod/data.
+#
+#   docker compose -f docker-compose.yml up -d
+
+name: testpulse-infra
+
+# container logs are rotated: at most 5 files of 10 MB per service, so they never fill the disk
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '5'
+
+networks:
+  default:
+    name: testpulse
+
+services:
+  mongodb-prod:
+    image: mongo:8
+    container_name: mongodb-prod
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?set MONGO_ROOT_PASSWORD in .env}
+    volumes:
+      - ./mongo-prod/data:/data/db
+      - ./mongodb-keyfile:/tmp/mongodb-keyfile:ro
+    # the bind mount's owner can't be trusted (Docker Desktop ignores it), so copy the keyfile into
+    # the container and set the owner/mode mongod requires
+    entrypoint:
+      - bash
+      - -c
+      - |
+        cp /tmp/mongodb-keyfile /etc/mongodb-keyfile
+        chown 999:999 /etc/mongodb-keyfile
+        chmod 400 /etc/mongodb-keyfile
+        exec docker-entrypoint.sh "$$@"
+      - --
+    # cache: WiredTiger takes half of (RAM - 1 GB) unless capped: 1 GB on a 4 GB machine, 2 on 8 GB
+    # oplog: 1 GB instead of 5% of the free disk; it is fixed when the replica set is first made
+    #   (an existing one: db.adminCommand({ replSetResizeOplog: 1, size: 1024 }))
+    command:
+      - mongod
+      - --replSet
+      - rs0
+      - --bind_ip_all
+      - --keyFile
+      - /etc/mongodb-keyfile
+      - --wiredTigerCacheSizeGB
+      - ${MONGO_CACHE_GB:-1}
+      - --oplogSize
+      - '1024'
+    ulimits:
+      nofile: { soft: 64000, hard: 64000 }
+    # also starts the replica set on a fresh data folder (rs.status() fails until it is initiated).
+    # Every check starts mongosh (a Node process), so not too often: 30s, the first one after 30s.
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          mongosh --quiet -u admin -p "$$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval
+          "try { rs.status().ok } catch (e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] }).ok }"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    logging: *logging
+
+  minio-prod:
+    # pinned, the same as minio-mirror: a pull never changes the server under you
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    container_name: minio-prod
+    restart: unless-stopped
+    ports:
+      # web console only, this machine only (SSH tunnel from outside); the S3 API (9001) stays on the network
+      - '127.0.0.1:${MINIO_CONSOLE_PORT:-9000}:9000'
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
+    volumes:
+      - ./minio-prod/data:/data
+    # 9001 = S3 API (minio-prod:9001 in .env.prod and backup.env), 9000 = web console
+    command: server --address :9001 --console-address :9000 /data
+    healthcheck:
+      # the image has curl but no wget; the health endpoint is on the API port
+      test: ['CMD', 'curl', '-fsS', 'http://localhost:9001/minio/health/live']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    logging: *logging
