@@ -276,6 +276,29 @@ scripts/verify.sh restore --db testpulse-restore               # 3. เทีย
 - กู้ลงฐานที่ว่างหรือยังไม่มี ถ้าฐานนั้นมี collection อื่นค้างอยู่ `verify.sh` จะขึ้น `WARN` ว่ามีแต่ในฐานที่กู้
 - `RESTORE_MONGODB_URI` ต้องเป็น user ที่สร้างหรือเขียนฐาน `testpulse-restore` ได้ (ใช้ทั้งตอนกู้และตอนอ่านฐานที่กู้) ส่วนฐานจริงอ่านด้วย `MONGODB_URI`
 
+**กู้คืนบนเครื่องใหม่ (เครื่อง prod พัง)** ใช้สำเนา off-site ทั้งหมด ข้อมูลหลัง backup รอบสุดท้ายจะหาย (cron 02:00 = ไม่เกินประมาณ 1 วัน) และต้องกู้ก่อน backup ที่ off-site หมดอายุ (`BACKUP_RETENTION_DAYS`) เพราะไม่มีรอบใหม่เข้ามาแทนแล้ว
+
+1. เตรียมเครื่องใหม่ **ยังไม่เปิดแอป**: Docker, MongoDB แบบ replica set พร้อม user ตาม `MONGODB_URI`, MinIO (ถ้าใช้ `STORAGE_DRIVER=minio` หรือจะเก็บ backup ฝั่งนี้ไว้ใน MinIO ของเครื่องนี้) และโฟลเดอร์ deploy ตามข้อ 3 ของ [Deploy บนเครื่องที่มีแค่ image](#deploy-บนเครื่องที่มีแค่-image) ใช้ image เวอร์ชันเดียวกับเครื่องเก่า
+2. `backend/.env.prod` เอามาจากที่เก็บ secret ของทีม **ต้องเป็นชุด key เดิม** (encryption key ทุกเวอร์ชันที่ backup ยังใช้ และ `BLIND_INDEX_SALT` ตัวเดิม) ไม่อย่างนั้นอ่านข้อมูลที่เข้ารหัสไม่ได้และเข้าสู่ระบบไม่ได้ ถ้า host ของ MongoDB / MinIO เปลี่ยนให้แก้ในไฟล์นี้
+3. สร้าง `backup.env`: `MONGODB_URI` และ `BACKUP_S3_*` ชี้ไปเครื่องใหม่, `OFFSITE_S3_*` ค่าเดิม, `STORAGE_DRIVER` ตรงกับ `.env.prod` (ฝั่ง `BACKUP_S3_*` ต้องกรอก แต่ตอนกู้ `--from off` ใช้เฉพาะเมื่อมี `--uploads-from-off`)
+4. กู้ฐานและไฟล์อัปโหลดจาก off-site ลงฐานจริง (แอปยังไม่รัน จึงกู้ทับได้ทันที สคริปต์ให้พิมพ์ชื่อฐานยืนยัน)
+
+   ```bash
+   cd /opt/testpulse
+   scripts/restore.sh list                   # ดูฝั่ง off-site ฝั่งนี้ยังว่าง
+   # local: แตกไฟล์อัปโหลดของรอบเดียวกันลง docker-data/uploads (ต้องว่างหรือยังไม่มี)
+   scripts/restore.sh --to-db testpulse --from off --overwrite-live --uploads-to ./docker-data/uploads
+   # minio: copy bucket ไฟล์จาก off-site มา bucket ของเครื่องนี้ (ต้องว่างหรือยังไม่มี) ได้เวอร์ชันล่าสุดของทุกไฟล์
+   scripts/restore.sh --to-db testpulse --from off --overwrite-live --uploads-from-off
+   # ไม่ใช่ dump ล่าสุด: เพิ่ม --file testpulse-<วันเวลา>.archive.gz
+   ```
+
+5. เปิดแอป `docker compose -f docker-compose.server.yml up -d` ดู `docker logs -f testpulse` ว่า preflight / index / migration ผ่าน แล้วลองเข้าสู่ระบบด้วย user เดิมและเปิดไฟล์แนบ (`verify.sh restore` ใช้ไม่ได้ในกรณีนี้ เพราะเทียบกับฐานจริงซึ่งคือฐานที่เพิ่งกู้)
+6. ตั้ง backup ของเครื่องใหม่: `scripts/backup.sh init` (ฝั่ง off-site ที่มีอยู่แล้วรันซ้ำได้), `scripts/backup.sh && scripts/verify.sh` ต้องจบด้วย `passed` แล้วใส่ cron
+
+- อย่าให้แอปบนเครื่องใหม่ใช้เครื่อง off-site เป็นที่เก็บหลัก copy ออกมาเสมอ off-site ต้องเป็นสำเนาแยกต่อไป
+- `--uploads-from-off` ได้ไฟล์ทุกไฟล์ที่เคยอยู่ใน bucket รวมถึงไฟล์ที่ถูกลบไปแล้ว (backup ไม่ส่งการลบไป off-site) ไฟล์เกินพวกนี้ไม่มีอะไรอ้างถึง ไม่กระทบการใช้งาน
+
 ### Volume (เก็บไว้บน host)
 
 | ใน container | ใน compose | เก็บอะไร |
