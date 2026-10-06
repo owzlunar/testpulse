@@ -40,6 +40,11 @@ SMTP_PASSWORD=
 # OLLAMA_BASE_URL=http://host.docker.internal:11434
 # OLLAMA_MODEL=qwen2.5:14b
 
+# the backup agent (PRD 5.15): embedded in the image http://127.0.0.1:8090, separate http://testpulse-backup:8090;
+# empty = the backup page says it is not set up. The token is the agent's BACKUP_AGENT_TOKEN too (backup.env).
+BACKUP_AGENT_URL=
+BACKUP_AGENT_TOKEN=
+
 # first start on an empty database: the first Admin (remove the password after the first sign-in)
 INITIAL_ADMIN_EMAIL=
 INITIAL_ADMIN_PASSWORD=

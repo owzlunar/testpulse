@@ -6,7 +6,8 @@ import { buildApp, client, seedDemo } from '../helpers/app.js'
 
 // Every route of every module, checked from outside: a route someone forgot to guard fails here.
 
-/** routes that work without signing in (anything else must answer 401 without a token) */
+/** routes that work without signing in (anything else must answer 401 without a token);
+ *  POST /backup/agent-events takes the backup agent's token instead of a user's (401 without it, checked here) */
 const PUBLIC = new Set([
   'POST /auth/login',
   'POST /auth/register',
@@ -31,6 +32,14 @@ const ADMIN_ONLY = new Set([
   'POST /projects',
   'PUT /projects/:id',
   'DELETE /projects/:id',
+  'GET /backup/status',
+  'GET /backup/jobs',
+  'GET /backup/jobs/:id/log',
+  'POST /backup/jobs',
+  'GET /backup/snapshots',
+  'GET /backup/settings',
+  'PUT /backup/settings',
+  'POST /backup/alerts/test',
 ])
 
 interface Layer {

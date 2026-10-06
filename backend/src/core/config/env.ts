@@ -110,6 +110,18 @@ const schema = Joi.object({
   /** how long a draft may take (a local model on a CPU is slow) */
   AI_TIMEOUT_SEC: Joi.number().integer().min(5).max(600).default(120),
 
+  /**
+   * the backup agent (PRD 5.15), e.g. http://127.0.0.1:8090 (embedded) or http://testpulse-backup:8090;
+   * unset: the backup page says it is not set up. The token is the agent's BACKUP_AGENT_TOKEN (both ways).
+   */
+  BACKUP_AGENT_URL: Joi.string()
+    .uri({ scheme: ['http', 'https'] })
+    .allow('')
+    .optional(),
+  BACKUP_AGENT_TOKEN: Joi.string()
+    .min(32)
+    .when('BACKUP_AGENT_URL', { is: Joi.string().min(1).required(), then: Joi.required(), otherwise: Joi.optional().allow('') }),
+
   CORS_ORIGINS: Joi.string().allow('').default(''),
   TRUST_PROXY: Joi.alternatives().try(Joi.boolean(), Joi.number(), Joi.string()).default(1),
   BODY_LIMIT: Joi.string().default('1mb'),
@@ -206,6 +218,10 @@ export const config = Object.freeze({
     provider: env.AI_PROVIDER as 'none' | 'ollama',
     ollama: { baseUrl: String(env.OLLAMA_BASE_URL ?? '').replace(/\/+$/, ''), model: (env.OLLAMA_MODEL as string | undefined) ?? '' },
     timeoutMs: (env.AI_TIMEOUT_SEC as number) * 1000,
+  },
+  backupAgent: {
+    url: String(env.BACKUP_AGENT_URL ?? '').replace(/\/+$/, '') || null,
+    token: (env.BACKUP_AGENT_TOKEN as string | undefined) || null,
   },
   storage: {
     driver: env.STORAGE_DRIVER as 'local' | 'minio',

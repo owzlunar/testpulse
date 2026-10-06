@@ -9,7 +9,14 @@ import { auditLogRepository } from './audit-log.repository.js'
 export const AUDIT_LIST_LIMIT = 2000
 
 const ACTION_LABELS: Partial<Record<AuditAction, string>> = { CREATE: 'สร้าง', UPDATE: 'แก้ไข', DELETE: 'ลบ' }
-const TARGET_LABELS: Record<string, string> = { PROJECT: 'โปรเจกต์', TEST_CASE: 'Test Case', USER: 'ผู้ใช้', ROLE: 'Role', TEAM: 'ทีม' }
+const TARGET_LABELS: Record<string, string> = {
+  PROJECT: 'โปรเจกต์',
+  TEST_CASE: 'Test Case',
+  USER: 'ผู้ใช้',
+  ROLE: 'Role',
+  TEAM: 'ทีม',
+  BACKUP: 'การสำรองข้อมูล',
+}
 
 /** "แก้ไขทีม "ทีม Payment" (name, memberIds)" when the change didn't come with its own wording */
 function defaultDetails(event: AuditEvent): string {
