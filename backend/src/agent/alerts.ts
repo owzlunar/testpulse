@@ -11,6 +11,8 @@ import type { SettingsStore, StoredSettings } from './settings.js'
 //                     alarm when the pushes stop (the agent or the machine is down)
 
 export const DISK_LIMIT_PERCENT = 80
+/** alerts kept for the API at most (the oldest go first) */
+export const PENDING_MAX = 50
 
 const TITLES: Record<BackupProblemKey, string> = {
   backup: 'สำรองข้อมูลไม่สำเร็จ',
@@ -75,6 +77,7 @@ export class Alerter {
 
   /** compares with what was already announced; announces what started and what is over */
   async sync(current: CurrentProblems, now = new Date()): Promise<BackupProblem[]> {
+    await this.retryApi()
     const before = this.settings.raw.problems
     const after: StoredSettings['problems'] = {}
     const events: AlertEvent[] = []
@@ -102,10 +105,29 @@ export class Alerter {
     })
     const emails = await this.callApi(event).catch((err: Error) => {
       errors.push(`API: ${err.message}`)
+      // the API is down or restarting: in-app and email go out at the next check (a test is not kept)
+      if (event.state !== 'test') this.settings.setPendingApi([...this.settings.raw.pendingApi, event].slice(-PENDING_MAX))
       return 0
     })
-    for (const e of errors) this.log(`[alert] ${event.title}: ${e}`)
+    for (const e of errors)
+      this.log(`[alert] ${event.title}: ${e}${event.state !== 'test' && e.startsWith('API') ? ' (kept, sent again later)' : ''}`)
     return { teams, emails, errors }
+  }
+
+  /** the alerts the API missed, oldest first; what fails again stays */
+  private async retryApi(): Promise<void> {
+    const pending = this.settings.raw.pendingApi
+    if (!pending.length) return
+    const left: AlertEvent[] = []
+    for (const event of pending) {
+      try {
+        await this.callApi(event)
+      } catch {
+        left.push(event)
+      }
+    }
+    this.settings.setPendingApi(left)
+    if (left.length < pending.length) this.log(`[alert] ${pending.length - left.length} kept alert(s) sent to the API`)
   }
 
   recipients(): Recipients {

@@ -118,3 +118,25 @@ describe('Alerter', () => {
     expect(content.actions).toEqual([{ type: 'Action.OpenUrl', title: 'เปิดหน้าสำรองข้อมูล', url: 'https://qa.example.com/testpulse/backup' }])
   })
 })
+
+describe('Alerter when the API is down', () => {
+  it('keeps the alert for the API and sends it at the next check', async () => {
+    let apiUp = false
+    const { settings, http, alerter, logs } = setup('http://api', () => (apiUp ? { status: 200, body: { data: { emails: 1 } } } : { status: 503 }))
+    await alerter.sync({ disk: 'ใช้ไป 90%' })
+    expect(settings.raw.pendingApi).toMatchObject([{ state: 'problem', key: 'disk' }])
+    expect(logs[0]).toContain('(kept, sent again later)')
+
+    apiUp = true
+    await alerter.sync({ disk: 'ใช้ไป 90%' })
+    expect(settings.raw.pendingApi).toEqual([])
+    // the kept one went out; the problem itself is not announced twice
+    expect(http.calls.map((c) => JSON.parse(String(c.init!.body)).key)).toEqual(['disk', 'disk'])
+  })
+
+  it('does not keep a test message', async () => {
+    const { settings, alerter } = setup('http://api', () => ({ status: 503 }))
+    await alerter.announce({ state: 'test', key: 'test', title: 'ทดสอบ', message: 'm', severity: 'info' })
+    expect(settings.raw.pendingApi).toEqual([])
+  })
+})

@@ -1,6 +1,7 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
 import { join } from 'node:path'
 import type { BackupProblem, BackupProblemKey, BackupSchedule, BackupSettings, BackupSettingsInput } from '#contract/types.js'
+import type { AlertEvent } from './alerts.js'
 import { readJson, writeJson } from './files.js'
 
 // settings.json: the schedule, where alerts go (the secrets in it encrypted with BACKUP_AGENT_SECRET),
@@ -21,6 +22,8 @@ export interface StoredSettings {
     secrets: Partial<Record<SecretName, Sealed>>
   }
   problems: Partial<Record<BackupProblemKey, BackupProblem>>
+  /** alerts the API did not take (down, restarting): sent again at the next check */
+  pendingApi: AlertEvent[]
   createdAt: string
 }
 
@@ -31,6 +34,7 @@ export const DEFAULT_SETTINGS = (): StoredSettings => ({
   },
   alerts: { emailEnabled: true, teamIds: [], extraEmails: [], teamsEnabled: false, secrets: {} },
   problems: {},
+  pendingApi: [],
   createdAt: new Date().toISOString(),
 })
 
@@ -109,6 +113,11 @@ export class SettingsStore {
     }
     writeJson(this.path, this.current)
     return this.view()
+  }
+
+  setPendingApi(pendingApi: AlertEvent[]): void {
+    this.current = { ...this.current, pendingApi }
+    writeJson(this.path, this.current)
   }
 
   setProblems(problems: StoredSettings['problems']): void {
