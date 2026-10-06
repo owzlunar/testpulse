@@ -40,7 +40,7 @@ One git repository (github.com/owzlunar/testpulse). Each side keeps its own `CLA
 - More work on a feature after its merge: a new branch from `dev` (`feature/<name>-<what>`, `fix/<what>`).
 - Release: a PR `dev` -> `main`, then a tag on `main`. Urgent fixes: `hotfix/<what>` from `main`, merged into `main` and `dev`.
 - Never commit straight to `main` or `dev`.
-- Feature order (each depends on the ones before): notification, test-case (requirement + test-case + template, search, calendar, project case stats), test-run, defect, document, report (server-side aggregates), ai.
+- Feature order (each depends on the ones before): notification, test-case (requirement + test-case + template, search, calendar, project case stats), test-run, defect, document, report (server-side aggregates), ai, backup (PRD 5.15: backup agent + Admin page; may be built before ai while ai waits for its server, it needs only audit + notification).
 - Every feature: the server records audit entries and notifications in the same request as the change (not the client); a module reacts to another's changes through the event bus (e.g. renumbered cases re-keyed by runs / defects), never by importing a later module.
 - When a backend module and its real frontend module change, run `npm run test:e2e:real` in `frontend/` (the app against the real backend; local only, needs MongoDB and Mailpit).
 - When unsure whether a change belongs to the frontend, the backend or the contract, ask.
