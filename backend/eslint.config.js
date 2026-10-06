@@ -6,6 +6,8 @@ import tseslint from 'typescript-eslint'
 //   2. a module uses another module only through its index.ts
 //   3. a controller never imports a repository or model (it goes through its service)
 //   4. a service never imports a model, except for types (it goes through its repository)
+//   5. the backup agent (src/agent, its own process) never imports the API's core or modules: it must
+//      run alone in a container of its own (PRD 5.15); the contract's types are fine
 
 export default tseslint.config(
   { ignores: ['dist', 'coverage', 'node_modules', 'src/contract/**'] },
@@ -22,6 +24,15 @@ export default tseslint.config(
     ignores: ['src/core/**/__tests__/**'],
     rules: {
       'no-restricted-imports': ['error', { patterns: [{ regex: '^#modules/|/modules/', message: 'core must not depend on modules' }] }],
+    },
+  },
+  {
+    files: ['src/agent/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: [{ regex: '^#(core|modules)/|/(core|modules)/', message: 'the backup agent runs on its own: no API core or modules' }] },
+      ],
     },
   },
   {

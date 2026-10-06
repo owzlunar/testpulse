@@ -137,13 +137,21 @@ cmd_restore() {
   # 1. the database, compared in mongosh (logins passed as environment, never as arguments)
   echo "== database: $db compared with the live $live_db"
   local keys="$WORK_DIR/file-keys.tsv" status=0
-  LIVE_URI=$MONGODB_URI LIVE_DB=$live_db RESTORED_URI=${RESTORE_MONGODB_URI:-$MONGODB_URI} RESTORED_DB=$db \
-    SAMPLE=$sample KEYS_OUT=/work/file-keys.tsv \
-    docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
-    -e LIVE_URI -e LIVE_DB -e RESTORED_URI -e RESTORED_DB -e SAMPLE -e KEYS_OUT \
-    "${DOCKER_NET_ARGS[@]}" \
-    -v "$SCRIPT_DIR:/scripts:ro" -v "$WORK_DIR:/work" \
-    "$MONGO_TOOLS_IMAGE" mongosh --quiet --nodb --file /scripts/verify-db.js | tee "$WORK_DIR/db-check.txt" || status=$?
+  if [ "$BACKUP_TOOLS" = local ]; then
+    # no mongosh where the agent runs: the same check written for Node (BACKUP_VERIFY_DB: its .js file)
+    : "${BACKUP_VERIFY_DB:?BACKUP_TOOLS=local needs BACKUP_VERIFY_DB (the Node database check)}"
+    LIVE_URI=$MONGODB_URI LIVE_DB=$live_db RESTORED_URI=${RESTORE_MONGODB_URI:-$MONGODB_URI} RESTORED_DB=$db \
+      SAMPLE=$sample KEYS_OUT=$keys \
+      node "$BACKUP_VERIFY_DB" | tee "$WORK_DIR/db-check.txt" || status=$?
+  else
+    LIVE_URI=$MONGODB_URI LIVE_DB=$live_db RESTORED_URI=${RESTORE_MONGODB_URI:-$MONGODB_URI} RESTORED_DB=$db \
+      SAMPLE=$sample KEYS_OUT=/work/file-keys.tsv \
+      docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+      -e LIVE_URI -e LIVE_DB -e RESTORED_URI -e RESTORED_DB -e SAMPLE -e KEYS_OUT \
+      "${DOCKER_NET_ARGS[@]}" \
+      -v "$SCRIPT_DIR:/scripts:ro" -v "$WORK_DIR:/work" \
+      "$MONGO_TOOLS_IMAGE" mongosh --quiet --nodb --file /scripts/verify-db.js | tee "$WORK_DIR/db-check.txt" || status=$?
+  fi
   # count its ok / WARN / FAIL lines with ours
   local db_fails db_warns
   db_fails=$(grep -c '^FAIL' "$WORK_DIR/db-check.txt" || true)

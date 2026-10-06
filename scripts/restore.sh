@@ -84,6 +84,8 @@ cmd_restore() {
   live_db=$(uri_db "$MONGODB_URI")
   if [ "$to_db" = "$live_db" ]; then
     $overwrite_live || die "$to_db is the live database: add --overwrite-live (or restore into another database)"
+    # the backup agent (BACKUP_TOOLS=local) restores the live database its own way (the app is put into maintenance)
+    [ "$BACKUP_TOOLS" = docker ] || die "--overwrite-live runs on the server's command line (BACKUP_TOOLS=docker)"
     if docker ps --format '{{.Names}}' | grep -qx "$APP_CONTAINER"; then
       die "stop the app first: docker compose -f docker-compose.server.yml stop $APP_CONTAINER"
     fi
