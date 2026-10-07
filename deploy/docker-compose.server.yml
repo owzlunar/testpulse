@@ -29,7 +29,7 @@ networks:
 services:
   testpulse:
     # the version to run: loaded with `docker load` or pulled from your registry
-    image: testpulse:0.3.0
+    image: testpulse:0.4.0
     container_name: testpulse
     # not published: the proxy reaches it as testpulse:8080
     env_file:

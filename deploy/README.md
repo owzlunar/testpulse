@@ -94,7 +94,7 @@ deploy/ (+ scripts/, backend/.env)   รวมเป็นชุดเดีย�
 
 ## 2. วางไฟล์และตั้งค่า
 
-1. รวมชุดจาก repo (ใช้ tag ของเวอร์ชันที่จะ deploy เช่น `v0.3.0` หรือ `dev`) แล้ว copy ไปที่ server ให้ user ที่ใช้ Docker เป็นเจ้าของ
+1. รวมชุดจาก repo (ใช้ tag ของเวอร์ชันที่จะ deploy เช่น `v0.4.0`) แล้ว copy ไปที่ server ให้ user ที่ใช้ Docker เป็นเจ้าของ
 
    ```bash
    # บนเครื่องที่มี repo
@@ -107,7 +107,7 @@ deploy/ (+ scripts/, backend/.env)   รวมเป็นชุดเดีย�
    cd /opt/testpulse
    ```
 
-2. โหลด image ของแอป (ไฟล์ที่ build ไว้ หรือ pull จาก registry) **backup agent มีตั้งแต่เวอร์ชันถัดจาก 0.3.0** แล้วแก้ `image:` ใน `docker-compose.server.yml` ให้ตรงกับเวอร์ชันที่โหลด
+2. โหลด image ของแอป (ไฟล์ที่ build ไว้ หรือ pull จาก registry) **backup agent มีตั้งแต่ 0.4.0** แล้วแก้ `image:` ใน `docker-compose.server.yml` ให้ตรงกับเวอร์ชันที่โหลด
 
    ```bash
    gunzip -c testpulse-<version>.tar.gz | docker load      # ได้ testpulse:<version>
