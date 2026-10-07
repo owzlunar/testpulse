@@ -78,7 +78,9 @@ export class Agent {
   async check(): Promise<void> {
     try {
       const disk = await diskUsage(this.config.dataDir).catch(() => undefined)
-      const problems = await this.alerter.sync(evaluateProblems({ jobs: this.jobs, settings: this.settings.raw, ...(disk ? { disk } : {}) }))
+      const problems = await this.alerter.sync(
+        evaluateProblems({ jobs: this.jobs, settings: this.settings.raw, diskLimitPercent: this.config.diskLimitPercent, ...(disk ? { disk } : {}) }),
+      )
       for (const kind of ['backup', 'drill'] as const) {
         const stale = problems.find((p) => p.key === `stale-${kind}`)
         if (stale && this.caughtUp[kind] !== stale.since && !this.runner.busy) {

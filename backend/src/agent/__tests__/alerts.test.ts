@@ -140,3 +140,14 @@ describe('Alerter when the API is down', () => {
     expect(settings.raw.pendingApi).toEqual([])
   })
 })
+
+describe('the disk alarm level', () => {
+  it('follows AGENT_DISK_LIMIT_PERCENT', () => {
+    const { settings, jobs } = setup()
+    const now = Date.parse(settings.raw.createdAt)
+    expect(evaluateProblems({ jobs, settings: settings.raw, disk: { usedPercent: 90 }, diskLimitPercent: 95, now })).toEqual({})
+    expect(evaluateProblems({ jobs, settings: settings.raw, disk: { usedPercent: 96 }, diskLimitPercent: 95, now })).toEqual({
+      disk: 'ใช้ไป 96% (เกิน 95%)',
+    })
+  })
+})

@@ -10,6 +10,7 @@ import type { SettingsStore, StoredSettings } from './settings.js'
 //   Uptime Kuma       after every backup / drill the agent pushes up or down; Kuma raises its own
 //                     alarm when the pushes stop (the agent or the machine is down)
 
+/** the default disk alarm (AGENT_DISK_LIMIT_PERCENT) */
 export const DISK_LIMIT_PERCENT = 80
 /** alerts kept for the API at most (the oldest go first) */
 export const PENDING_MAX = 50
@@ -26,8 +27,15 @@ const TITLES: Record<BackupProblemKey, string> = {
 export type CurrentProblems = Partial<Record<BackupProblemKey, string>>
 
 /** the problems the jobs, the schedule and the disk show now: key → message */
-export function evaluateProblems(input: { jobs: JobStore; settings: StoredSettings; disk?: { usedPercent: number }; now?: number }): CurrentProblems {
+export function evaluateProblems(input: {
+  jobs: JobStore
+  settings: StoredSettings
+  disk?: { usedPercent: number }
+  diskLimitPercent?: number
+  now?: number
+}): CurrentProblems {
   const { jobs, settings, disk } = input
+  const diskLimit = input.diskLimitPercent ?? DISK_LIMIT_PERCENT
   const now = input.now ?? Date.now()
   const out: CurrentProblems = {}
   for (const kind of ['backup', 'verify', 'drill'] as const) {
@@ -46,7 +54,7 @@ export function evaluateProblems(input: { jobs: JobStore; settings: StoredSettin
         : `ยังไม่มี${kind === 'backup' ? ' backup ' : 'การซ้อมกู้'}ที่สำเร็จเลยตั้งแต่ติดตั้ง agent (${hours} ชม.)`
     }
   }
-  if (disk && disk.usedPercent > DISK_LIMIT_PERCENT) out.disk = `ใช้ไป ${disk.usedPercent}% (เกิน ${DISK_LIMIT_PERCENT}%)`
+  if (disk && disk.usedPercent > diskLimit) out.disk = `ใช้ไป ${disk.usedPercent}% (เกิน ${diskLimit}%)`
   return out
 }
 

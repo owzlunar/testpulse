@@ -30,7 +30,9 @@ export async function agentCall<T>(method: 'GET' | 'POST' | 'PUT', path: string,
       signal: AbortSignal.timeout(TIMEOUT_MS),
     })
   } catch (err) {
-    throw new AgentUnavailableError(`${method} ${path}: ${(err as Error).message}`)
+    // fetch's own message is just "fetch failed": the reason (refused, timed out…) is its cause
+    const cause = (err as Error & { cause?: { message?: string; code?: string } }).cause
+    throw new AgentUnavailableError(`${method} ${url}${path}: ${(err as Error).message}${cause ? ` (${cause.code ?? cause.message})` : ''}`)
   }
   const answer = (await res.json().catch(() => null)) as { status?: boolean; data?: T; message?: string } | null
   if (res.ok && answer?.status) return answer.data as T

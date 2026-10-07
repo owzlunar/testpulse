@@ -14,6 +14,7 @@ export function testConfig(overrides: Partial<AgentConfig> = {}): AgentConfig {
     apiUrl: null,
     appUrl: 'https://qa.example.com/testpulse',
     timezone: 'Asia/Bangkok',
+    diskLimitPercent: 80,
     dataDir: mkdtempSync(join(tmpdir(), 'agent-')),
     scriptsDir: '/nowhere',
     envFile: '/nowhere/backup.env',

@@ -42,6 +42,8 @@ export interface AgentConfig {
   /** the web app's public URL, for the link in a Teams message */
   appUrl: string | null
   timezone: string
+  /** a disk fuller than this (percent) is a problem */
+  diskLimitPercent: number
   /** settings.json, jobs.json, logs/ */
   dataDir: string
   scriptsDir: string
@@ -90,6 +92,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AgentConfig {
   const liveDb = uriDb(liveUri)
   const offsiteUrl = get('OFFSITE_S3_URL')
   const driver = get('STORAGE_DRIVER') === 'minio' ? 'minio' : 'local'
+  const diskLimitPercent = Number(get('AGENT_DISK_LIMIT_PERCENT') ?? 80)
+  if (!Number.isInteger(diskLimitPercent) || diskLimitPercent < 1 || diskLimitPercent > 100)
+    throw new Error('AGENT_DISK_LIMIT_PERCENT must be 1 - 100')
   const port = Number(get('AGENT_PORT') ?? 8090)
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('AGENT_PORT must be a port number')
 
@@ -102,6 +107,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AgentConfig {
     apiUrl: get('AGENT_API_URL')?.replace(/\/+$/, '') ?? null,
     appUrl: get('AGENT_APP_URL')?.replace(/\/+$/, '') ?? null,
     timezone: get('CRON_TIMEZONE') ?? 'Asia/Bangkok',
+    diskLimitPercent,
     dataDir: resolve(get('AGENT_DATA_DIR') ?? '/var/lib/testpulse-backup'),
     scriptsDir: resolve(get('AGENT_SCRIPTS_DIR') ?? '/app/scripts'),
     envFile,
