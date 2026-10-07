@@ -115,7 +115,7 @@ describe('Alerter', () => {
     const content = card.attachments[0]!.content
     expect(content.type).toBe('AdaptiveCard')
     expect(content.body[0]).toMatchObject({ text: 'TestPulse: พื้นที่ disk ใกล้เต็ม', color: 'Warning' })
-    expect(content.actions).toEqual([{ type: 'Action.OpenUrl', title: 'เปิดหน้าสำรองข้อมูล', url: 'https://qa.example.com/testpulse/backup' }])
+    expect(content.actions).toEqual([{ type: 'Action.OpenUrl', title: 'เปิดหน้าสำรองข้อมูล', url: 'https://qa.example.com/testpulse/admin/backup' }])
   })
 })
 

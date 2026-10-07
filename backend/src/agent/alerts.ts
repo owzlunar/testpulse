@@ -197,7 +197,7 @@ export function teamsCard(event: AlertEvent, appUrl: string | null) {
             { type: 'TextBlock', text: event.message, wrap: true },
             { type: 'TextBlock', text: new Date().toLocaleString('th-TH'), isSubtle: true, size: 'Small', wrap: true },
           ],
-          ...(appUrl ? { actions: [{ type: 'Action.OpenUrl', title: 'เปิดหน้าสำรองข้อมูล', url: `${appUrl}/backup` }] } : {}),
+          ...(appUrl ? { actions: [{ type: 'Action.OpenUrl', title: 'เปิดหน้าสำรองข้อมูล', url: `${appUrl}/admin/backup` }] } : {}),
         },
       },
     ],
