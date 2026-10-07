@@ -1,6 +1,6 @@
 {
   "name": "testpulse-backend",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "TestPulse REST API (Express 5 + Mongoose, feature modules)",
   "type": "module",
