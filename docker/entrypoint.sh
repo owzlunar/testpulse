@@ -22,8 +22,9 @@ as_app() { if [ "$(id -u)" = "0" ]; then su-exec "$APP_USER" "$@"; else "$@"; fi
 # BACKUP_AGENT_SECRET), copied where only the "backup" user reads it, plus what the agent needs here.
 AGENT_HOME=/var/lib/testpulse-backup
 AGENT_ENV=/run/testpulse-backup/backup.env
-# the agent gets a clean environment, never the app's (.env.prod's secrets)
-AGENT_CMD="env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=$AGENT_HOME BACKUP_ENV=$AGENT_ENV node /app/backend/dist/agent/index.js"
+# the agent gets a clean environment, never the app's (.env.prod's secrets); TZ: dump names and their
+# order follow local time, the same as backup.sh run on the server's command line
+AGENT_CMD="env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=$AGENT_HOME TZ=${TZ:-${CRON_TIMEZONE:-Asia/Bangkok}} BACKUP_ENV=$AGENT_ENV node /app/backend/dist/agent/index.js"
 prepare_agent() { # $1: the address it listens on, $2: the API it reports to (unless backup.env names one)
   src=${BACKUP_ENV_FILE:-/etc/testpulse-backup/backup.env}
   if [ ! -f "$src" ]; then

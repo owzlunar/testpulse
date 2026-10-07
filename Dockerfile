@@ -34,9 +34,10 @@ RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
 
 # --- runtime ------------------------------------------------------------------------------------
 FROM node:${NODE_VERSION}-alpine
-# bash, coreutils, mongodb-tools, mc: the backup agent runs scripts/ with the tools installed here
+# bash, coreutils, mongodb-tools, mc: the backup agent runs scripts/ with the tools installed here;
+# tzdata: its scripts name dumps by local time (TZ), like the command line on the server does
 # (BACKUP_TOOLS=local, PRD 5.15); it runs as "backup", apart from the app's "testpulse"
-RUN apk add --no-cache nginx supervisor tini su-exec bash coreutils mongodb-tools \
+RUN apk add --no-cache nginx supervisor tini su-exec bash coreutils mongodb-tools tzdata \
   && addgroup -S testpulse && adduser -S -G testpulse -h /app testpulse \
   && addgroup -S backup && adduser -S -G backup -h /var/lib/testpulse-backup backup \
   && mkdir -p /app/backend/storage/uploads /app/backend/logs /tmp/nginx /var/lib/testpulse-backup \
