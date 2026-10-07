@@ -108,9 +108,11 @@ function cronFor(e: EntryForm): string {
       : cronOf({ every: 'day', time: e.time })
 }
 
+/** a URL typed in wins (also after "ลบ": that is replacing it); else "ลบ" removes it; else it stays */
 function secret(name: SecretName): string | null | undefined {
-  if (form.clear[name]) return null
-  return form.secrets[name].trim() || undefined
+  const typed = form.secrets[name].trim()
+  if (typed) return typed
+  return form.clear[name] ? null : undefined
 }
 
 async function submit() {

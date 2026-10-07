@@ -69,3 +69,26 @@ test('only the Admin has the backup page', async ({ page }) => {
   await page.goto('/admin/backup')
   await page.waitForURL('**/dashboard')
 })
+
+test('replacing a secret URL: "ลบ" then a new URL saves the new one in one go', async ({ page }) => {
+  await login(page)
+  await open(page, '/admin/backup')
+  const dialog = page.locator('.v-dialog', { hasText: 'ตั้งค่าการสำรองข้อมูล' })
+  const webhook = dialog.locator('#alert-webhook')
+
+  await page.getByRole('button', { name: 'ตั้งค่า' }).click()
+  await dialog.getByLabel('Microsoft Teams (channel ที่กำหนด)').check()
+  await webhook.fill('https://old.example.com/hook?sig=OLD111')
+  await dialog.getByRole('button', { name: 'บันทึก' }).click()
+  await expect(toast(page).filter({ hasText: 'บันทึกตั้งค่าการสำรองข้อมูลแล้ว' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'ตั้งค่า' }).click()
+  await expect(webhook).toHaveAttribute('placeholder', /…OLD111/)
+  await dialog.getByRole('button', { name: 'ลบ' }).first().click()
+  await webhook.fill('https://new.example.com/hook?sig=NEW222')
+  await dialog.getByRole('button', { name: 'บันทึก' }).click()
+  await expect(toast(page).filter({ hasText: 'บันทึกตั้งค่าการสำรองข้อมูลแล้ว' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'ตั้งค่า' }).click()
+  await expect(webhook).toHaveAttribute('placeholder', /…NEW222/)
+})
