@@ -18,6 +18,7 @@ export const STORAGE_KEYS = {
   defects: 'testpulse_defects',
   documents: 'testpulse_documents',
   documentTemplate: 'testpulse_document_template',
+  backup: 'testpulse_backup',
   /** names of one-off data migrations already applied */
   migrations: 'testpulse_migrations',
 } as const

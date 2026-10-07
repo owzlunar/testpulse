@@ -162,6 +162,21 @@ html {
     font-variant-numeric: tabular-nums;
   }
 
+  // a program's output (the backup agent's job logs): monospaced, wrapped, scrolls inside its box
+  .fox-log {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 60vh;
+    overflow: auto;
+    margin: 0;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: rgba(var(--v-theme-on-surface), 0.04);
+  }
+
   // clamp long text (descriptions, notification messages) to two lines
   .fox-clamp-2 {
     display: -webkit-box;
