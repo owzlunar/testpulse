@@ -59,13 +59,27 @@ export class SettingsStore {
   }
 
   /** a secret in clear text (null when not set) */
+  /**
+   * A secret in clear text (null when not set). One sealed with another BACKUP_AGENT_SECRET (a new key,
+   * an old volume) counts as not set: the Admin enters it again, instead of the settings breaking.
+   */
   secret(name: SecretName): string | null {
     const sealed = this.current.alerts.secrets[name]
     if (!sealed) return null
-    const decipher = createDecipheriv('aes-256-gcm', this.key, Buffer.from(sealed.iv, 'base64'))
-    decipher.setAuthTag(Buffer.from(sealed.tag, 'base64'))
-    return Buffer.concat([decipher.update(Buffer.from(sealed.data, 'base64')), decipher.final()]).toString('utf8')
+    try {
+      const decipher = createDecipheriv('aes-256-gcm', this.key, Buffer.from(sealed.iv, 'base64'))
+      decipher.setAuthTag(Buffer.from(sealed.tag, 'base64'))
+      return Buffer.concat([decipher.update(Buffer.from(sealed.data, 'base64')), decipher.final()]).toString('utf8')
+    } catch {
+      if (!this.unreadable.has(name)) {
+        this.unreadable.add(name)
+        console.warn(`[agent] ${name} in settings.json was sealed with another BACKUP_AGENT_SECRET: enter it again on the backup page`)
+      }
+      return null
+    }
   }
+
+  private readonly unreadable = new Set<SecretName>()
 
   private seal(value: string): Sealed {
     const iv = randomBytes(12)
@@ -87,8 +101,8 @@ export class SettingsStore {
         teamsEnabled: alerts.teamsEnabled,
         teamsWebhookSet: !!webhook,
         ...(webhook ? { teamsWebhookHint: `…${webhook.slice(-6)}` } : {}),
-        kumaBackupUrlSet: !!alerts.secrets.kumaBackupUrl,
-        kumaDrillUrlSet: !!alerts.secrets.kumaDrillUrl,
+        kumaBackupUrlSet: !!this.secret('kumaBackupUrl'),
+        kumaDrillUrlSet: !!this.secret('kumaDrillUrl'),
       },
     }
   }

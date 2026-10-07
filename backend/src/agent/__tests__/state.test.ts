@@ -110,3 +110,29 @@ describe('JobStore', () => {
     expect(after.readLog(cut.id)).toBe('')
   })
 })
+
+describe('SettingsStore with another BACKUP_AGENT_SECRET', () => {
+  it('treats what it can not open as not set, and takes a new value', () => {
+    const data = dir()
+    const before = new SettingsStore(data, Buffer.alloc(32, 1), 'Asia/Bangkok')
+    before.update({
+      schedule: before.raw.schedule,
+      alerts: {
+        emailEnabled: true,
+        teamIds: [],
+        extraEmails: [],
+        teamsEnabled: true,
+        teamsWebhookUrl: 'https://x/hook',
+        kumaBackupUrl: 'https://k/push/a',
+      },
+    })
+    const after = new SettingsStore(data, Buffer.alloc(32, 2), 'Asia/Bangkok')
+    expect(after.secret('teamsWebhookUrl')).toBeNull()
+    expect(after.view().alerts).toMatchObject({ teamsWebhookSet: false, kumaBackupUrlSet: false })
+    after.update({
+      schedule: after.raw.schedule,
+      alerts: { emailEnabled: true, teamIds: [], extraEmails: [], teamsEnabled: true, teamsWebhookUrl: 'https://x/new' },
+    })
+    expect(after.secret('teamsWebhookUrl')).toBe('https://x/new')
+  })
+})
