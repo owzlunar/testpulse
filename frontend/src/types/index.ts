@@ -416,8 +416,8 @@ export interface AuditChange {
   newValue?: unknown
 }
 
-/** what an audit entry is about (users, roles and teams are recorded by the backend) */
-export type AuditTargetType = 'PROJECT' | 'TEST_CASE' | 'USER' | 'ROLE' | 'TEAM'
+/** what an audit entry is about (users, roles, teams and backups are recorded by the backend) */
+export type AuditTargetType = 'PROJECT' | 'TEST_CASE' | 'USER' | 'ROLE' | 'TEAM' | 'BACKUP'
 
 export interface AuditTrailEntry {
   id: string
@@ -884,3 +884,116 @@ export interface ProjectReport {
 
 /** files made in the browser from a project's data (the server records that they were made) */
 export type ExportFormat = 'markdown'
+
+// =============================================================================
+// Backup & recovery (PRD 5.15): the backup agent's jobs, snapshots and settings, Admin only
+// =============================================================================
+
+/** backup = dump + copy off-site, then verify; verify = check storage; drill = restore into a scratch database and compare */
+export type BackupJobKind = 'backup' | 'verify' | 'drill'
+export type BackupJobResult = 'running' | 'ok' | 'warning' | 'failed'
+/** catch-up: run because a scheduled one was missed (the agent was down) */
+export type BackupJobTrigger = 'schedule' | 'manual' | 'catch-up'
+
+export interface BackupJob {
+  id: string
+  kind: BackupJobKind
+  trigger: BackupJobTrigger
+  /** the Admin who started it (manual jobs) */
+  startedBy?: string
+  startedAt: string
+  finishedAt?: string
+  result: BackupJobResult
+  /** one line: what it did or why it failed */
+  summary: string
+  /** the snapshot it made (backup) or used (drill) */
+  snapshot?: string
+}
+
+/** a database dump, on this machine and / or off-site */
+export interface BackupSnapshot {
+  /** e.g. testpulse-20261006-020000.archive.gz */
+  name: string
+  createdAt: string
+  sizeBytes: number
+  local: boolean
+  offsite: boolean
+  /** Object Lock: nobody can delete it before this (the earliest of its copies) */
+  lockedUntil?: string
+}
+
+export type BackupProblemKey = 'backup' | 'verify' | 'drill' | 'stale-backup' | 'stale-drill' | 'disk'
+
+/** something wrong right now (alerted once when it starts, and again when it is over) */
+export interface BackupProblem {
+  key: BackupProblemKey
+  message: string
+  since: string
+}
+
+export interface BackupStatus {
+  /** the agent answered; false: it is down or not set up (BACKUP_AGENT_URL), the rest is empty */
+  reachable: boolean
+  running?: BackupJob
+  lastBackup?: BackupJob
+  lastVerify?: BackupJob
+  lastDrill?: BackupJob
+  nextRuns: Partial<Record<'backup' | 'drill', string>>
+  /** the disk the agent works on */
+  disk?: { usedPercent: number; freeBytes: number }
+  /** where backups go: this machine's MinIO and the off-site copy */
+  destinations: { id: 'local' | 'offsite'; label: string; ok: boolean; message?: string }[]
+  problems: BackupProblem[]
+}
+
+export interface BackupScheduleEntry {
+  enabled: boolean
+  /** cron expression (minute hour day month weekday) in `timezone` */
+  cron: string
+  /** no successful run for this long = a problem (and a catch-up run) */
+  staleAfterHours: number
+}
+
+export interface BackupSchedule {
+  backup: BackupScheduleEntry
+  drill: BackupScheduleEntry
+  /** the agent's time zone (CRON_TIMEZONE), read-only */
+  timezone: string
+}
+
+export interface BackupAlertSettings {
+  /** email the members of these TestPulse teams (+ extraEmails) through TestPulse's mail server */
+  emailEnabled: boolean
+  teamIds: string[]
+  extraEmails: string[]
+  /** a Microsoft Teams channel, through a Teams Workflows webhook */
+  teamsEnabled: boolean
+  /** the webhook URL itself is a secret: never sent back, only whether one is set and its last characters */
+  teamsWebhookSet: boolean
+  teamsWebhookHint?: string
+  /** Uptime Kuma push monitors (the outside watchdog), secrets too */
+  kumaBackupUrlSet: boolean
+  kumaDrillUrlSet: boolean
+}
+
+export interface BackupSettings {
+  schedule: BackupSchedule
+  alerts: BackupAlertSettings
+}
+
+/** PUT /backup/settings: a secret is changed only when given (null removes it) */
+export interface BackupSettingsInput {
+  schedule: Omit<BackupSchedule, 'timezone'>
+  alerts: Pick<BackupAlertSettings, 'emailEnabled' | 'teamIds' | 'extraEmails' | 'teamsEnabled'> & {
+    teamsWebhookUrl?: string | null
+    kumaBackupUrl?: string | null
+    kumaDrillUrl?: string | null
+  }
+}
+
+/** what the test message reached */
+export interface BackupAlertTestResult {
+  emails: number
+  teams: boolean
+  errors: string[]
+}

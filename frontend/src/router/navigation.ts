@@ -20,6 +20,7 @@ const navigation: NavItem[] = [
   { title: 'ผู้ใช้งาน', icon: 'tabler:users', to: '/admin/users' },
   { title: 'Role และสิทธิ์', icon: 'tabler:shield-lock', to: '/admin/permissions' },
   { title: 'ทีม', icon: 'tabler:users-group', to: '/admin/teams' },
+  { title: 'สำรองข้อมูล', icon: 'tabler:database-export', to: '/admin/backup' },
   { header: 'ระบบ' },
   { title: 'ตั้งค่า', icon: 'tabler:settings', to: '/settings' },
 ]

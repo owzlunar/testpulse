@@ -1,0 +1,11 @@
+# made on the server: passwords, keys, certificates, data
+.env
+mongodb-keyfile
+backup.env
+backend/.env.prod
+*.pem
+mongo-prod/
+minio-prod/
+minio-mirror/
+docker-data/
+uptime-kuma/

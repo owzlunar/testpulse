@@ -18,3 +18,4 @@ backend/storage
 .claude
 docker-compose*.yml
 docker-data
+backup.env

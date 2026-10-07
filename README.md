@@ -46,6 +46,8 @@ docker logs -f testpulse
 
 เครื่อง server ไม่ต้องมีซอร์สโค้ด ใช้แค่ image กับไฟล์ตั้งค่า (image ไม่มีไฟล์ env อยู่ข้างใน)
 
+> ติดตั้ง prod แบบครบชุด (MongoDB + MinIO + แอป บนเครื่องเดียวใน Docker network ภายใน, https ด้วย proxy, เครื่อง off-site สำหรับ backup, Ubuntu 24.04) ดู [deploy/README.md](deploy/README.md) หัวข้อนี้คือแบบแอปตัวเดียวที่ต่อ MongoDB / MinIO ที่มีอยู่แล้ว
+
 1. build และส่ง image (บนเครื่องที่มี repo)
 
    ```bash
@@ -72,6 +74,7 @@ docker logs -f testpulse
    |--- backend/.env                จาก repo: ค่ากลาง ไม่มี secret
    |--- backend/.env.prod           จากข้อ 2 (chmod 600)
    |--- docker-data/                ไฟล์ upload และ log (สร้างให้เอง)
+   |--- scripts/ + backup.env       สำรองและกู้คืนข้อมูล (ดูหัวข้อด้านล่าง)
    ```
 
    ```bash
@@ -106,6 +109,7 @@ container อ่านค่าจากสองไฟล์ผ่าน `env_f
 | `TRUST_PROXY` | `loopback` | ถ้ามี reverse proxy ข้างหน้า ให้เพิ่ม address ของ proxy ด้วย (เช่น `loopback, 10.0.0.0/8`) เพื่อให้ IP ใน log และ rate limit ถูกต้อง |
 | `LOG_LEVEL` / `LOG_RETENTION_DAYS` | `info` / `14` | ระดับ log ที่ console และจำนวนวันที่เก็บไฟล์ log |
 | `RUN_DB_INDEXES` / `RUN_MIGRATIONS` | `true` | ตั้ง `false` ถ้าขั้น deploy อื่นทำให้แล้ว |
+| `BACKUP_AGENT` / `BACKUP_AGENT_URL` / `BACKUP_AGENT_TOKEN` | (ว่าง) / (ว่าง) / สุ่มให้ | backup agent (หน้า "สำรองข้อมูล"): `embedded` = ทำงานใน container นี้ (mount `backup.env` ที่ `/etc/testpulse-backup/backup.env` และ `docker-data/backup-agent` ที่ `/var/lib/testpulse-backup`), URL ตั้งให้เอง; container แยก (`command: agent`) ตั้ง URL เป็นของ container นั้น token ต้องตรงกับใน `backup.env` ดู [deploy/README.md](deploy/README.md) ข้อ 8 |
 
 ค่ากลางอื่น ๆ (TTL ของ token, rate limit, BASE_PATH ฯลฯ) อยู่ใน `backend/.env` และแม่แบบของ `.env.prod` อยู่ใน `backend/env-example`
 
@@ -164,6 +168,142 @@ container อ่านค่าจากสองไฟล์ผ่าน `env_f
 - **ทุก instance ที่ใช้ฐานเดียวกันต้องมีชุด key เดียวกัน** อัปเดต `.env.prod` และสร้าง container ใหม่ให้ครบทุกเครื่องก่อนรันข้อ 4
 - **`BLIND_INDEX_SALT` ไม่ต้องหมุนและห้ามเปลี่ยน** ใช้ค้นผู้ใช้จากอีเมล (รวมถึงตอนเข้าสู่ระบบ) ไม่ได้ผูกกับ encryption key ถ้าเปลี่ยนจะค้นผู้ใช้เดิมไม่เจอ
 - รอบต่อไปทำแบบเดียวกัน (v2 → v3) ชื่อ key เป็นตัวอักษรหรือตัวเลขอะไรก็ได้ (`ENCRYPTION_KEY_<ID>` คู่กับ `ENCRYPTION_CURRENT_KEY_ID=<id>` ไม่สนตัวพิมพ์เล็กใหญ่) แต่ละ key ต้องเป็น hex 64 ตัว
+
+### สำรองและกู้คืนข้อมูล
+
+> **backup agent:** การสำรอง ตรวจ และซ้อมกู้ตามเวลา พร้อมแจ้งเตือนทางอีเมล / Teams / Uptime Kuma ทำจากหน้า **ผู้ดูแลระบบ > สำรองข้อมูล** ได้ เมื่อเปิด `BACKUP_AGENT` (ดูตาราง env และ [deploy/README.md](deploy/README.md) ข้อ 8) agent ใช้สคริปต์ชุดเดียวกับข้างล่าง ใช้แทน cron ส่วนการกู้ทับระบบจริงและการกู้บนเครื่องใหม่ยังทำด้วยคำสั่งข้างล่าง
+
+`scripts/backup.sh` สำรองฐานข้อมูลและไฟล์อัปโหลดไปเก็บใน MinIO / S3 ใน bucket ที่ล็อกไว้ ไม่มีใครลบ backup ได้ก่อนครบอายุ (ค่าเริ่มต้น 14 วัน) แล้ว mirror ไปอีกเครื่อง (off-site) `scripts/restore.sh` ใช้กู้คืน และ `scripts/verify.sh` ใช้ตรวจว่า backup ครบและกู้ได้จริง ทุกตัวรันในโฟลเดอร์ deploy และใช้แค่ Docker บน server (`mongodump`, `mongorestore`, `mongosh` และ `mc` รันใน container)
+
+```text
+scripts/
+|--- backup.sh            init (สร้าง bucket) / สำรอง / list
+|--- restore.sh           กู้คืนลงฐานที่เลือก (+ ไฟล์อัปโหลดเมื่อเป็น local)
+|--- verify.sh            ตรวจ storage / ตรวจผลการกู้ (อ่านอย่างเดียว)
+|--- verify-db.js         ส่วนเทียบฐานข้อมูลของ verify.sh (mongosh)
+|--- backup-common.sh     ส่วนที่ใช้ร่วมกัน
+|--- backup.env.example   แม่แบบของ backup.env
+```
+
+| ข้อมูล | `STORAGE_DRIVER=local` | `STORAGE_DRIVER=minio` |
+| --- | --- | --- |
+| ฐานข้อมูล | `<bucket backup>/db/<ฐาน>-<วันเวลา>.archive.gz` | เหมือนกัน |
+| ไฟล์อัปโหลด | `<bucket backup>/uploads/uploads-<วันเวลา>.tar.gz` | อยู่ใน bucket ของแอปอยู่แล้ว เปิด versioning ไว้ (ไฟล์ที่ถูกเขียนทับหรือลบ กู้เวอร์ชันเดิมได้ภายใน 14 วัน) และ mirror bucket นี้ไป off-site ด้วย |
+| `backend/.env.prod` | **ไม่อยู่ใน backup** เก็บไว้ในที่เก็บ secret ของทีม พร้อม key ทุกเวอร์ชันที่ backup ยังใช้อยู่ | เหมือนกัน |
+
+**ติดตั้ง (ครั้งเดียว)** วางโฟลเดอร์ `scripts/` จาก repo ไว้ในโฟลเดอร์ deploy แล้ว
+
+```bash
+cd /opt/testpulse
+cp scripts/backup.env.example backup.env && chmod 600 backup.env
+# กรอก MONGODB_URI (ตัวเดียวกับ .env.prod แต่ใช้ host.docker.internal แทน localhost),
+# BACKUP_S3_* (พอร์ต API ของ MinIO ไม่ใช่หน้า console), OFFSITE_S3_*, STORAGE_DRIVER ให้ตรงกับ .env.prod
+scripts/backup.sh init      # สร้าง bucket ทั้งสองฝั่ง: object lock, versioning, อายุ 14 วัน (รันซ้ำได้)
+scripts/backup.sh && scripts/verify.sh    # ลองสำรองรอบแรกและตรวจ ต้องจบด้วย passed
+```
+
+- bucket backup ฝั่ง off-site ต้องเปิด object lock ตั้งแต่ตอนสร้าง ถ้ามี bucket ชื่อนั้นอยู่แล้วแบบไม่ล็อก `init` จะหยุดและแจ้ง เพราะเปิดล็อกภายหลังไม่ได้
+- user ของ MongoDB ใน `MONGODB_URI` ต้องอ่านฐานได้ ส่วน `RESTORE_MONGODB_URI` (ถ้ามี) ใช้เขียนฐานที่จะกู้ลงไป
+- MongoDB / MinIO ที่ไม่ได้เปิดพอร์ตบน host (อยู่ใน Docker network เดียวกับแอป เช่น [deploy/](deploy/README.md)): ตั้ง `BACKUP_DOCKER_NETWORK=<ชื่อ network>` แล้วใช้ชื่อ service ใน URI (`mongodb-prod:27017`, `http://minio-prod:9001`) container ของ `mongodump` / `mc` จะเข้า network นั้น
+
+**สำรอง**
+
+```bash
+scripts/backup.sh           # dump ฐาน → ตรวจไฟล์ → อัปโหลด → (local) แพ็กไฟล์อัปโหลด → mirror off-site
+scripts/backup.sh list      # รายการ backup ทั้งสองฝั่ง
+```
+
+ถ้าขั้นไหนล้ม สคริปต์จะหยุดพร้อมข้อความ `ERROR` และ exit code 1 ระหว่าง dump จะเก็บไฟล์ไว้ที่ `docker-data/backup-work` ก่อน และลบทิ้งเมื่อจบ dump ที่เสียจึงไม่ถูกอัปโหลดไปค้างใน bucket ที่ลบไม่ได้
+
+**ตั้งเวลาสำรองอัตโนมัติ (cron)** สคริปต์ไม่ได้ตั้งเวลาเอง ใช้ crontab ของ user ที่สั่ง `docker` ได้ (`crontab -e`)
+
+```cron
+# ทุกวัน 02:00: สำรองแล้วตรวจ เก็บ log ไว้ที่ docker-data/backup.log
+0 2 * * * cd /opt/testpulse && PATH=/usr/local/bin:/usr/bin:/bin && { scripts/backup.sh && scripts/verify.sh; } >> docker-data/backup.log 2>&1
+```
+
+- cron ไม่รู้จักโฟลเดอร์ deploy และ `PATH` สั้นมาก ต้องมี `cd` และ `PATH` ที่หา `docker` เจอเสมอ
+- ดูผลด้วย `tail -n 30 docker-data/backup.log` ทุกรอบต้องจบด้วย `[verify] passed` ถ้าเจอ `ERROR` หรือ `FAILED` ให้แก้ก่อนรอบถัดไป
+- macOS (เครื่องทดสอบ): เปิด Full Disk Access ให้ `/usr/sbin/cron` ถ้าโฟลเดอร์ deploy อยู่ใน Desktop / Documents, Docker Desktop ต้องเปิดอยู่ และเครื่องที่ sleep ตอนถึงเวลาจะข้ามรอบนั้น
+
+**กู้คืน** ลองกู้ลงฐานอื่นก่อนเสมอ แล้วตรวจด้วย `verify.sh restore`
+
+```bash
+scripts/restore.sh --to-db testpulse-restore                    # backup ล่าสุดของฝั่งนี้
+scripts/restore.sh --to-db testpulse-restore --from off \
+  --file testpulse-20261005-020000.archive.gz                   # ไฟล์ที่ระบุ จาก off-site
+scripts/restore.sh --to-db testpulse-restore --uploads-to ./docker-data/uploads-restored   # local: ได้ไฟล์อัปโหลดของรอบเดียวกันด้วย
+```
+
+กู้ทับฐานจริง (ตอนเกิดเหตุ) ต้องหยุดแอปก่อน ใส่ `--overwrite-live` และพิมพ์ชื่อฐานยืนยัน collection ที่อยู่ใน backup จะถูกแทนที่ทั้งหมด ถ้ามีเวลา ให้กู้ไฟล์เดียวกันลงฐานอื่นและผ่าน `verify.sh restore` ก่อน แล้วค่อยกู้ทับ
+
+```bash
+docker compose -f docker-compose.server.yml stop testpulse
+scripts/restore.sh --to-db testpulse --overwrite-live
+# local: กู้ไฟล์ลงโฟลเดอร์ใหม่ (--uploads-to) แล้วสลับกับ docker-data/uploads
+docker compose -f docker-compose.server.yml start testpulse
+```
+
+**ตรวจ backup** (`scripts/verify.sh` อ่านอย่างเดียว ไม่แก้อะไรทั้งใน MongoDB และ MinIO)
+
+```bash
+scripts/verify.sh                                   # ตรวจ storage: ล็อก / versioning เปิดอยู่, ทุกไฟล์มีที่ off-site ขนาดตรงกัน,
+                                                    #   dump ล่าสุดไม่เก่ากว่า 26 ชม. และเปิดอ่านได้ (ดึงจาก off-site)
+scripts/verify.sh restore --db testpulse-restore    # หลัง restore.sh: เทียบกับฐานจริง แล้วหาไฟล์อัปโหลดทุกไฟล์ที่ข้อมูลอ้างถึง
+scripts/verify.sh restore --db testpulse-restore --uploads-dir ./docker-data/uploads-restored   # local
+```
+
+แต่ละบรรทัดขึ้นต้นด้วย `ok`, `WARN` หรือ `FAIL` ถ้ามี `FAIL` จะได้ exit code 1
+
+| ผล | ความหมาย |
+| --- | --- |
+| `ok` | จำนวน, index และเอกสารที่สุ่มเทียบ (ค่าเริ่มต้น 500 ต่อ collection, `--sample N`) ตรงกับฐานจริง |
+| `WARN` | ต่างกันแบบที่เกิดได้หลัง backup เช่นมีข้อมูลใหม่หรือแก้ไข, collection ที่มีแต่ในฐานที่กู้ (ของค้างในฐานนั้นก่อนกู้ ควรกู้ลงฐานว่าง) หรือ backup เก่ากว่า `VERIFY_MAX_AGE_HOURS` |
+| `FAIL` | collection หรือ index หาย, collection กลับมาว่าง, เอกสารที่เทียบไม่ตรงกับฐานจริงเลยสักตัว (เลือก backup หรือฐานผิด), ไฟล์ไม่มีที่ off-site หรือขนาดไม่ตรง, dump เสีย |
+
+`refresh_tokens`, `notifications`, `audit_logs`, `job_locks`, `invites` และ `preflight` เปลี่ยนตลอดเวลาที่ใช้งาน จึงแสดงแค่จำนวนแต่ไม่นับเป็นความต่าง ใส่ `scripts/verify.sh` ต่อท้าย `backup.sh` ใน cron ได้ (`backup.sh && verify.sh`)
+
+- backup ที่ทำก่อนหมุน encryption key ต้องใช้ key เก่าตอนกู้ (ดู [หมุน encryption key](#หมุน-encryption-key-key-rotation))
+- `STORAGE_DRIVER=minio`: ไฟล์ที่ถูกลบหรือเขียนทับ ดูเวอร์ชันเดิมด้วย `mc ls --versions` แล้วกู้ด้วย `mc cp --version-id`
+- ทดลองกู้เป็นระยะ backup ที่ไม่เคยลองกู้ ยังไม่รู้ว่าใช้ได้จริง
+
+**ซ้อมกู้คืน (แนะนำเดือนละครั้ง)** ไม่กระทบข้อมูลจริง: `restore.sh` เขียนเฉพาะฐานใน `--to-db` และ `verify.sh` อ่านอย่างเดียว
+
+```bash
+cd /opt/testpulse
+scripts/verify.sh                                              # 1. storage ครบและ dump ล่าสุดอ่านได้
+scripts/restore.sh --to-db testpulse-restore --from off        # 2. กู้ dump ล่าสุดจาก off-site ลงฐานว่าง
+#    local: เพิ่ม --uploads-to ./docker-data/uploads-restored
+scripts/verify.sh restore --db testpulse-restore               # 3. เทียบกับฐานจริง + หาไฟล์อัปโหลดทุกไฟล์
+#    local: เพิ่ม --uploads-dir ./docker-data/uploads-restored
+# 4. เก็บกวาด: ลบฐาน testpulse-restore (และ docker-data/uploads-restored) แล้วจดผล: วันที่, ไฟล์ dump, passed / FAILED
+```
+
+- กู้ลงฐานที่ว่างหรือยังไม่มี ถ้าฐานนั้นมี collection อื่นค้างอยู่ `verify.sh` จะขึ้น `WARN` ว่ามีแต่ในฐานที่กู้
+- `RESTORE_MONGODB_URI` ต้องเป็น user ที่สร้างหรือเขียนฐาน `testpulse-restore` ได้ (ใช้ทั้งตอนกู้และตอนอ่านฐานที่กู้) ส่วนฐานจริงอ่านด้วย `MONGODB_URI`
+
+**กู้คืนบนเครื่องใหม่ (เครื่อง prod พัง)** ใช้สำเนา off-site ทั้งหมด ข้อมูลหลัง backup รอบสุดท้ายจะหาย (cron 02:00 = ไม่เกินประมาณ 1 วัน) และต้องกู้ก่อน backup ที่ off-site หมดอายุ (`BACKUP_RETENTION_DAYS`) เพราะไม่มีรอบใหม่เข้ามาแทนแล้ว
+
+1. เตรียมเครื่องใหม่ **ยังไม่เปิดแอป**: Docker, MongoDB แบบ replica set พร้อม user ตาม `MONGODB_URI`, MinIO (ถ้าใช้ `STORAGE_DRIVER=minio` หรือจะเก็บ backup ฝั่งนี้ไว้ใน MinIO ของเครื่องนี้) และโฟลเดอร์ deploy ตามข้อ 3 ของ [Deploy บนเครื่องที่มีแค่ image](#deploy-บนเครื่องที่มีแค่-image) ใช้ image เวอร์ชันเดียวกับเครื่องเก่า
+2. `backend/.env.prod` เอามาจากที่เก็บ secret ของทีม **ต้องเป็นชุด key เดิม** (encryption key ทุกเวอร์ชันที่ backup ยังใช้ และ `BLIND_INDEX_SALT` ตัวเดิม) ไม่อย่างนั้นอ่านข้อมูลที่เข้ารหัสไม่ได้และเข้าสู่ระบบไม่ได้ ถ้า host ของ MongoDB / MinIO เปลี่ยนให้แก้ในไฟล์นี้
+3. สร้าง `backup.env`: `MONGODB_URI` และ `BACKUP_S3_*` ชี้ไปเครื่องใหม่, `OFFSITE_S3_*` ค่าเดิม, `STORAGE_DRIVER` ตรงกับ `.env.prod` (ฝั่ง `BACKUP_S3_*` ต้องกรอก แต่ตอนกู้ `--from off` ใช้เฉพาะเมื่อมี `--uploads-from-off`)
+4. กู้ฐานและไฟล์อัปโหลดจาก off-site ลงฐานจริง (แอปยังไม่รัน จึงกู้ทับได้ทันที สคริปต์ให้พิมพ์ชื่อฐานยืนยัน)
+
+   ```bash
+   cd /opt/testpulse
+   scripts/restore.sh list                   # ดูฝั่ง off-site ฝั่งนี้ยังว่าง
+   # local: แตกไฟล์อัปโหลดของรอบเดียวกันลง docker-data/uploads (ต้องว่างหรือยังไม่มี)
+   scripts/restore.sh --to-db testpulse --from off --overwrite-live --uploads-to ./docker-data/uploads
+   # minio: copy bucket ไฟล์จาก off-site มา bucket ของเครื่องนี้ (ต้องว่างหรือยังไม่มี) ได้เวอร์ชันล่าสุดของทุกไฟล์
+   scripts/restore.sh --to-db testpulse --from off --overwrite-live --uploads-from-off
+   # ไม่ใช่ dump ล่าสุด: เพิ่ม --file testpulse-<วันเวลา>.archive.gz
+   ```
+
+5. เปิดแอป `docker compose -f docker-compose.server.yml up -d` ดู `docker logs -f testpulse` ว่า preflight / index / migration ผ่าน แล้วลองเข้าสู่ระบบด้วย user เดิมและเปิดไฟล์แนบ (`verify.sh restore` ใช้ไม่ได้ในกรณีนี้ เพราะเทียบกับฐานจริงซึ่งคือฐานที่เพิ่งกู้)
+6. ตั้ง backup ของเครื่องใหม่: `scripts/backup.sh init` (ฝั่ง off-site ที่มีอยู่แล้วรันซ้ำได้), `scripts/backup.sh && scripts/verify.sh` ต้องจบด้วย `passed` แล้วใส่ cron
+
+- อย่าให้แอปบนเครื่องใหม่ใช้เครื่อง off-site เป็นที่เก็บหลัก copy ออกมาเสมอ off-site ต้องเป็นสำเนาแยกต่อไป
+- `--uploads-from-off` ได้ไฟล์ทุกไฟล์ที่เคยอยู่ใน bucket รวมถึงไฟล์ที่ถูกลบไปแล้ว (backup ไม่ส่งการลบไป off-site) ไฟล์เกินพวกนี้ไม่มีอะไรอ้างถึง ไม่กระทบการใช้งาน
 
 ### Volume (เก็บไว้บน host)
 

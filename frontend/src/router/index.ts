@@ -116,6 +116,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'ทีม', roles: ['admin'], api: ['team'] },
   },
   {
+    path: '/admin/backup',
+    name: 'backup',
+    component: () => import('@/views/backup/Index.vue'),
+    meta: { title: 'สำรองข้อมูล', roles: ['admin'], api: ['backup', 'team'] },
+  },
+  {
     // universal search: every match, a page at a time (each group asks only for what the user may see)
     path: '/search',
     name: 'search',

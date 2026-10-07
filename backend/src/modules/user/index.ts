@@ -1,6 +1,7 @@
 import { setPrincipalResolver } from '#core/auth/principal.js'
 import { on } from '#core/events/event-bus.js'
 import type { AppModule } from '#core/module.js'
+import { ADMIN_ROLE_ID } from '#modules/role/index.js'
 import { UserModel } from './user.model.js'
 import { userRepository } from './user.repository.js'
 import { userRouter } from './user.routes.js'
@@ -20,6 +21,10 @@ export const accounts = {
   existingIds: (ids: string[]) => userRepository.existingIds(ids),
   idsByName: (names: string[]) => userRepository.idsByName(names),
   hasActiveAdmin: userService.hasActiveAdmin,
+  /** the Admins who can sign in (system alerts go to them) */
+  activeAdmins: () => userRepository.activeWithRole(ADMIN_ROLE_ID),
+  /** the users among `ids` who can sign in, with their emails (alert emails) */
+  activeAmong: (ids: string[]) => userRepository.activeAmong(ids),
   createAdmin: userService.createAdmin,
 }
 

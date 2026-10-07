@@ -1,0 +1,60 @@
+# The app and its reverse proxy (https). Start after docker-compose.yml: it makes the network
+# `testpulse` this file joins. Only the proxy is published (80 -> https, 443); the app reaches MongoDB /
+# MinIO by service name on the network.
+#
+#   backend/.env       shared defaults (from the repository; no secrets)
+#   backend/.env.prod  this deployment's settings and secrets (chmod 600); BACKUP_AGENT=embedded turns the
+#                      backup agent on (PRD 5.15), BACKUP_AGENT_TOKEN the same as in backup.env
+#   backup.env         the backup settings (scripts and agent), mounted read-only for the agent
+#   proxy/nginx.conf   the proxy; proxy/certs/fullchain.pem + privkey.pem: the wildcard certificate
+#
+# Changed a setting (including keys)? `docker compose -f docker-compose.server.yml up -d --force-recreate`:
+# a plain `restart` keeps the old environment. New version: change `image:` and run `up -d`.
+
+name: testpulse-app
+
+# container logs are rotated: at most 5 files of 10 MB per service, so they never fill the disk
+# (the app's own access / error logs in docker-data/logs are rotated by the app: LOG_RETENTION_DAYS)
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '5'
+
+networks:
+  default:
+    name: testpulse
+    external: true
+
+services:
+  testpulse:
+    # the version to run: loaded with `docker load` or pulled from your registry
+    image: testpulse:0.4.0
+    container_name: testpulse
+    # not published: the proxy reaches it as testpulse:8080
+    env_file:
+      - backend/.env
+      - backend/.env.prod
+    volumes:
+      # uploaded files (STORAGE_DRIVER=local) and access / error logs, kept on the host
+      - ./docker-data/uploads:/app/backend/storage/uploads
+      - ./docker-data/logs:/app/backend/logs
+      # the backup agent: its settings (only the "backup" user reads the copy it makes) and its state
+      - ./backup.env:/etc/testpulse-backup/backup.env:ro
+      - ./docker-data/backup-agent:/var/lib/testpulse-backup
+    restart: unless-stopped
+    logging: *logging
+
+  proxy:
+    image: nginx:alpine
+    container_name: testpulse-proxy
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./proxy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./proxy/certs:/etc/nginx/certs:ro
+    depends_on:
+      - testpulse
+    restart: unless-stopped
+    logging: *logging

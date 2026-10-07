@@ -5,6 +5,7 @@
 declare const __API_MOCK_AI__: boolean
 declare const __API_MOCK_AUDIT__: boolean
 declare const __API_MOCK_AUTH__: boolean
+declare const __API_MOCK_BACKUP__: boolean
 declare const __API_MOCK_DEFECT__: boolean
 declare const __API_MOCK_DOCUMENT__: boolean
 declare const __API_MOCK_REPORT__: boolean
@@ -22,6 +23,7 @@ declare const __API_MOCK_USER__: boolean
 declare const __API_ON_AI__: boolean
 declare const __API_ON_AUDIT__: boolean
 declare const __API_ON_AUTH__: boolean
+declare const __API_ON_BACKUP__: boolean
 declare const __API_ON_DEFECT__: boolean
 declare const __API_ON_DOCUMENT__: boolean
 declare const __API_ON_REPORT__: boolean

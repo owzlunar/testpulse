@@ -12,6 +12,8 @@ testpulse
 |--- Dockerfile one image `testpulse`: nginx :8080 (web app, proxies /api and /health) + the API on 127.0.0.1:8081, run by supervisor
 |--- docker/    nginx.conf, supervisor.conf, entrypoint.sh (BASE_URL path, preflight checks, DB indexes, migrations, supervisor)
 |--- docker-compose.yml  the image with env_file backend/.env + backend/.env.prod (git-ignored), uploads and logs in ./docker-data
+|--- scripts/   backup.sh / restore.sh / verify.sh (run by hand in the deploy folder; settings in backup.env, git-ignored)
+|--- deploy/    the full prod kit (Ubuntu 24.04): MongoDB + MinIO + app on one Docker network, https proxy, off-site mirror/ (Thai README)
 ```
 One git repository (github.com/owzlunar/testpulse). Each side keeps its own `CLAUDE.md` with its stack rules; this file holds what both share.
 
@@ -38,7 +40,7 @@ One git repository (github.com/owzlunar/testpulse). Each side keeps its own `CLA
 - More work on a feature after its merge: a new branch from `dev` (`feature/<name>-<what>`, `fix/<what>`).
 - Release: a PR `dev` -> `main`, then a tag on `main`. Urgent fixes: `hotfix/<what>` from `main`, merged into `main` and `dev`.
 - Never commit straight to `main` or `dev`.
-- Feature order (each depends on the ones before): notification, test-case (requirement + test-case + template, search, calendar, project case stats), test-run, defect, document, report (server-side aggregates), ai.
+- Feature order (each depends on the ones before): notification, test-case (requirement + test-case + template, search, calendar, project case stats), test-run, defect, document, report (server-side aggregates), ai, backup (PRD 5.15: backup agent + Admin page; may be built before ai while ai waits for its server, it needs only audit + notification).
 - Every feature: the server records audit entries and notifications in the same request as the change (not the client); a module reacts to another's changes through the event bus (e.g. renumbered cases re-keyed by runs / defects), never by importing a later module.
 - When a backend module and its real frontend module change, run `npm run test:e2e:real` in `frontend/` (the app against the real backend; local only, needs MongoDB and Mailpit).
 - When unsure whether a change belongs to the frontend, the backend or the contract, ask.
