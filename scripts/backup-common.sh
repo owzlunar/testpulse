@@ -1,6 +1,8 @@
 # shellcheck shell=bash
 # Shared by backup.sh and restore.sh (sourced, not run). Reads backup.env and wraps the tools, which
-# run in containers: mongodump / mongorestore from MONGO_TOOLS_IMAGE, mc from MC_IMAGE.
+# run in containers (BACKUP_TOOLS=docker, the default: mongodump / mongorestore from MONGO_TOOLS_IMAGE,
+# mc from MC_IMAGE) or are installed where the scripts run (BACKUP_TOOLS=local: the backup agent in the
+# TestPulse image, which has no docker).
 #
 # Passwords never go on a command line (other users of the machine could read them in `ps`):
 # mc gets its servers through MC_HOST_<alias> variables, the Mongo tools through a config file
@@ -41,6 +43,7 @@ load_env() {
   MONGO_TOOLS_IMAGE=${MONGO_TOOLS_IMAGE:-mongo:8}
   MC_IMAGE=${MC_IMAGE:-minio/mc:RELEASE.2025-08-13T08-35-41Z}
   BACKUP_DOCKER_NETWORK=${BACKUP_DOCKER_NETWORK:-}
+  BACKUP_TOOLS=${BACKUP_TOOLS:-docker}
 
   case "$STORAGE_DRIVER" in local | minio) ;; *) die "STORAGE_DRIVER must be local or minio, not '$STORAGE_DRIVER'" ;; esac
   [[ "$BACKUP_RETENTION_DAYS" =~ ^[1-9][0-9]*$ ]] || die "BACKUP_RETENTION_DAYS must be a whole number of days"
@@ -48,12 +51,19 @@ load_env() {
     : "${OFFSITE_S3_ACCESS_KEY:?OFFSITE_S3_ACCESS_KEY is not set in $file}"
     : "${OFFSITE_S3_SECRET_KEY:?OFFSITE_S3_SECRET_KEY is not set in $file}"
   fi
-  command -v docker >/dev/null || die "docker is not installed"
+  case "$BACKUP_TOOLS" in
+    docker) command -v docker >/dev/null || die "docker is not installed" ;;
+    local)
+      local tool
+      for tool in mc mongodump mongorestore; do type -P "$tool" >/dev/null || die "BACKUP_TOOLS=local: $tool is not installed"; done
+      ;;
+    *) die "BACKUP_TOOLS must be docker or local, not '$BACKUP_TOOLS'" ;;
+  esac
 
   # the tool containers join the compose network (to reach mongodb / minio by service name), or else
   # reach this machine as host.docker.internal
   DOCKER_NET_ARGS=(--add-host host.docker.internal:host-gateway)
-  if [ -n "$BACKUP_DOCKER_NETWORK" ]; then
+  if [ "$BACKUP_TOOLS" = docker ] && [ -n "$BACKUP_DOCKER_NETWORK" ]; then
     docker network inspect "$BACKUP_DOCKER_NETWORK" >/dev/null 2>&1 ||
       die "BACKUP_DOCKER_NETWORK: no docker network '$BACKUP_DOCKER_NETWORK' (start the services first; \`docker network ls\`)"
     DOCKER_NET_ARGS+=(--network "$BACKUP_DOCKER_NETWORK")
@@ -96,10 +106,28 @@ mc_host_url() {
   printf '%s://%s:%s@%s' "$scheme" "$(urlencode "$2")" "$(urlencode "$3")" "${rest%/}"
 }
 
+# the tools see the work folder as /work (a container mount); installed tools get the real path
+local_paths() {
+  local arg
+  LOCAL_ARGS=()
+  for arg in "$@"; do
+    case "$arg" in
+      /work/*) LOCAL_ARGS+=("$WORK_DIR/${arg#/work/}") ;;
+      --*=/work/*) LOCAL_ARGS+=("${arg%%=*}=$WORK_DIR/${arg#*=/work/}") ;;
+      *) LOCAL_ARGS+=("$arg") ;;
+    esac
+  done
+}
+
 # mc in a container, with the work folder at /work. Pass -i first to give it stdin.
 mc() {
   local stdin=()
   if [ "${1:-}" = "-i" ]; then stdin=(-i); shift; fi
+  if [ "$BACKUP_TOOLS" = local ]; then
+    local_paths "$@"
+    command mc --config-dir "$WORK_DIR/.mc" --quiet --no-color "${LOCAL_ARGS[@]}"
+    return
+  fi
   # ${a[@]+...}: an empty array under `set -u` is an error in bash 3.2 (macOS)
   docker run --rm ${stdin[@]+"${stdin[@]}"} \
     -e MC_HOST_src -e MC_HOST_off \
@@ -125,6 +153,12 @@ mongo_tool() {
   local config="$WORK_DIR/.mongo-$$.yaml"
   (umask 077 && printf "uri: '%s'\n" "${uri//\'/\'\'}" >"$config")
   local status=0
+  if [ "$BACKUP_TOOLS" = local ]; then
+    local_paths "$@"
+    "$tool" --config="$config" "${LOCAL_ARGS[@]}" || status=$?
+    rm -f "$config"
+    return "$status"
+  fi
   docker run --rm \
     --user "$(id -u):$(id -g)" \
     "${DOCKER_NET_ARGS[@]}" \

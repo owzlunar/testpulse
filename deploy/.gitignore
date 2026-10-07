@@ -8,3 +8,4 @@ mongo-prod/
 minio-prod/
 minio-mirror/
 docker-data/
+uptime-kuma/

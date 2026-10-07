@@ -14,7 +14,7 @@
 - [5. backup.env และสร้าง bucket](#5-backupenv-และสร้าง-bucket)
 - [6. TestPulse และ proxy (https)](#6-testpulse-และ-proxy-https)
 - [7. ใช้งานครั้งแรก](#7-ใช้งานครั้งแรก)
-- [8. backup อัตโนมัติ](#8-backup-อัตโนมัติ)
+- [8. backup อัตโนมัติ (backup agent)](#8-backup-อัตโนมัติ-backup-agent)
 - [9. งานประจำ](#9-งานประจำ)
 
 ## ไฟล์ในชุดนี้
@@ -31,12 +31,13 @@ deploy/ (+ scripts/, backend/.env)   รวมเป็นชุดเดีย�
 |--- proxy/certs/                    ใส่ fullchain.pem + privkey.pem
 |--- scripts/                        backup.sh / restore.sh / verify.sh (จาก scripts/ ของ repo)
 |--- mirror/                         ชุดของเครื่อง off-site (copy ไปอีกเครื่อง)
-     |--- docker-compose.yml         minio-mirror + nginx (443)
-     |--- nginx.conf                 https + รับเฉพาะ IP ของ prod
+     |--- docker-compose.yml         minio-mirror + uptime-kuma + nginx (443)
+     |--- nginx.conf                 https + รับเฉพาะ IP ของ prod (MinIO และ push ของ Kuma)
+     |--- backup-policy.json         สิทธิ์ของ user ที่ prod ใช้: อ่าน / เขียนได้ ลบและแก้การล็อกไม่ได้
      |--- certs/                     ใส่ fullchain.pem + privkey.pem
 ```
 
-ไฟล์ที่สร้างบน server ภายหลัง (ห้าม commit / ห้ามส่งทางแชต): `.env`, `mongodb-keyfile`, `backend/.env.prod`, `backup.env`, `proxy/certs/*.pem` ข้อมูลอยู่ใน `mongo-prod/`, `minio-prod/`, `docker-data/`
+ไฟล์ที่สร้างบน server ภายหลัง (ห้าม commit / ห้ามส่งทางแชต): `.env`, `mongodb-keyfile`, `backend/.env.prod`, `backup.env`, `proxy/certs/*.pem` ข้อมูลอยู่ใน `mongo-prod/`, `minio-prod/`, `docker-data/` (รวม `docker-data/backup-agent/`: ตั้งค่าและประวัติของ backup agent)
 
 | service | ใน network `testpulse` | เปิดบน host |
 | --- | --- | --- |
@@ -106,10 +107,10 @@ deploy/ (+ scripts/, backend/.env)   รวมเป็นชุดเดีย�
    cd /opt/testpulse
    ```
 
-2. โหลด image ของแอป (ไฟล์ที่ build ไว้ หรือ pull จาก registry)
+2. โหลด image ของแอป (ไฟล์ที่ build ไว้ หรือ pull จาก registry) **backup agent มีตั้งแต่เวอร์ชันถัดจาก 0.3.0** แล้วแก้ `image:` ใน `docker-compose.server.yml` ให้ตรงกับเวอร์ชันที่โหลด
 
    ```bash
-   gunzip -c testpulse-0.3.0.tar.gz | docker load      # ได้ testpulse:0.3.0
+   gunzip -c testpulse-<version>.tar.gz | docker load      # ได้ testpulse:<version>
    ```
 
 3. certificate (wildcard): `fullchain.pem` = certificate ต่อด้วย intermediate ของ CA, `privkey.pem` = key
@@ -153,10 +154,12 @@ deploy/ (+ scripts/, backend/.env)   รวมเป็นชุดเดีย�
    | `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY` | `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` จาก `.env` |
    | `MAIL_DRIVER` / `SMTP_*` | `smtp` และ SMTP จริงขององค์กร |
    | `INITIAL_ADMIN_EMAIL` / `INITIAL_ADMIN_PASSWORD` | Admin คนแรก (รหัส 12 ตัวขึ้นไป) ใช้ครั้งแรกเท่านั้น |
+   | `BACKUP_AGENT` | `embedded` (backup agent ทำงานใน container ของแอป: ตั้งเวลา สำรอง ซ้อมกู้ แจ้งเตือน จากหน้า "สำรองข้อมูล") |
+   | `BACKUP_AGENT_TOKEN` | ค่าที่ `env:init` สร้างให้ **ใส่ค่าเดียวกันใน `backup.env`** (ข้อ 5) ไม่ตรงกันแอปจะไม่ start |
 
    `JWT_*`, `ENCRYPTION_KEY_*`, `BLIND_INDEX_SALT` จาก `env:init` **ห้ามเปลี่ยนหลังมีข้อมูล**
 
-6. **เก็บเข้าที่เก็บ secret ของทีมทันที:** `backend/.env.prod`, `.env`, (หลังข้อ 5) `backup.env` และรหัสของ Admin ถ้า server หาย การกู้ต้องใช้ไฟล์ชุดนี้เท่านั้น ส่วน image (`testpulse-0.3.0.tar.gz`) เก็บไว้ที่ registry หรือที่เก็บไฟล์ของทีม
+6. **เก็บเข้าที่เก็บ secret ของทีมทันที:** `backend/.env.prod`, `.env`, (หลังข้อ 5) `backup.env` (มี `BACKUP_AGENT_TOKEN` / `BACKUP_AGENT_SECRET`: secret ต้องเป็นตัวเดิมเสมอ ถ้าเปลี่ยน URL ที่ตั้งไว้ในหน้าสำรองข้อมูลจะเปิดไม่ได้ ต้องใส่ใหม่) และรหัสของ Admin ถ้า server หาย การกู้ต้องใช้ไฟล์ชุดนี้เท่านั้น ส่วน image (`testpulse-<version>.tar.gz`) เก็บไว้ที่ registry หรือที่เก็บไฟล์ของทีม
 
 ---
 
@@ -171,13 +174,13 @@ docker inspect -f '{{.State.Health.Status}}' minio-prod  # healthy
 
 healthcheck ของ MongoDB สั่ง `rs.initiate()` ให้เองบนฐานใหม่ (ครั้งแรกประมาณ 30-60 วินาที)
 
-สร้าง user ของแอป (readWrite บน `testpulse` และ `testpulse-restore` สำหรับซ้อมกู้) รันซ้ำได้
+สร้าง user ของแอป (readWrite บน `testpulse`; readWrite + dbAdmin บน `testpulse-restore` ซึ่ง backup agent ใช้ซ้อมกู้และลบทิ้งหลังซ้อม) รันซ้ำได้
 
 ```bash
 P=$(grep '^TESTPULSE_DB_PASSWORD=' .env | cut -d= -f2)
 docker exec -i -e P="$P" mongodb-prod bash -c 'mongosh --quiet -u admin -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin' <<'EOF'
 const a = db.getSiblingDB('admin');
-const roles = [{ role: 'readWrite', db: 'testpulse' }, { role: 'readWrite', db: 'testpulse-restore' }];
+const roles = [{ role: 'readWrite', db: 'testpulse' }, { role: 'readWrite', db: 'testpulse-restore' }, { role: 'dbAdmin', db: 'testpulse-restore' }];
 if (a.getUser('testpulse')) { a.updateUser('testpulse', { pwd: process.env.P, roles }) } else { a.createUser({ user: 'testpulse', pwd: process.env.P, roles }) }
 print(a.getUser('testpulse') ? 'user testpulse ok: ' + a.getUser('testpulse').roles.map(r => r.db).join(', ') : 'user testpulse MISSING');
 EOF
@@ -199,10 +202,18 @@ mongosh อ่าน stdin ทีละบรรทัด แต่ละคำ�
 cd /opt/testpulse-mirror
 printf 'MINIO_ROOT_USER=testpulse-mirror\nMINIO_ROOT_PASSWORD=%s\n' "$(openssl rand -hex 24)" > .env && chmod 600 .env
 cp <cert> certs/fullchain.pem && cp <key> certs/privkey.pem && chmod 600 certs/privkey.pem
-# แก้ nginx.conf: server_name (เช่น backup.example.com) และ allow <IP สาธารณะของ prod>
+# แก้ nginx.conf: server_name ของ MinIO (backup.example.com) และของ Uptime Kuma (kuma.example.com),
+# allow <IP สาธารณะของ prod> ทั้งสองที่
 docker compose up -d
-docker compose ps                                   # minio-mirror healthy, mirror-proxy Up
+docker compose ps                                   # minio-mirror healthy, uptime-kuma healthy, mirror-proxy Up
 ```
+
+**Uptime Kuma** (ตัวเฝ้าจากนอกเครื่อง prod: เตือนเมื่อ backup เงียบไปหรือเว็บล่ม) อยู่บนเครื่องนี้ หน้าจัดการเปิดผ่าน SSH tunnel เท่านั้น (`ssh -L 3001:127.0.0.1:3001 <mirror>` แล้วเปิด http://localhost:3001 สร้างบัญชี admin ครั้งแรก) ส่วนที่เปิดผ่าน nginx มีแค่ `https://kuma.example.com/api/push/…` ให้ prod ส่งสัญญาณมา
+
+0. ครั้งแรก Kuma 2.x ให้เลือกฐานข้อมูล: เลือก **SQLite** (พอสำหรับ monitor ไม่กี่ตัว ข้อมูลอยู่ใน `uptime-kuma/`) แล้วสร้างบัญชี admin
+1. Settings > Notifications: เพิ่ม **SMTP** (อีเมล ถึงทีมที่ดูแล) และ **Microsoft Teams** (webhook ของ channel เดียวกับที่ตั้งในหน้าสำรองข้อมูล) ตั้งเป็นค่าเริ่มต้นของ monitor ใหม่
+2. Monitor แบบ **Push** 2 ตัว: `TestPulse backup` (Heartbeat Interval 93600 วินาที = 26 ชม.) และ `TestPulse restore drill` (691200 วินาที = 8 วัน) จด Push URL ของแต่ละตัวไว้ใส่ในหน้าสำรองข้อมูล (ข้อ 8)
+3. Monitor แบบ **HTTP(s)**: `https://qa.example.com/testpulse/health/ready` ทุก 60 วินาที (เปิด Certificate Expiry Notification) และ `https://backup.example.com/minio/health/live`
 
 ตรวจจาก **เครื่อง prod**:
 
@@ -212,6 +223,19 @@ curl -sS -o /dev/null -w "%{http_code}\n" https://backup.example.com/minio/healt
 
 จากเครื่องอื่นที่ไม่อยู่ใน `allow` ต้องได้ 403 เก็บรหัสใน `.env` ของเครื่อง mirror เข้าที่เก็บ secret ด้วย
 
+**user ที่ prod ใช้ส่ง backup** (อย่าใช้ root ของ mirror บน prod): ถ้าเครื่อง prod ถูกยึด คนที่ได้รหัส root ไปจะลบ backup ที่ล็อกไว้ได้ (root ข้ามการล็อกแบบ GOVERNANCE ได้) user นี้อ่านและเขียนได้ แต่**ลบไม่ได้และแก้การล็อกไม่ได้** (`backup-policy.json`; ไม่มี `s3:DeleteObject*`, `s3:PutObjectRetention`, `s3:BypassGovernanceRetention`)
+
+```bash
+# บนเครื่อง mirror
+cd /opt/testpulse-mirror && U=$(grep ^MINIO_ROOT_USER= .env | cut -d= -f2) && S=$(grep ^MINIO_ROOT_PASSWORD= .env | cut -d= -f2)
+MC="docker run --rm --network testpulse-mirror_default -v $PWD/backup-policy.json:/policy.json:ro -e MC_HOST_m=http://$U:$S@minio-mirror:9001 minio/mc:RELEASE.2025-08-13T08-35-41Z --no-color"
+BP=$(openssl rand -hex 24)
+$MC admin policy create m testpulse-backup /policy.json
+$MC admin user add m testpulse-backup "$BP"
+$MC admin policy attach m testpulse-backup --user testpulse-backup
+echo "OFFSITE_S3_ACCESS_KEY=testpulse-backup  OFFSITE_S3_SECRET_KEY=$BP"     # ใช้ในข้อ 5 แล้วเก็บเข้าที่เก็บ secret
+```
+
 ---
 
 ## 5. backup.env และสร้าง bucket
@@ -219,11 +243,21 @@ curl -sS -o /dev/null -w "%{http_code}\n" https://backup.example.com/minio/healt
 ```bash
 cd /opt/testpulse
 cp backup.env.example backup.env && chmod 600 backup.env
-# เติม <...>: รหัสจาก .env (prod) และ .env ของเครื่อง mirror, OFFSITE_S3_URL=https://backup.example.com
+# เติม <...>: รหัสจาก .env (prod), OFFSITE_S3_URL=https://backup.example.com,
+# BACKUP_AGENT_TOKEN = ค่าเดียวกับใน backend/.env.prod, BACKUP_AGENT_SECRET=$(openssl rand -hex 32)
+# OFFSITE_S3_ACCESS_KEY / SECRET_KEY: ครั้งนี้ใช้ root ของ mirror ก่อน (init ต้องสร้าง bucket และตั้งการล็อก)
 scripts/backup.sh init
 ```
 
 ต้องได้ 4 บรรทัด (`src/` และ `off/` ของ `testpulse-backups` กับ `testpulse`) แล้วตามด้วย `ready` ถ้าได้ `exists without object lock` แปลว่ามี bucket ชื่อนั้นที่ไม่ได้ล็อกอยู่แล้ว ต้องย้ายของออกแล้วลบ bucket ก่อน
+
+จากนั้น**เปลี่ยน `OFFSITE_S3_ACCESS_KEY` / `OFFSITE_S3_SECRET_KEY` เป็น user `testpulse-backup`** (ข้อ 4) แล้วลองว่าใช้ได้และลบไม่ได้
+
+```bash
+scripts/backup.sh && scripts/verify.sh       # copied testpulse-backups off-site … [verify] passed
+```
+
+backup ส่งไป off-site จากไฟล์ (ไม่ copy ระหว่าง server) ไฟล์ที่ไปถึงได้การล็อก 14 วันของ bucket ฝั่ง off-site เอง user นี้จึงไม่ต้องมีสิทธิ์ตั้งการล็อก ถ้ารอบไหนส่งไม่ถึง รอบถัดไปส่งที่ขาดให้เอง
 
 `BACKUP_DOCKER_NETWORK=testpulse` ทำให้ container ของ `mongodump` / `mc` เข้า network เดียวกับ service (ต้องใช้สคริปต์เวอร์ชันที่มีตัวแปรนี้ ชุดนี้มีแล้ว)
 
@@ -238,7 +272,7 @@ until [ "$(docker inspect -f '{{.State.Health.Status}}' testpulse)" = healthy ];
 docker logs testpulse 2>&1 | grep -E 'entrypoint|preflight|migrate'
 ```
 
-ใน log ต้องเห็น `serving https://.../testpulse`, preflight `ok` ครบ 4 บรรทัด (database, storage `minio-prod:9001/testpulse`, mail, log) และ migration `applied 6` พร้อม `first Admin created`
+ใน log ต้องเห็น `serving https://.../testpulse`, preflight `ok` ครบ 4 บรรทัด (database, storage `minio-prod:9001/testpulse`, mail, log), migration พร้อม `first Admin created`, `[entrypoint] backup agent: embedded (127.0.0.1:8090)` และ `[agent] backup agent (embedded, tools: local)` ถ้าได้ `BACKUP_AGENT_TOKEN in .env.prod and in backup.env must be the same` ให้แก้ token ให้ตรงกัน
 
 ตรวจจากนอกเครื่อง
 
@@ -273,23 +307,20 @@ curl -fsS https://qa.example.com/testpulse/health/ready; echo  # {"status":"ok",
 
 ---
 
-## 8. backup อัตโนมัติ
+## 8. backup อัตโนมัติ (backup agent)
 
-1. รอบแรกด้วยมือ
+`BACKUP_AGENT=embedded` ทำให้ backup agent ทำงานใน container ของแอป (user แยก อ่านได้แค่ `backup.env` ของตัวเอง) ตั้งเวลาเอง ไม่ต้องใช้ cron ทุกอย่างทำจากหน้า **ผู้ดูแลระบบ > สำรองข้อมูล** (Admin เท่านั้น) สถานะและประวัติของ agent อยู่ใน `docker-data/backup-agent/` (ไม่อยู่ในฐานข้อมูล)
 
-   ```bash
-   cd /opt/testpulse
-   scripts/backup.sh && scripts/verify.sh          # ต้องจบด้วย [verify] passed
-   ```
+1. เปิดหน้าสำรองข้อมูล: ปลายทางทั้งสอง (MinIO บนเครื่องนี้, off-site) ต้องเป็นสีเขียว ถ้าขึ้น "ติดต่อ backup agent ไม่ได้" ดู `docker logs testpulse 2>&1 | grep agent`
+2. **ตั้งค่า**: เวลาสำรอง (ค่าเริ่มต้น ทุกวัน 02:00) และซ้อมกู้ (ทุกวันอาทิตย์ 03:00), อีเมลถึงทีมที่ดูแล (สมาชิกของทีมใน TestPulse + อีเมลเพิ่มเติม), webhook ของ Teams channel, Push URL ของ Uptime Kuma ทั้ง 2 ตัว แล้วกด **ส่งข้อความทดสอบ** ต้องได้ทั้งอีเมลและข้อความใน Teams
+3. กด **สำรองเดี๋ยวนี้** แล้ว **ซ้อมกู้** อย่างละครั้ง ทั้งสองต้องได้ "สำเร็จ" และ Uptime Kuma ต้องขึ้น Up
+4. หลังจากนั้นดูที่หน้าสำรองข้อมูลหรือรอแจ้งเตือน: งานล้ม, ไม่มี backup เกิน 26 ชม., disk เกิน 80% (`AGENT_DISK_LIMIT_PERCENT`) แจ้งครั้งเดียวและแจ้งอีกครั้งเมื่อกลับมาปกติ ถ้าเครื่อง prod ดับ Uptime Kuma เป็นผู้เตือน
 
-2. cron ทุกวัน 02:00 (`crontab -e` ของ user ที่อยู่ในกลุ่ม docker)
+agent เป็น container แยก (แยกขาดจากเว็บ สำรองต่อได้ระหว่างอัปเดตแอป): เพิ่ม service ใน `docker-compose.server.yml` จาก image เดียวกัน `command: agent`, `container_name: testpulse-backup`, mount `./backup.env:/etc/testpulse-backup/backup.env:ro` และ `./docker-data/backup-agent:/var/lib/testpulse-backup`; ใน `.env.prod` ลบ `BACKUP_AGENT=embedded` แล้วตั้ง `BACKUP_AGENT_URL=http://testpulse-backup:8090` (token ตัวเดิม) ไม่ต้องแก้โค้ด
 
-   ```cron
-   0 2 * * * cd /opt/testpulse && { scripts/backup.sh && scripts/verify.sh; } >> docker-data/backup.log 2>&1
-   ```
+ไม่ใช้ agent (ไม่ตั้ง `BACKUP_AGENT`): ใช้ cron กับสคริปต์แทน `0 2 * * * cd /opt/testpulse && { scripts/backup.sh && scripts/verify.sh; } >> docker-data/backup.log 2>&1` (`crontab -e` ของ user ในกลุ่ม docker) อย่าใช้ทั้งสองแบบพร้อมกัน
 
-3. ดูผลทุกเช้า: `tail -n 20 /opt/testpulse/docker-data/backup.log` ต้องจบด้วย `[verify] passed` ถ้าเจอ `ERROR` / `FAILED` ให้แก้ก่อนรอบถัดไป
-4. ชั้นที่ 3 (แนะนำสัปดาห์ละครั้ง): บนเครื่อง mirror export bucket ออกเป็นไฟล์ไปเก็บบน disk / ที่เก็บอื่นที่ไม่ใช่สองเครื่องนี้ เช่น
+5. ชั้นที่ 3 (แนะนำสัปดาห์ละครั้ง): บนเครื่อง mirror export bucket ออกเป็นไฟล์ไปเก็บบน disk / ที่เก็บอื่นที่ไม่ใช่สองเครื่องนี้ เช่น
 
    ```bash
    # บนเครื่อง mirror: /backup-disk คือ disk ภายนอกหรือที่เก็บอื่น
@@ -307,10 +338,12 @@ curl -fsS https://qa.example.com/testpulse/health/ready; echo  # {"status":"ok",
 
 | งาน | คำสั่ง / ที่ดู |
 | --- | --- |
-| ซ้อมกู้ (เดือนละครั้ง) | README หลัก "ซ้อมกู้คืน": `scripts/restore.sh --to-db testpulse-restore --from off` แล้ว `scripts/verify.sh restore --db testpulse-restore` จากนั้นลบฐาน `testpulse-restore` |
+| ซ้อมกู้ | agent ซ้อมให้ทุกสัปดาห์ หรือกด **ซ้อมกู้** ในหน้าสำรองข้อมูล (เลือก snapshot ได้) บน command line: README หลัก "ซ้อมกู้คืน" |
 | ย้อนข้อมูลไปจุด backup | README หลัก "กู้คืน": หยุด `testpulse`, `scripts/restore.sh --to-db testpulse --from off --overwrite-live --file <dump>` แล้วเปิดแอป ไม่ต้องย้อน MinIO (แอปไม่ลบไฟล์) |
-| server หาย | README หลัก "กู้คืนบนเครื่องใหม่": เครื่องใหม่ทำข้อ 1-3 และ 5 ของคู่มือนี้ (ใช้ไฟล์จากที่เก็บ secret) แล้ว `scripts/restore.sh --to-db testpulse --from off --overwrite-live --uploads-from-off` ก่อนเปิดแอป |
-| อัปเดตเวอร์ชัน | `docker load` image ใหม่ แก้ `image:` ใน `docker-compose.server.yml` แล้ว `docker compose -f docker-compose.server.yml up -d` (migration รันเอง) ทำ backup ก่อนทุกครั้ง |
+| server หาย | README หลัก "กู้คืนบนเครื่องใหม่": เครื่องใหม่ทำข้อ 1-3 และ 5 ของคู่มือนี้ (ใช้ไฟล์จากที่เก็บ secret) แล้ว `scripts/restore.sh --to-db testpulse --from off --overwrite-live --uploads-from-off` ก่อนเปิดแอป; ตั้งค่าในหน้าสำรองข้อมูล (ตารางเวลา, อีเมล, Teams, Kuma) อยู่ใน `docker-data/backup-agent/` ของเครื่องเดิม ต้องตั้งใหม่ |
+| อัปเดตเวอร์ชัน | กด **สำรองเดี๋ยวนี้** ก่อน แล้ว `docker load` image ใหม่ แก้ `image:` ใน `docker-compose.server.yml` แล้ว `docker compose -f docker-compose.server.yml up -d` (migration รันเอง proxy ตามไป container ใหม่เองภายใน 10 วินาที ไม่ต้อง restart) |
+| agent ไม่ตอบ / งานค้าง | `docker exec testpulse supervisorctl -c /etc/supervisord.conf status` (agent ต้อง RUNNING) และ `docker logs testpulse 2>&1 \| grep agent`; agent ล้มไม่ทำให้แอปล่ม แก้แล้ว `docker compose -f docker-compose.server.yml up -d --force-recreate testpulse` |
+| แก้ `backup.env` | agent อ่านตอน container เริ่ม: `docker compose -f docker-compose.server.yml up -d --force-recreate testpulse` |
 | แก้ค่าใน `.env.prod` | `docker compose -f docker-compose.server.yml up -d --force-recreate testpulse` |
 | ต่ออายุ certificate | วางไฟล์ใหม่ใน `proxy/certs/` แล้ว `docker exec testpulse-proxy nginx -s reload` (เครื่อง mirror ทำเหมือนกัน) |
 | MinIO console | `ssh -L 9000:127.0.0.1:9000 <server>` แล้วเปิด http://localhost:9000 |

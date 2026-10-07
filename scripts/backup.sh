@@ -56,6 +56,29 @@ cmd_init() {
 
 size_of() { wc -c <"$1" | tr -d ' '; }
 
+# object names in a bucket, sorted (empty for an empty bucket)
+keys_of() {
+  mc ls --recursive --json "$1" | sed -nE 's/.*"key":"([^"]*)".*/\1/p' | sort
+}
+
+# The backup bucket goes off-site from files, never S3 to S3: a copy between servers carries the source's
+# object lock, and setting that would need s3:PutObjectRetention, which also lets a login lift a lock.
+# The off-site login has no such right (deploy/README.md); each file gets the off-site bucket's own lock.
+# Also sends whatever is still missing there (e.g. a run when the off-site machine was down).
+offsite_backups() {
+  local here there key sent=0
+  here=$(keys_of "src/$BACKUP_BUCKET") || return 1
+  there=$(keys_of "off/$BACKUP_BUCKET") || return 1
+  while IFS= read -r key; do
+    [ -n "$key" ] || continue
+    mc cp "src/$BACKUP_BUCKET/$key" "/work/offsite.part" >/dev/null || return 1
+    mc cp "/work/offsite.part" "off/$BACKUP_BUCKET/$key" >/dev/null || return 1
+    rm -f "$WORK_DIR/offsite.part"
+    sent=$((sent + 1))
+  done < <(comm -23 <(printf '%s\n' "$here" | grep .) <(printf '%s\n' "$there" | grep .) || true)
+  OFFSITE_SENT=$sent
+}
+
 cmd_run() {
   local stamp db dump tarball
   stamp=$(date '+%Y%m%d-%H%M%S')
@@ -69,6 +92,9 @@ cmd_run() {
   gzip -t "$WORK_DIR/$dump" || die "the dump is not a valid gzip file"
   mc cp "/work/$dump" "src/$BACKUP_BUCKET/db/$dump" >/dev/null || die "could not upload the dump to $BACKUP_S3_URL"
   log "saved src/$BACKUP_BUCKET/db/$dump ($(size_of "$WORK_DIR/$dump") bytes)"
+  if [ -n "$OFFSITE_S3_URL" ]; then
+    mc cp "/work/$dump" "off/$BACKUP_BUCKET/db/$dump" >/dev/null || die "off-site copy of the dump failed (the backup itself is saved on this side)"
+  fi
 
   # 2. uploaded files: on disk -> packed into the bucket; in MinIO -> already there, versioned
   if [ "$STORAGE_DRIVER" = local ]; then
@@ -77,12 +103,15 @@ cmd_run() {
     tar -czf "$WORK_DIR/$tarball" -C "$UPLOADS_DIR" .
     mc cp "/work/$tarball" "src/$BACKUP_BUCKET/uploads/$tarball" >/dev/null || die "could not upload the files archive to $BACKUP_S3_URL"
     log "saved src/$BACKUP_BUCKET/uploads/$tarball ($(size_of "$WORK_DIR/$tarball") bytes)"
+    if [ -n "$OFFSITE_S3_URL" ]; then
+      mc cp "/work/$tarball" "off/$BACKUP_BUCKET/uploads/$tarball" >/dev/null || die "off-site copy of the files archive failed (the backup itself is saved on this side)"
+    fi
   fi
 
-  # 3. off-site: copy what is new (never --remove: a deletion here must not reach the copy)
+  # 3. off-site: copy what is new (never removing: a deletion here must not reach the copy)
   if [ -n "$OFFSITE_S3_URL" ]; then
-    mc mirror --overwrite "src/$BACKUP_BUCKET" "off/$BACKUP_BUCKET" >/dev/null || die "off-site copy of $BACKUP_BUCKET failed (the backup itself is saved on this side)"
-    log "mirrored $BACKUP_BUCKET off-site"
+    offsite_backups || die "off-site copy of $BACKUP_BUCKET failed (the backup itself is saved on this side)"
+    if [ "${OFFSITE_SENT:-0}" -gt 0 ]; then log "copied $BACKUP_BUCKET off-site (+$OFFSITE_SENT that were missing there)"; else log "copied $BACKUP_BUCKET off-site"; fi
     if [ "$STORAGE_DRIVER" = minio ]; then
       mc mirror --overwrite "src/$UPLOADS_BUCKET" "off/$UPLOADS_BUCKET" >/dev/null || die "off-site copy of $UPLOADS_BUCKET failed (the backup itself is saved on this side)"
       log "mirrored $UPLOADS_BUCKET off-site"

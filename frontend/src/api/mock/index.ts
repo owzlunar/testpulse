@@ -2,6 +2,7 @@
 import type * as Contract from '../contract'
 import { draftTestCases, fetchAiStatus } from './ai'
 import { createAuditLog, fetchAuditLogs } from './audit'
+import * as backup from './backup'
 import { addDefectComment, fetchDefects, saveDefect, searchDefects } from './defect'
 import {
   deleteDocument,
@@ -115,3 +116,13 @@ export const notificationApi = {
 } satisfies Contract.NotificationApi
 export const templateApi = { fetchTemplates, createTemplate, markTemplateUsed, deleteTemplate } satisfies Contract.TemplateApi
 export const aiApi = { fetchAiStatus, draftTestCases } satisfies Contract.AiApi
+export const backupApi = {
+  fetchStatus: backup.fetchStatus,
+  fetchJobs: backup.fetchJobs,
+  fetchJobLog: backup.fetchJobLog,
+  startJob: backup.startJob,
+  fetchSnapshots: backup.fetchSnapshots,
+  fetchSettings: backup.fetchSettings,
+  saveSettings: backup.saveSettings,
+  testAlerts: backup.testAlerts,
+} satisfies Contract.BackupApi

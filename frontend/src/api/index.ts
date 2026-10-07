@@ -29,11 +29,13 @@ export const defectApi: Contract.DefectApi = __API_MOCK_DEFECT__ ? mock.defectAp
 export const documentApi: Contract.DocumentApi = __API_MOCK_DOCUMENT__ ? mock.documentApi : rest.documentApi
 export const reportApi: Contract.ReportApi = __API_MOCK_REPORT__ ? mock.reportApi : rest.reportApi
 export const aiApi: Contract.AiApi = __API_MOCK_AI__ ? mock.aiApi : rest.aiApi
+export const backupApi: Contract.BackupApi = __API_MOCK_BACKUP__ ? mock.backupApi : rest.backupApi
 
 export type ApiModule =
   | 'ai'
   | 'audit'
   | 'auth'
+  | 'backup'
   | 'defect'
   | 'document'
   | 'file'
@@ -57,6 +59,7 @@ export const apiOn: Readonly<Record<ApiModule, boolean>> = {
   ai: __API_ON_AI__,
   audit: __API_ON_AUDIT__,
   auth: __API_ON_AUTH__,
+  backup: __API_ON_BACKUP__,
   defect: __API_ON_DEFECT__,
   document: __API_ON_DOCUMENT__,
   file: __API_ON_FILE__,

@@ -36,6 +36,8 @@ const values: Record<string, string> = {
   ENCRYPTION_KEY_V1: randomBytes(32).toString('hex'),
   ENCRYPTION_CURRENT_KEY_ID: 'v1',
   BLIND_INDEX_SALT: randomBytes(32).toString('hex'),
+  // shared with the backup agent's backup.env when it is turned on (BACKUP_AGENT_URL)
+  BACKUP_AGENT_TOKEN: randomBytes(32).toString('hex'),
   // the container's starting points (see docker-compose.yml)
   ...(which === 'prod'
     ? {
