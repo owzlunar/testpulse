@@ -209,6 +209,7 @@ docker compose ps                                   # minio-mirror healthy, upti
 
 **Uptime Kuma** (ตัวเฝ้าจากนอกเครื่อง prod: เตือนเมื่อ backup เงียบไปหรือเว็บล่ม) อยู่บนเครื่องนี้ หน้าจัดการเปิดผ่าน SSH tunnel เท่านั้น (`ssh -L 3001:127.0.0.1:3001 <mirror>` แล้วเปิด http://localhost:3001 สร้างบัญชี admin ครั้งแรก) ส่วนที่เปิดผ่าน nginx มีแค่ `https://kuma.example.com/api/push/…` ให้ prod ส่งสัญญาณมา
 
+0. ครั้งแรก Kuma 2.x ให้เลือกฐานข้อมูล: เลือก **SQLite** (พอสำหรับ monitor ไม่กี่ตัว ข้อมูลอยู่ใน `uptime-kuma/`) แล้วสร้างบัญชี admin
 1. Settings > Notifications: เพิ่ม **SMTP** (อีเมล ถึงทีมที่ดูแล) และ **Microsoft Teams** (webhook ของ channel เดียวกับที่ตั้งในหน้าสำรองข้อมูล) ตั้งเป็นค่าเริ่มต้นของ monitor ใหม่
 2. Monitor แบบ **Push** 2 ตัว: `TestPulse backup` (Heartbeat Interval 93600 วินาที = 26 ชม.) และ `TestPulse restore drill` (691200 วินาที = 8 วัน) จด Push URL ของแต่ละตัวไว้ใส่ในหน้าสำรองข้อมูล (ข้อ 8)
 3. Monitor แบบ **HTTP(s)**: `https://qa.example.com/testpulse/health/ready` ทุก 60 วินาที (เปิด Certificate Expiry Notification) และ `https://backup.example.com/minio/health/live`
