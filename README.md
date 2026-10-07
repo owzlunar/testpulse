@@ -109,6 +109,7 @@ container อ่านค่าจากสองไฟล์ผ่าน `env_f
 | `TRUST_PROXY` | `loopback` | ถ้ามี reverse proxy ข้างหน้า ให้เพิ่ม address ของ proxy ด้วย (เช่น `loopback, 10.0.0.0/8`) เพื่อให้ IP ใน log และ rate limit ถูกต้อง |
 | `LOG_LEVEL` / `LOG_RETENTION_DAYS` | `info` / `14` | ระดับ log ที่ console และจำนวนวันที่เก็บไฟล์ log |
 | `RUN_DB_INDEXES` / `RUN_MIGRATIONS` | `true` | ตั้ง `false` ถ้าขั้น deploy อื่นทำให้แล้ว |
+| `BACKUP_AGENT` / `BACKUP_AGENT_URL` / `BACKUP_AGENT_TOKEN` | (ว่าง) / (ว่าง) / สุ่มให้ | backup agent (หน้า "สำรองข้อมูล"): `embedded` = ทำงานใน container นี้ (mount `backup.env` ที่ `/etc/testpulse-backup/backup.env` และ `docker-data/backup-agent` ที่ `/var/lib/testpulse-backup`), URL ตั้งให้เอง; container แยก (`command: agent`) ตั้ง URL เป็นของ container นั้น token ต้องตรงกับใน `backup.env` ดู [deploy/README.md](deploy/README.md) ข้อ 8 |
 
 ค่ากลางอื่น ๆ (TTL ของ token, rate limit, BASE_PATH ฯลฯ) อยู่ใน `backend/.env` และแม่แบบของ `.env.prod` อยู่ใน `backend/env-example`
 
@@ -169,6 +170,8 @@ container อ่านค่าจากสองไฟล์ผ่าน `env_f
 - รอบต่อไปทำแบบเดียวกัน (v2 → v3) ชื่อ key เป็นตัวอักษรหรือตัวเลขอะไรก็ได้ (`ENCRYPTION_KEY_<ID>` คู่กับ `ENCRYPTION_CURRENT_KEY_ID=<id>` ไม่สนตัวพิมพ์เล็กใหญ่) แต่ละ key ต้องเป็น hex 64 ตัว
 
 ### สำรองและกู้คืนข้อมูล
+
+> **backup agent:** การสำรอง ตรวจ และซ้อมกู้ตามเวลา พร้อมแจ้งเตือนทางอีเมล / Teams / Uptime Kuma ทำจากหน้า **ผู้ดูแลระบบ > สำรองข้อมูล** ได้ เมื่อเปิด `BACKUP_AGENT` (ดูตาราง env และ [deploy/README.md](deploy/README.md) ข้อ 8) agent ใช้สคริปต์ชุดเดียวกับข้างล่าง ใช้แทน cron ส่วนการกู้ทับระบบจริงและการกู้บนเครื่องใหม่ยังทำด้วยคำสั่งข้างล่าง
 
 `scripts/backup.sh` สำรองฐานข้อมูลและไฟล์อัปโหลดไปเก็บใน MinIO / S3 ใน bucket ที่ล็อกไว้ ไม่มีใครลบ backup ได้ก่อนครบอายุ (ค่าเริ่มต้น 14 วัน) แล้ว mirror ไปอีกเครื่อง (off-site) `scripts/restore.sh` ใช้กู้คืน และ `scripts/verify.sh` ใช้ตรวจว่า backup ครบและกู้ได้จริง ทุกตัวรันในโฟลเดอร์ deploy และใช้แค่ Docker บน server (`mongodump`, `mongorestore`, `mongosh` และ `mc` รันใน container)
 

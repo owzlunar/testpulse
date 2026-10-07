@@ -1,5 +1,6 @@
-# The off-site machine: a MinIO the prod server's backup.sh mirrors to, behind nginx with the wildcard
-# certificate. Only 443 is published, and nginx.conf lets in only the prod server's IP.
+# The off-site machine: a MinIO the prod server's backup.sh mirrors to, and Uptime Kuma (the outside
+# watchdog: alarms when the prod's backups go quiet or the web app is down), behind nginx with the
+# wildcard certificate. Only 443 is published, and nginx.conf lets in only the prod server's IP.
 #
 #   .env              MINIO_ROOT_USER / MINIO_ROOT_PASSWORD (chmod 600), the prod's OFFSITE_S3_* in backup.env
 #   nginx.conf        the host name and the prod server's IP
@@ -38,6 +39,17 @@ services:
       start_period: 5s
     logging: *logging
 
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: uptime-kuma
+    restart: unless-stopped
+    ports:
+      # its admin pages, this machine only (ssh -L 3001:127.0.0.1:3001 <mirror>); pushes come through nginx
+      - '127.0.0.1:3001:3001'
+    volumes:
+      - ./uptime-kuma:/app/data
+    logging: *logging
+
   proxy:
     image: nginx:alpine
     container_name: mirror-proxy
@@ -48,5 +60,6 @@ services:
       - ./certs:/etc/nginx/certs:ro
     depends_on:
       - minio-mirror
+      - uptime-kuma
     restart: unless-stopped
     logging: *logging
