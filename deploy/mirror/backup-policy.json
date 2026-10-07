@@ -1,0 +1,15 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["s3:GetBucketLocation", "s3:ListBucket", "s3:ListBucketVersions", "s3:GetBucketVersioning", "s3:GetBucketObjectLockConfiguration", "s3:GetLifecycleConfiguration"],
+      "Resource": ["arn:aws:s3:::testpulse-backups", "arn:aws:s3:::testpulse"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:GetObjectVersion", "s3:PutObject", "s3:GetObjectRetention", "s3:GetObjectLegalHold"],
+      "Resource": ["arn:aws:s3:::testpulse-backups/*", "arn:aws:s3:::testpulse/*"]
+    }
+  ]
+}
